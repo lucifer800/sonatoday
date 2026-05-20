@@ -1,0 +1,17 @@
+node_modules
+backend/node_modules
+backend/goldrates.db
+backend/goldrates.db-*
+backend/uploads
+.env
+.env.*
+.git
+.gitignore
+_archive
+*.md
+.DS_Store
+.vscode
+.idea
+render.yaml
+vercel.json
+railway.json
