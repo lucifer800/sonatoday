@@ -22,7 +22,7 @@ const sqlite3                                 = require('sqlite3').verbose();
 const { sendPriceAlert, sendConfirmationEmail } = require('./mailer');
 const { getGold22KPrice, getGold24KPrice }    = require('./goldPriceApi');
 
-const db = new sqlite3.Database('./goldrates.db');
+const db = new sqlite3.Database(require('./dbPath'));
 
 // ── The main checker function ─────────────────────────────────
 async function checkAlerts() {

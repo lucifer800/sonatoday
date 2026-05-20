@@ -114,9 +114,10 @@ app.use(express.static(path.join(__dirname, '..'), {
 }));
 
 // ============ DATABASE SETUP ============
-const db = new sqlite3.Database('./goldrates.db', (err) => {
+const DB_PATH = require('./dbPath');
+const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) console.error(err);
-  else console.log('✓ Connected to SQLite database');
+  else console.log(`✓ Connected to SQLite database at ${DB_PATH}`);
 });
 
 // Initialize tables

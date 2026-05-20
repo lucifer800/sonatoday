@@ -1,0 +1,37 @@
+# Render Blueprint — auto-deploys this repo as a single web service.
+# Render reads this file from the repo root on every git push.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: sonatoday
+    runtime: node
+    plan: free                  # 750 hrs/month, sleeps after 15 min idle
+    region: singapore           # closest free region for India
+    buildCommand: cd backend && npm install
+    # Seed runs every boot (it's idempotent — INSERT OR REPLACE).
+    # Server then starts and serves both the frontend and the API on $PORT.
+    startCommand: cd backend && node seedJewellers.js && node server.js
+    healthCheckPath: /api/live-price
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      # SQLite lives on the persistent disk so it survives redeploys.
+      - key: DATABASE_PATH
+        value: /var/data/goldrates.db
+      # Secrets — set the actual values in Render dashboard, not here.
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: GOLDAPI_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true     # Render generates a long random string once
+      - key: SITE_URL
+        sync: false             # set this to your final render.com URL
+    disk:
+      name: sonatoday-data
+      mountPath: /var/data      # SQLite DB + any future persistent files
+      sizeGB: 1                 # 1 GB free on Render's free tier

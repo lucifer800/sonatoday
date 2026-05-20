@@ -20,7 +20,7 @@ const sqlite3       = require('sqlite3').verbose();
 const path          = require('path');
 const { getPrices } = require('./goldPriceApi');
 
-const db = new sqlite3.Database(path.join(__dirname, 'goldrates.db'));
+const db = new sqlite3.Database(require('./dbPath'));
 
 const CACHE_MS = 15 * 60 * 1000;
 const cache    = new Map(); // key → { png, ts }
