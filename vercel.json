@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "buildCommand": null,
+  "outputDirectory": ".",
+  "rewrites": [
+    {
+      "source": "/jeweller.html",
+      "destination": "https://YOUR-RAILWAY-URL.up.railway.app/jeweller.html"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "https://YOUR-RAILWAY-URL.up.railway.app/api/$1"
+    }
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- backend"
+}

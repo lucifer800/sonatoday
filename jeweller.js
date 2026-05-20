@@ -4,7 +4,7 @@
    renders rates, reviews, and a price-alert form.
    ========================================================= */
 
-const API_BASE = 'http://127.0.0.1:4000';
+const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
 
 function fmt(n)   { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function stars(n) {

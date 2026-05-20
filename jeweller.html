@@ -9,6 +9,16 @@
   <meta name="theme-color" content="#D4AF37">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
+
+  <!-- Open Graph fallback. Express middleware rewrites these per ?id=N. -->
+  <meta property="og:type"         content="website">
+  <meta property="og:site_name"    content="Ahmedabad Gold Rates">
+  <meta property="og:title"        content="Ahmedabad Gold Rates — Jeweller Profile">
+  <meta property="og:description"  content="Today's verified rates, working hours, location and reviews.">
+  <meta property="og:image"        content="/api/og-image.png">
+  <meta property="og:image:width"  content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card"        content="summary_large_image">
   <style>
     .jp-wrap { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
     .jp-back { color: var(--acc); text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1rem; }
@@ -61,6 +71,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/config.js"></script>
   <script src="data.js"></script>
   <script src="jeweller.js"></script>
 </body>

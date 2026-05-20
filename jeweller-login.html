@@ -52,8 +52,9 @@
     </div>
   </div>
 
+  <script src="/config.js"></script>
   <script>
-    const API_BASE = 'http://127.0.0.1:4000';
+    const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
 
     // If already logged in, jump straight to the dashboard
     if (localStorage.getItem('jwl_token')) {

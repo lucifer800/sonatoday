@@ -13,6 +13,8 @@ const { startAlertChecker }             = require('./alertChecker');
 const { sendPriceAlert, sendConfirmationEmail } = require('./mailer');
 const { getPrices }                     = require('./goldPriceApi');
 const { startRateScraper, scrapeAll }   = require('./rateScraper');
+const { getHomePng, getJewellerPng }    = require('./ogImage');
+const fs                                = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -26,6 +28,77 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.static('uploads'));
+
+// ── Open Graph: dynamic share-preview images ──────────────────
+// /api/og-image.png         → homepage card with today's live MCX rate
+// /api/og-image/:id.png     → per-jeweller card with their saved rate
+app.get('/api/og-image.png', async (req, res) => {
+  try {
+    const png = await getHomePng();
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=900'); // 15 min
+    res.send(png);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/og-image/:id.png', async (req, res) => {
+  try {
+    const png = await getJewellerPng(parseInt(req.params.id, 10));
+    res.set('Content-Type', 'image/png');
+    res.set('Cache-Control', 'public, max-age=900');
+    res.send(png);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Open Graph: rewrite jeweller.html meta tags per ?id=N ─────
+// WhatsApp/FB crawlers don't run JS, so we have to inject the
+// per-jeweller og:title / og:description / og:image at request
+// time — by reading the static file, swapping placeholders, and
+// serving the modified HTML. Static handler below never sees it.
+app.get('/jeweller.html', (req, res, next) => {
+  const id = parseInt(req.query.id, 10);
+  if (!Number.isFinite(id)) return next();
+  fs.readFile(path.join(__dirname, '..', 'jeweller.html'), 'utf8', (err, html) => {
+    if (err) return next();
+    db.get(
+      'SELECT name, area, r22g, r24g FROM jewellers WHERE id = ?',
+      [id],
+      (e, j) => {
+        if (e || !j) return next();
+        const origin = `${req.protocol}://${req.get('host')}`;
+        const title  = `${j.name} — Ahmedabad gold rate today`;
+        const desc   = `Today's 22K rate: ₹${Math.round(j.r22g).toLocaleString('en-IN')}/g at ${j.name}, ${j.area}. Compare with 11 other verified Ahmedabad jewellers.`;
+        const image  = `${origin}/api/og-image/${id}.png`;
+        const url    = `${origin}/jeweller.html?id=${id}`;
+
+        // Strip any existing og:* / twitter:* / title and inject ours
+        let out = html
+          .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
+          .replace(/\s*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*|description)"[^>]*>/g, '');
+
+        const inject = `
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Ahmedabad Gold Rates">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${desc}">
+    <meta property="og:url" content="${url}">
+    <meta property="og:image" content="${image}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${desc}">
+    <meta name="twitter:image" content="${image}">
+    <meta name="description" content="${desc}">`;
+        out = out.replace('</head>', `${inject}\n  </head>`);
+
+        res.set('Content-Type', 'text/html; charset=utf-8');
+        res.set('Cache-Control', 'no-store');
+        res.send(out);
+      }
+    );
+  });
+});
 
 // ── Serve the frontend (index.html, app.js, data.js, etc.) from
 // the parent directory so users can hit http://localhost:4000/

@@ -4,9 +4,9 @@
    Verified Review System: Photo Required → Pending → Approved
    ========================================================= */
 
-// Auto-detect backend URL so it works whether you open via Live Server
-// (127.0.0.1:5500), file://, or any other origin.
-const API_BASE = 'http://127.0.0.1:4000';
+// API_BASE comes from /config.js — loaded by every HTML page before this script.
+// Local dev → http://127.0.0.1:4000   |   Production → your Railway domain.
+const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
 
 /* Jeweller dataset (J) and silver scaled dataset (JS) are defined in data.js,
    which must be loaded before this file in index.html. */
