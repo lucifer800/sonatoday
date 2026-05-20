@@ -1,0 +1,16 @@
+{
+  "name": "goldrates-frontend-build",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm run minify:css && npm run minify:js",
+    "minify:css": "npx csso style.css -o style.min.css && npx csso features.css -o features.min.css",
+    "minify:js": "npx uglify-js app.js -o app.min.js && npx uglify-js features.js -o features.min.js",
+    "optimize": "npm run build && echo '✓ CSS & JS minified!'",
+    "serve": "npx http-server -p 8000"
+  },
+  "devDependencies": {
+    "csso-cli": "^3.0.0",
+    "uglify-js": "^3.17.4",
+    "http-server": "^14.1.1"
+  }
+}

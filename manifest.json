@@ -1,0 +1,33 @@
+{
+  "name": "Ahmedabad Gold & Silver Rates",
+  "short_name": "Gold Rates",
+  "description": "Live gold & silver rates from Ahmedabad's most trusted jewellers. Compare, set alerts, and shop smart.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060D18",
+  "theme_color": "#D4AF37",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x800",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Live gold rate dashboard on desktop"
+    },
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "540x900",
+      "type": "image/png",
+      "label": "Live gold rate dashboard on mobile"
+    }
+  ],
+  "categories": ["finance", "shopping", "utilities"]
+}

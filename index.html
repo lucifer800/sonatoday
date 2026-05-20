@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#D4AF37">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gold Rates">
+    <link rel="apple-touch-icon" href="/icon.svg">
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+
+    <title>Ahmedabad Gold & Silver Rates — Live</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    <!-- features.css removed — style.css covers everything -->
+</head>
+<body>
+
+    <div class="view active" id="view-public">
+
+        <div class="metal-bar" id="metalBar">
+            <span class="m-lbl m-gold" id="lblGold">Gold</span>
+            <div class="toggle-wrap" onclick="toggleMetal()" title="Switch Gold / Silver">
+                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </div>
+            <span class="m-lbl m-silver" id="lblSilver" style="opacity:.4">Silver</span>
+            <span class="m-mode" id="mMode">Viewing: Gold Rates</span>
+        </div>
+
+        <div class="ticker-bar">
+            <div class="ticker-lbl" id="tickerLbl">MCX Live</div>
+            <div class="ticker-track" id="tickerTrack"></div>
+        </div>
+
+        <header>
+            <div class="hdr">
+                <div class="logo" onclick="showPublic()">
+                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none">
+                        <rect width="33" height="33" fill="#0A1628"/>
+                        <polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4" id="hexStroke"/>
+                        <polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/>
+                        <line x1="16.5" y1="3" x2="16.5" y2="30" stroke="#D4AF37" stroke-width=".4" opacity=".38"/>
+                        <line x1="3" y1="16.5" x2="30" y2="16.5" stroke="#D4AF37" stroke-width=".4" opacity=".38"/>
+                    </svg>
+                    <div class="logo-txt">Ahmedabad <span class="logo-sub" id="metalWord">Gold Rates · Live</span></div>
+                </div>
+                <div class="hdr-r">
+                    <div class="live-dot"></div>
+                    <span class="live-lbl">Live</span>
+                    <span class="hdr-date" id="hdrDate"></span>
+                    <button class="btn btn-sm" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark mode" style="margin-right:.5rem">🌙</button>
+                    <a class="btn btn-sm" href="my-alerts.html" style="text-decoration:none;margin-right:.5rem">🔔 My Alerts</a>
+                    <a class="btn btn-sm" href="jeweller-login.html" style="text-decoration:none">Jeweller Login</a>
+                </div>
+            </div>
+        </header>
+
+        <div class="hero">
+            <div class="hero-inner">
+                <div>
+                    <div id="greetingMsg" style="font-size: 14px; color: var(--acc-light); margin-bottom: 10px; font-weight: 500;"></div>
+<div class="mcx-lbl" id="mcxLbl">MCX Gold Base Rate (10g)</div>
+                    <div class="mcx-lbl" id="mcxLbl">MCX Gold Base Rate (10g)</div>
+                    <div style="display:flex;align-items:baseline;gap:.55rem">
+                        <div class="mcx-price gold-shimmer" id="mcxPrice">₹…</div>
+                        <span class="mcx-chg" id="mcxChg">● fetching live</span>
+                    </div>
+                </div>
+                <div class="stat-cards">
+                    <div class="sc"><div class="sc-val" id="stLow">₹71,800</div><div class="sc-lbl">Cheapest / 10g</div></div>
+                    <div class="sc"><div class="sc-val" id="stHigh">₹72,250</div><div class="sc-lbl">Highest / 10g</div></div>
+                    <div class="sc"><div class="sc-val" id="stAvg">₹72,030</div><div class="sc-lbl">Average / 10g</div></div>
+                    <div class="sc"><div class="sc-val">15</div><div class="sc-lbl">Jewellers</div></div>
+                </div>
+                <button class="refresh-btn" onclick="refreshRates()"><span class="spin" id="spinIcon">↻</span> Refresh</button>
+            </div>
+        </div>
+
+        <div id="annoBanner" class="anno"></div>
+
+        <div class="ctrls">
+            <div class="srch-wrap">
+                <span class="si">⌕</span>
+                <input type="text" id="srchInput" placeholder="Search jeweller or symbol…" oninput="renderTable()">
+            </div>
+            <div class="sort-btns">
+                <button class="sb active" onclick="setSort(this,'smart')" title="Cheapest first, then most trusted within same price range">⚡ Smart Sort</button>
+                <button class="sb" onclick="setSort(this,'cheap')">💰 Cheapest First</button>
+                <button class="sb" onclick="setSort(this,'trust')">⭐ Most Trusted</button>
+                <button class="sb" onclick="setSort(this,'pricey')">↑ Priciest</button>
+                <button class="sb" onclick="setSort(this,'making')">Making ↑</button>
+            </div>
+        </div>
+
+        <div class="filter-bar">
+            <label class="fb-field">
+                <span class="fb-lbl">Area</span>
+                <select id="fltArea" onchange="renderTable()">
+                    <option value="">All areas</option>
+                </select>
+            </label>
+            <label class="fb-field">
+                <span class="fb-lbl">Making</span>
+                <select id="fltMaking" onchange="renderTable()">
+                    <option value="">Any</option>
+                    <option value="low">Low (≤ 9%)</option>
+                    <option value="med">Medium (10–11%)</option>
+                    <option value="high">High (≥ 12%)</option>
+                </select>
+            </label>
+            <label class="fb-field">
+                <span class="fb-lbl">Max 22K ₹/g</span>
+                <input id="fltMaxPrice" type="number" placeholder="e.g. 7200" oninput="renderTable()" />
+            </label>
+            <label class="fb-field fb-check">
+                <input id="fltTrusted" type="checkbox" onchange="renderTable()" />
+                <span>Verified reviews only</span>
+            </label>
+            <button class="sb" onclick="clearFilters()" style="margin-left:auto">✕ Clear</button>
+            <span id="fltCount" class="fb-count"></span>
+        </div>
+
+        <div class="tbl-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Jeweller</th>
+                        <th>Symbol</th>
+                        <th>22K / gram</th>
+                        <th>22K / 10g</th>
+                        <th>24K / gram</th>
+                        <th>24K / 10g</th>
+                        <th>Making</th>
+                        <th style="color:var(--acc)">Trust Score ★</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody id="rateBody"></tbody>
+            </table>
+        </div>
+
+        <!-- ── PRICE ALERT SECTION ─────────────────────────────── -->
+        <div class="alert-section">
+            <div class="alert-section-inner">
+                <div class="alert-left">
+                    <div class="alert-icon">🔔</div>
+                    <div>
+                        <div class="alert-heading">Price Drop Alert</div>
+                        <div class="alert-sub">We'll email you the moment 22K gold drops to your target price</div>
+                    </div>
+                </div>
+                <div class="alert-form-row" id="alertFormRow">
+                    <select class="alert-input" id="alertPurity" style="max-width:100px">
+                        <option value="22k">22K</option>
+                        <option value="24k">24K</option>
+                    </select>
+                    <div style="position:relative;display:flex;align-items:center">
+                        <span style="position:absolute;left:.85rem;color:var(--acc);font-weight:700;font-size:14px">₹</span>
+                        <input  class="alert-input" id="alertPrice" type="number"
+                                placeholder="Target price / gram  e.g. 7150"
+                                style="padding-left:2rem;min-width:220px">
+                    </div>
+                    <input  class="alert-input" id="alertEmail" type="email"
+                            placeholder="your@email.com">
+                    <button class="alert-btn" onclick="setAlert()">Notify Me →</button>
+                </div>
+                <div class="alert-msg" id="alertMsg"></div>
+            </div>
+        </div>
+
+        <div class="foot">
+            ⚠ Rates are indicative. Confirm with your jeweller before purchase. &nbsp;|&nbsp;
+            <a onclick="showLogin()" style="cursor:pointer; color:var(--acc);">Jeweller? Update your rates →</a>
+        </div>
+    </div>
+
+    <div class="view" id="view-login">
+        <div class="modal-bg">
+            <div class="modal-box">
+                <div class="modal-logo">Ahmedabad <span>Gold &amp; Silver</span> Rates</div>
+                <div class="modal-sub">Jeweller &amp; Admin Portal — all credentials listed below</div>
+                <div class="role-tabs">
+                    <button class="rtab active" onclick="setRole('jeweller',this)">Jeweller Login</button>
+                    <button class="rtab" onclick="setRole('admin',this)">Admin Login</button>
+                </div>
+                <div class="creds-box">
+                    <table class="creds-tbl">
+                        <thead><tr><th>Role / Symbol</th><th>Email</th><th>Password</th></tr></thead>
+                        <tbody id="credsRows"></tbody>
+                    </table>
+                </div>
+                <div class="form-group" style="margin-bottom:.85rem">
+                    <label class="flbl">Email / Username</label>
+                    <input class="finp" id="loginEmail" type="email" placeholder="your@email.com">
+                </div>
+                <div class="form-group" style="margin-bottom:.85rem">
+                    <label class="flbl">Password</label>
+                    <input class="finp" id="loginPass" type="password" placeholder="••••••••">
+                </div>
+                <div class="login-err" id="loginErr">Incorrect credentials. Check the table above.</div>
+                <button class="btn btn-acc" style="width:100%;padding:.72rem" onclick="doLogin()">Sign In</button>
+                <div class="back-lnk" onclick="showPublic()">← Back to public rates</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="view" id="view-jeweller">
+        <header>
+            <div class="hdr">
+                <div class="logo" onclick="showPublic()">
+                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none"><rect width="33" height="33" fill="#0A1628"/><polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4"/><polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/></svg>
+                    <div class="logo-txt">Jeweller Portal <span class="logo-sub">Ahmedabad Rates</span></div>
+                </div>
+                <div class="hdr-r">
+                    <span class="hdr-date" id="jwlDate"></span>
+                    <button class="btn btn-sm" onclick="showPublic()">← Public</button>
+                    <button class="btn btn-sm" onclick="showLogin()">Logout</button>
+                </div>
+            </div>
+        </header>
+        <div class="dash-layout">
+            <div class="sidebar">
+                <div class="sb-user">
+                    <div class="sb-avatar" id="jwlAvatar">TQ</div>
+                    <div class="sb-name" id="jwlName">Tanishq</div>
+                    <div class="sb-role" id="jwlRole">Jeweller · TNQ</div>
+                </div>
+                <div class="nav-item active" onclick="showJSec('js-overview',this)">📊 Overview</div>
+                <div class="nav-item" onclick="showJSec('js-update',this)">✏️ Update Rates</div>
+                <div class="nav-item" onclick="showJSec('js-history',this)">📋 History</div>
+                <div class="nav-item" onclick="showJSec('js-profile',this)">👤 Profile</div>
+                <div class="nav-sep"></div>
+                <div class="nav-item" onclick="showPublic()">🔗 Public Page</div>
+            </div>
+            <div class="dash-content">
+                <div class="dash-sec active" id="js-overview">
+                    <div class="dash-title" id="jwlWelcome">Welcome back</div>
+                    <div class="dash-sub" id="jwlUpdated">—</div>
+                    <div class="cards-row">
+                        <div class="dc"><div class="dc-val" id="ov22g">—</div><div class="dc-lbl">22K / gram</div></div>
+                        <div class="dc"><div class="dc-val" id="ov22t">—</div><div class="dc-lbl">22K / 10g</div></div>
+                        <div class="dc"><div class="dc-val" id="ov24g">—</div><div class="dc-lbl">24K / gram</div></div>
+                        <div class="dc"><div class="dc-val" id="ov24t">—</div><div class="dc-lbl">24K / 10g</div></div>
+                        <div class="dc"><div class="dc-val" id="ovMk">—</div><div class="dc-lbl">Making %</div></div>
+                        <div class="dc"><div class="dc-val" id="ovTrust">—</div><div class="dc-lbl">Trust Score</div></div>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:.6rem">Your market rank (22K/10g)</div>
+                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:.95rem;max-width:460px"><div id="rankViz">—</div></div>
+                </div>
+                <div class="dash-sec" id="js-update">
+                    <div class="dash-title">Update Rates</div>
+                    <div class="dash-sub">Publishes immediately to the public table.</div>
+                    <div class="suc-msg" id="updSuc">✓ Rates published successfully.</div>
+                    <div class="upd-form">
+                        <div class="f-row">
+                            <div><label class="flbl">22K / gram (₹)</label><input class="finp" id="f22g" type="number" oninput="autoC('22')"><div class="f-note">10g auto-fills</div></div>
+                            <div><label class="flbl">22K / 10g (₹)</label><input class="finp" id="f22t" type="number" readonly style="opacity:.5"></div>
+                        </div>
+                        <div class="f-row">
+                            <div><label class="flbl">24K / gram (₹)</label><input class="finp" id="f24g" type="number" oninput="autoC('24')"><div class="f-note">10g auto-fills</div></div>
+                            <div><label class="flbl">24K / 10g (₹)</label><input class="finp" id="f24t" type="number" readonly style="opacity:.5"></div>
+                        </div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Making Charge (%)</label><input class="finp" id="fMk" type="number" style="max-width:130px"></div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Optional Note</label><input class="finp" id="fNote" type="text" placeholder="e.g. Festival offer — 5% off making today"></div>
+                        <button class="btn btn-acc" onclick="submitUpdate()">Publish Rates</button>
+                    </div>
+                </div>
+                <div class="dash-sec" id="js-history">
+                    <div class="dash-title">Rate History</div><div class="dash-sub">Last 30 days</div>
+                    <div style="overflow-x:auto"><table style="min-width:460px">
+                        <thead><tr><th>Date</th><th>22K/10g</th><th>24K/10g</th><th>Making</th><th>Time</th><th>Note</th></tr></thead>
+                        <tbody id="jwlHistBody"></tbody>
+                    </table></div>
+                </div>
+                <div class="dash-sec" id="js-profile">
+                    <div class="dash-title">My Profile</div><div class="dash-sub">Contact information</div>
+                    <div class="upd-form">
+                        <div style="margin-bottom:.85rem"><label class="flbl">Jeweller Name</label><input class="finp" id="pName"></div>
+                        <div class="f-row">
+                            <div><label class="flbl">Email</label><input class="finp" id="pEmail"></div>
+                            <div><label class="flbl">Phone</label><input class="finp" id="pPhone"></div>
+                        </div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Area / Location</label><input class="finp" id="pArea"></div>
+                        <button class="btn btn-acc" onclick="alert('Profile saved!')">Save Profile</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="view" id="view-admin">
+        <header>
+            <div class="hdr">
+                <div class="logo" onclick="showPublic()">
+                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none"><rect width="33" height="33" fill="#0A1628"/><polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4"/><polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/></svg>
+                    <div class="logo-txt">Admin Panel <span class="logo-sub">Ahmedabad Rates</span></div>
+                </div>
+                <div class="hdr-r">
+                    <button class="btn btn-sm" onclick="showPublic()">← Public</button>
+                    <button class="btn btn-sm" onclick="showLogin()">Logout</button>
+                </div>
+            </div>
+        </header>
+        <div class="dash-layout">
+            <div class="sidebar">
+                <div class="sb-user">
+                    <div class="sb-avatar">AD</div>
+                    <div class="sb-name">Administrator</div>
+                    <div class="sb-role">Full Access</div>
+                </div>
+                <div class="nav-item active" onclick="showASec('as-overview',this)">📊 Overview</div>
+                <div class="nav-item" onclick="showASec('as-jewellers',this)">🏪 Jewellers</div>
+                <div class="nav-item" onclick="showASec('as-override',this)">💰 Override Rates</div>
+                <div class="nav-item" onclick="showASec('as-history',this)">📋 History</div>
+                <div class="nav-item" onclick="showASec('as-announce',this)">📢 Announcements</div>
+                <div class="nav-item" onclick="showASec('as-reviews',this)">📸 Review Approvals <span id="pendingBadge" style="background:#ef4444;color:#fff;border-radius:10px;font-size:10px;padding:.1rem .45rem;margin-left:.3rem;font-weight:700"></span></div>
+                <div class="nav-item" onclick="showASec('as-creds',this)">🔑 Login Credentials</div>
+                <div class="nav-item" onclick="showASec('as-export',this)">⬇ Export</div>
+                <div class="nav-sep"></div>
+                <div class="nav-item" onclick="showPublic()">🔗 Public Page</div>
+            </div>
+            <div class="dash-content">
+                <div class="dash-sec active" id="as-overview">
+                    <div class="dash-title">Platform Overview</div>
+                    <div class="dash-sub" id="admDate">—</div>
+                    <div class="cards-row">
+                        <div class="dc"><div class="dc-val">15</div><div class="dc-lbl">Jewellers</div></div>
+                        <div class="dc"><div class="dc-val">12</div><div class="dc-lbl">Updated Today</div></div>
+                        <div class="dc"><div class="dc-val" id="admLow">—</div><div class="dc-lbl">Cheapest 22K</div></div>
+                        <div class="dc"><div class="dc-val" id="admHigh">—</div><div class="dc-lbl">Highest 22K</div></div>
+                        <div class="dc"><div class="dc-val" style="color:var(--green)">Active</div><div class="dc-lbl">System</div></div>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted);margin-bottom:.65rem">Rate spread (cheapest → priciest)</div>
+                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1rem;max-width:600px"><div id="spreadViz"></div></div>
+                </div>
+                <div class="dash-sec" id="as-jewellers">
+                    <div class="dash-title">Manage Jewellers</div><div class="dash-sub">All registered jewellers</div>
+                    <button class="btn btn-acc btn-sm" style="margin-bottom:1rem" onclick="alert('Add Jeweller — connect to backend')">+ Add Jeweller</button>
+                    <div class="jwl-grid" id="jwlGrid"></div>
+                </div>
+                <div class="dash-sec" id="as-override">
+                    <div class="dash-title">Override Rates</div><div class="dash-sub">Manually set any jeweller's rates</div>
+                    <div class="upd-form">
+                    <div style="margin-bottom:.85rem"><label class="flbl">Select Jeweller</label>
+                        <select class="finp" id="orJwl" style="background:var(--navy3);color:var(--white)"><option value="">— Choose —</option></select>
+                    </div>
+                    <div class="f-row">
+                        <div><label class="flbl">22K / gram</label><input class="finp" id="or22g" type="number"></div>
+                        <div><label class="flbl">24K / gram</label><input class="finp" id="or24g" type="number"></div>
+                    </div>
+                    <div style="margin-bottom:.85rem"><label class="flbl">Making (%)</label><input class="finp" id="orMk" type="number" style="max-width:115px"></div>
+                    <div class="suc-msg" id="orSuc">✓ Rates overridden.</div>
+                    <button class="btn btn-acc" onclick="doOverride()">Override &amp; Publish</button>
+                    </div>
+                </div>
+                 <div class="dash-sec" id="as-history">
+                    <div class="dash-title">Rate History</div><div class="dash-sub">All updates across all jewellers</div>
+                    <div style="overflow-x:auto"><table style="min-width:560px">
+                    <thead><tr><th>Time</th><th>Jeweller</th><th>22K/10g</th><th>24K/10g</th><th>Making</th><th>By</th></tr></thead>
+                    <tbody id="admHistBody"></tbody>
+                    </table></div>
+                </div>
+                <div class="dash-sec" id="as-announce">
+                    <div class="dash-title">Announcements</div><div class="dash-sub">Post a banner on the public page</div>
+                    <div class="ann-form">
+                    <div style="margin-bottom:.85rem"><label class="flbl">Message</label>
+                        <textarea id="annoTxt" placeholder="e.g. Market closed today. Rates may not be updated."></textarea>
+                    </div>
+                    <div style="display:flex;gap:.65rem">
+                        <button class="btn btn-acc" onclick="postAnno()">Post</button>
+                        <button class="btn btn-sm" onclick="clearAnno()">Clear</button>
+                    </div>
+                    </div>
+                    <div style="font-size:11px;color:var(--muted)">Current: <span id="curAnno" style="color:var(--acc3)">None</span></div>
+                </div>
+
+                <div class="dash-sec" id="as-reviews">
+                    <div class="dash-title">📸 Review Approvals</div>
+                    <div class="dash-sub">Only approve reviews that have a valid purchase photo attached. Reject spam or fake ones.</div>
+                    <div id="pendingRevContainer" style="max-width:640px"></div>
+                </div>
+
+                <div class="dash-sec" id="as-creds">
+                    <div class="dash-title">Login Credentials</div>
+                    <div class="dash-sub">All accounts on the platform — admin and jewellers</div>
+                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1.3rem;margin-bottom:1.3rem">
+                    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem">Admin Account</div>
+                    <table class="ct" style="width:100%">
+                        <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Role</th><th>Status</th></tr></thead>
+                        <tbody>
+                        <tr>
+                            <td>Administrator</td>
+                            <td class="mono">admin@ahm.com</td>
+                            <td class="mono">admin123</td>
+                            <td><span class="tag-on">Admin</span></td>
+                            <td><span class="tag-on">Active</span></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1.3rem">
+                    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem">Jeweller Accounts (15)</div>
+                    <div style="overflow-x:auto">
+                        <table class="ct" style="min-width:640px">
+                        <thead><tr><th>#</th><th>Jeweller</th><th>Symbol</th><th>Email</th><th>Password</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody id="credsAdmBody"></tbody>
+                        </table>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="dash-sec" id="as-export">
+                    <div class="dash-title">Export</div><div class="dash-sub">Download current data as CSV</div>
+                    <div style="display:flex;gap:.7rem;margin-bottom:1rem">
+                    <button class="btn btn-acc" onclick="exportCSV()">⬇ Today's Rates (CSV)</button>
+                    <button class="btn btn-sm" onclick="alert('Historical — connect to backend')">⬇ Historical</button>
+                    </div>
+                    <div style="font-size:12px;color:var(--muted)">Includes jeweller, symbol, 22K/g, 22K/10g, 24K/g, 24K/10g, making%, trust score, last updated.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="rm-overlay" id="reviewModal">
+        <div class="rm-box">
+            <div class="rm-head">
+                <div class="rm-title" id="rmTitle">Reviews</div>
+                <button class="rm-close" onclick="closeRev()">✕</button>
+            </div>
+            <div class="rm-body">
+                <div class="rev-list" id="revList"></div>
+                <div class="add-rev">
+                    <div class="add-rev-title">Write a Verified Review</div>
+                    <div class="notice-box">
+                        📸 Upload a <strong style="color:var(--acc3)">photo of your purchase or receipt</strong> to unlock the review form. This ensures only real buyers can review.
+                    </div>
+                    <div class="upload-zone" onclick="document.getElementById('photoUp').click()">
+                        <input type="file" id="photoUp" accept="image/*" onchange="handlePhoto(event)" style="display:none">
+                        <div class="up-icon">📷</div>
+                        <div class="up-txt" id="photoUpLabel">Tap to upload purchase photo or receipt</div>
+                        <div class="up-req">📌 Required — unlocks the review form · Max 8MB</div>
+                    </div>
+                    <img id="upPreview" alt="Preview">
+                    <div id="revForm" style="display:none">
+                        <div style="font-size:11px;color:var(--green);margin-bottom:.85rem">✓ Photo uploaded — review form unlocked</div>
+                        <div style="margin-bottom:.65rem">
+                            <label class="flbl">Your Rating</label>
+                            <div class="star-pick" id="starPick">
+                                <span onclick="setStar(1)">★</span><span onclick="setStar(2)">★</span>
+                                <span onclick="setStar(3)">★</span><span onclick="setStar(4)">★</span><span onclick="setStar(5)">★</span>
+                            </div>
+                        </div>
+                        <div style="margin-bottom:.65rem"><label class="flbl">Your Name</label><input class="finp" id="rName" placeholder="e.g. Priya S."></div>
+                        <div style="margin-bottom:.65rem">
+                            <label class="flbl">Your Review</label>
+                            <textarea class="finp" id="rText" rows="3" style="resize:vertical" placeholder="Share your experience…"></textarea>
+                        </div>
+                        <div class="err-msg" id="starErr">Please select a star rating first.</div>
+                        <button class="btn btn-acc" onclick="submitRev()">Submit Review</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js?v=3"></script>
+    <script src="app.js?v=3"></script>
+    <script>
+      // Register service worker for PWA install + offline support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW register failed:', err));
+        });
+      }
+    </script>
+    <!-- features.js and modals-new.html removed — all logic now lives in app.js -->
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Jeweller Dashboard — Ahmedabad Gold & Silver Rates</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .dash-wrap   { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
+    .dash-bar    { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: .75rem; }
+    .dash-bar h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+    .dash-bar .sub { color: var(--muted); font-size: 13px; }
+    .dash-bar button { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: .5rem .9rem; border-radius: 8px; font-size: 12px; cursor: pointer; }
+    .dash-bar button:hover { background: rgba(239,68,68,0.18); }
+    .dash-card   { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .dash-title  { font-size: 1.1rem; font-weight: 600; margin: 0 0 1rem; }
+    .dash-grid   { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+    .dash-stat   { background: rgba(255,255,255,0.02); border: 1px solid var(--acc-border); border-radius: 10px; padding: 1rem; }
+    .dash-stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .dash-stat-val { font-size: 1.5rem; font-weight: 700; color: var(--acc); margin-top: .35rem; }
+    .dash-field  { margin-bottom: 1rem; }
+    .dash-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .5px; }
+    .dash-field input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .7rem .85rem; border-radius: 8px; font-size: 14px; }
+    .dash-field input:focus { outline: none; border-color: var(--acc); }
+    .dash-row    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) { .dash-row { grid-template-columns: 1fr; } }
+    .dash-btn    { background: var(--acc); color: #000; border: 0; padding: .8rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    .dash-btn:hover    { filter: brightness(1.1); }
+    .dash-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .dash-msg    { margin-top: 1rem; padding: .65rem .85rem; border-radius: 8px; font-size: 13px; display: none; }
+    .dash-msg.err { background: rgba(239,68,68,0.1); color: #f87171; display: block; }
+    .dash-msg.ok  { background: rgba(34,197,94,0.1); color: #4ade80; display: block; }
+    .dash-live   { background: rgba(212,175,55,0.06); border: 1px dashed var(--acc-border); border-radius: 10px; padding: .75rem 1rem; font-size: 13px; color: var(--muted); }
+    .dash-live strong { color: var(--acc); }
+  </style>
+</head>
+<body>
+  <div class="dash-wrap">
+    <div class="dash-bar">
+      <div>
+        <h1 id="dashWelcome">Loading…</h1>
+        <div class="sub" id="dashSub"></div>
+      </div>
+      <button id="logoutBtn">Logout</button>
+    </div>
+
+    <div class="dash-card">
+      <h3 class="dash-title">Current rates</h3>
+      <div class="dash-grid" id="dashStats"></div>
+      <div class="dash-live" id="liveCompare" style="margin-top:1rem">Live MCX comparison loading…</div>
+    </div>
+
+    <div class="dash-card">
+      <h3 class="dash-title">Update rates</h3>
+      <form id="rateForm">
+        <div class="dash-row">
+          <div class="dash-field">
+            <label for="r22g">22K · ₹ per gram</label>
+            <input id="r22g" type="number" min="1000" max="50000" required />
+          </div>
+          <div class="dash-field">
+            <label for="r24g">24K · ₹ per gram</label>
+            <input id="r24g" type="number" min="1000" max="50000" required />
+          </div>
+          <div class="dash-field">
+            <label for="making">Making charge %</label>
+            <input id="making" type="number" min="0" max="50" required />
+          </div>
+        </div>
+        <button id="saveBtn" type="submit" class="dash-btn">Save rates</button>
+      </form>
+      <div id="rateMsg" class="dash-msg"></div>
+    </div>
+
+    <div class="dash-card">
+      <h3 class="dash-title">📈 Your price trend</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 .75rem">Last 30 rate updates you've published.</p>
+      <div style="position:relative;height:260px"><canvas id="priceChart"></canvas></div>
+      <div id="chartEmpty" style="display:none;color:var(--muted);font-size:13px;font-style:italic;text-align:center;padding:1rem">No history yet — save your first rate update to start building this chart.</div>
+    </div>
+
+    <div class="dash-card">
+      <h3 class="dash-title">Your public profile</h3>
+      <p style="color:var(--muted);font-size:13px;margin:0 0 .75rem">This is what customers see when they click your name in the rate table.</p>
+      <a id="viewProfileLink" href="#" target="_blank" style="color:var(--acc);text-decoration:none;font-size:14px">→ Open my public profile</a>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    const API_BASE = 'http://127.0.0.1:4000';
+    let priceChart = null;
+    const token    = localStorage.getItem('jwl_token');
+    if (!token) window.location.href = 'jeweller-login.html';
+
+    let me = null;
+
+    function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+    async function loadMe() {
+      try {
+        const res  = await fetch(`${API_BASE}/api/jewellers/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) { logout(); return; }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load profile');
+        me = data;
+        renderMe();
+      } catch (err) {
+        document.getElementById('dashWelcome').textContent = 'Error loading profile';
+        document.getElementById('dashSub').textContent     = err.message;
+      }
+    }
+
+    function renderMe() {
+      document.getElementById('dashWelcome').textContent = `Welcome, ${me.name}`;
+      document.getElementById('dashSub').textContent     = `${me.symbol} · ${me.area} · ${me.email}`;
+
+      document.getElementById('dashStats').innerHTML = `
+        <div class="dash-stat"><div class="dash-stat-lbl">22K · per gram</div><div class="dash-stat-val">${fmt(me.r22g)}</div></div>
+        <div class="dash-stat"><div class="dash-stat-lbl">24K · per gram</div><div class="dash-stat-val">${fmt(me.r24g)}</div></div>
+        <div class="dash-stat"><div class="dash-stat-lbl">Making</div><div class="dash-stat-val">${me.making}%</div></div>
+        <div class="dash-stat"><div class="dash-stat-lbl">Last updated</div><div class="dash-stat-val" style="font-size:1.1rem">${me.updated || '—'}</div></div>
+      `;
+
+      document.getElementById('r22g').value   = me.r22g;
+      document.getElementById('r24g').value   = me.r24g;
+      document.getElementById('making').value = me.making;
+
+      document.getElementById('viewProfileLink').href = `jeweller.html?id=${me.id}`;
+    }
+
+    async function loadLive() {
+      try {
+        const res  = await fetch(`${API_BASE}/api/live-price`);
+        const data = await res.json();
+        if (!data.price_gram_22k) return;
+        const diff22 = me ? (me.r22g - data.price_gram_22k) : 0;
+        document.getElementById('liveCompare').innerHTML =
+          `Live MCX: <strong>22K ${fmt(data.price_gram_22k)}/g</strong> · 24K ${fmt(data.price_gram_24k)}/g — ` +
+          (me ? `your 22K is ${diff22 >= 0 ? `<strong>+${fmt(Math.abs(diff22))}</strong> above` : `<strong>${fmt(Math.abs(diff22))}</strong> below`} MCX.` : '');
+      } catch (_) { /* ignore */ }
+    }
+
+    document.getElementById('rateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('rateMsg');
+      const btn = document.getElementById('saveBtn');
+      msg.className = 'dash-msg';
+      btn.disabled  = true; btn.textContent = 'Saving…';
+
+      const body = {
+        r22g:   parseFloat(document.getElementById('r22g').value),
+        r24g:   parseFloat(document.getElementById('r24g').value),
+        making: parseFloat(document.getElementById('making').value),
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/api/jewellers/${me.id}/rates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Save failed');
+
+        me.r22g    = data.r22g;
+        me.r24g    = data.r24g;
+        me.making  = data.making;
+        me.updated = data.updated;
+        renderMe();
+        loadLive();
+        renderPriceChart();
+
+        msg.className   = 'dash-msg ok';
+        msg.textContent = 'Rates updated successfully.';
+      } catch (err) {
+        msg.className   = 'dash-msg err';
+        msg.textContent = err.message;
+      } finally {
+        btn.disabled = false; btn.textContent = 'Save rates';
+      }
+    });
+
+    async function renderPriceChart() {
+      if (!me) return;
+      try {
+        const res  = await fetch(`${API_BASE}/api/jewellers/${me.id}/history`);
+        const rows = await res.json();
+        const canvas = document.getElementById('priceChart');
+        const empty  = document.getElementById('chartEmpty');
+        if (!rows.length) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+        canvas.style.display = 'block'; empty.style.display = 'none';
+
+        const labels = rows.map(r => new Date(r.recorded_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }));
+        if (priceChart) priceChart.destroy();
+        priceChart = new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: '22K ₹/g', data: rows.map(r => r.r22g), borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.15)', tension: 0.3, fill: true },
+              { label: '24K ₹/g', data: rows.map(r => r.r24g), borderColor: '#F0CC60', backgroundColor: 'rgba(240,204,96,0.10)', tension: 0.3, fill: false },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { labels: { color: '#a0a8b8', font: { size: 11 } } } },
+            scales: {
+              x: { ticks: { color: '#6c7a8c', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
+              y: { ticks: { color: '#6c7a8c', font: { size: 10 }, callback: v => '₹' + v }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            },
+          },
+        });
+      } catch (err) { console.warn('Chart load failed:', err.message); }
+    }
+
+    function logout() {
+      localStorage.removeItem('jwl_token');
+      localStorage.removeItem('jwl_user');
+      window.location.href = 'jeweller-login.html';
+    }
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    loadMe().then(() => { loadLive(); renderPriceChart(); });
+  </script>
+</body>
+</html>
