@@ -1,7 +1,8 @@
 /* =========================================================
    Single source of truth for the backend URL.
-   - Localhost → talks to local Node server on :4000
-   - Anything else → talks to the Railway-hosted backend
+   - Localhost  → talks to local Node server on :4000
+   - Production → same-origin (Render serves frontend + API from
+     one service, so relative URLs work and there are no CORS issues).
    Loaded by every HTML page before any other script.
    ========================================================= */
 
@@ -9,9 +10,6 @@
   const host = window.location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
 
-  // ⬇ Replace this with your Railway domain after deploying the backend.
-  //   Example: 'https://sonatoday-production.up.railway.app'
-  const PROD_API = 'https://YOUR-RAILWAY-URL.up.railway.app';
-
-  window.API_BASE = isLocal ? 'http://127.0.0.1:4000' : PROD_API;
+  // Empty string = relative URL → hits the same host the page came from.
+  window.API_BASE = isLocal ? 'http://127.0.0.1:4000' : '';
 })();
