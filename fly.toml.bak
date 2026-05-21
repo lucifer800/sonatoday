@@ -1,7 +1,7 @@
 # fly.toml — Fly.io app config. flyctl reads this on every `fly deploy`.
 # Docs: https://fly.io/docs/reference/configuration/
 
-app = "PASTE-YOUR-GENERATED-NAME-HERE"
+app             = "sonatoday"
 primary_region  = "bom"           # Mumbai — closest to Ahmedabad
 
 [build]
