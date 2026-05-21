@@ -1,6 +1,13 @@
 # Render Blueprint — auto-deploys this repo as a single web service.
 # Render reads this file from the repo root on every git push.
 # Docs: https://render.com/docs/blueprint-spec
+#
+# ⚠ Free tier has NO persistent disk. The SQLite DB lives in /tmp
+# and resets every redeploy. The 12 jewellers re-seed on every boot
+# (seedJewellers.js is idempotent), so the public site always looks
+# fine — but user reviews, price alerts, and scraped price_history
+# are lost on each redeploy. Upgrade to Starter ($7/mo) when you
+# want persistence.
 
 services:
   - type: web
@@ -9,18 +16,19 @@ services:
     plan: free                  # 750 hrs/month, sleeps after 15 min idle
     region: singapore           # closest free region for India
     buildCommand: cd backend && npm install
-    # Seed runs every boot (it's idempotent — INSERT OR REPLACE).
-    # Server then starts and serves both the frontend and the API on $PORT.
+    # Seed re-runs every boot to populate the 12 jewellers (idempotent).
+    # /tmp is the only writable path on Render free — DB goes there.
     startCommand: cd backend && node seedJewellers.js && node server.js
     healthCheckPath: /api/live-price
     autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: 20
-      # SQLite lives on the persistent disk so it survives redeploys.
+      # /tmp is writable on Render free; data is ephemeral but survives
+      # the lifetime of a single container instance.
       - key: DATABASE_PATH
-        value: /var/data/goldrates.db
-      # Secrets — set the actual values in Render dashboard, not here.
+        value: /tmp/goldrates.db
+      # Secrets — set actual values in Render dashboard, not here.
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASS
@@ -31,7 +39,3 @@ services:
         generateValue: true     # Render generates a long random string once
       - key: SITE_URL
         sync: false             # set this to your final render.com URL
-    disk:
-      name: sonatoday-data
-      mountPath: /var/data      # SQLite DB + any future persistent files
-      sizeGB: 1                 # 1 GB free on Render's free tier
