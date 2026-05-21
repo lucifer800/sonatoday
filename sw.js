@@ -8,7 +8,7 @@
   - Cache-first for everything else (HTML, CSS, JS, fonts, images) — fast loads.
 */
 
-const VERSION     = 'v4';
+const VERSION     = 'v5';
 const SHELL_CACHE = `goldrates-shell-${VERSION}`;
 const API_CACHE   = `goldrates-api-${VERSION}`;
 
@@ -50,6 +50,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+
+  // ── config.js: NEVER cache — it controls the API base URL, so a
+  // stale copy can pin the whole app to a wrong backend host. Always
+  // hit the network, no fallback.
+  if (url.pathname === '/config.js') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // ── API: network-first, cache fallback ──────────────────────
   if (url.pathname.startsWith('/api/')) {
