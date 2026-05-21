@@ -40,6 +40,27 @@ const keepIds = jewellers.map(j => j.id);
 const placeholders = keepIds.map(() => '?').join(',');
 
 db.serialize(() => {
+  // Ensure the jewellers table exists — seed runs before server.js on Render,
+  // so on a fresh DB (ephemeral /tmp on free tier) the schema isn't created yet.
+  // Mirrors the definition in server.js initDb().
+  db.run(`CREATE TABLE IF NOT EXISTS jewellers (
+    id INTEGER PRIMARY KEY,
+    name TEXT UNIQUE,
+    symbol TEXT,
+    email TEXT UNIQUE,
+    password TEXT,
+    phone TEXT,
+    area TEXT,
+    verified INTEGER DEFAULT 0,
+    certificate_url TEXT,
+    business_reg TEXT,
+    r22g REAL,
+    r24g REAL,
+    making INTEGER,
+    updated TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Remove fabricated/unverified entries from previous seeds
   db.run(`DELETE FROM jewellers WHERE id NOT IN (${placeholders})`, keepIds);
 
