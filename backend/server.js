@@ -100,18 +100,40 @@ app.get('/jeweller.html', (req, res, next) => {
   });
 });
 
-// ── Serve the frontend (index.html, app.js, data.js, etc.) from
-// the parent directory so users can hit http://localhost:4000/
-// directly without needing Live Server. Cache headers force the
-// browser to re-fetch every time so price-card edits show up on
-// a normal Cmd+R, not just hard-reload.
-app.use(express.static(path.join(__dirname, '..'), {
-  setHeaders: (res) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    res.set('Pragma',        'no-cache');
-    res.set('Expires',       '0');
-  },
-}));
+// ── PUBLIC MODE: "Coming soon" placeholder ─────────────────────
+// When MAINTENANCE_MODE=true (set on Render), every public request
+// returns coming-soon.html. API routes still work for local dev
+// + alert testing, but visitors see the placeholder until we have
+// real per-jeweller scraping wired up. Flip the env var to false
+// to restore the full site without redeploying any code.
+const MAINTENANCE_MODE = process.env.MAINTENANCE_MODE === 'true';
+
+if (MAINTENANCE_MODE) {
+  console.log('🚧 MAINTENANCE_MODE=on — serving coming-soon.html for all GET requests');
+  app.get(['/', '/index.html'], (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '..', 'coming-soon.html'));
+  });
+  // Block other HTML pages too (login, dashboard, jeweller detail).
+  // /api/* routes below still work so local cron + alert tests keep functioning.
+  app.get(/.*\.html$/, (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '..', 'coming-soon.html'));
+  });
+  // Allow CSS, JS, images, manifest, etc. so the placeholder renders.
+  app.use(express.static(path.join(__dirname, '..'), {
+    setHeaders: (res) => res.set('Cache-Control', 'no-store'),
+  }));
+} else {
+  // ── Normal mode: serve the full frontend ────────────────────
+  app.use(express.static(path.join(__dirname, '..'), {
+    setHeaders: (res) => {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      res.set('Pragma',        'no-cache');
+      res.set('Expires',       '0');
+    },
+  }));
+}
 
 // ============ DATABASE SETUP ============
 const DB_PATH = require('./dbPath');
