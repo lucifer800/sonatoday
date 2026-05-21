@@ -10,6 +10,8 @@
   const host = window.location.hostname;
   const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
 
-  // Empty string = relative URL → hits the same host the page came from.
-  window.API_BASE = isLocal ? 'http://127.0.0.1:4000' : '';
+  // Production = same-origin absolute URL. We can't use '' here because
+  // consumers do `window.API_BASE || 'http://127.0.0.1:4000'` and '' is
+  // falsy, which would silently fall back to localhost on the live site.
+  window.API_BASE = isLocal ? 'http://127.0.0.1:4000' : window.location.origin;
 })();
