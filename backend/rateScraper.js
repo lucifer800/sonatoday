@@ -82,13 +82,45 @@ function parseGeneric(html) {
   return { r22g: findForKarat('22'), r24g: findForKarat('24') };
 }
 
-// ── Per-site overrides (drop-in when generic isn't reliable) ───
-// Each returns { r22g, r24g } or nulls. Add more as you discover
-// each site's quirks.
+// ── Per-site overrides ─────────────────────────────────────────
+// Each parser returns { r22g, r24g } or { r22g: null, r24g: null }.
+// 22K is 91.67% pure gold, so 24K = 22K / 0.9167  (and 22K = 24K * 0.9167).
+const PURITY_22K_OF_24K = 22 / 24;  // 0.9167
+
 const SITE_PARSERS = {
-  // Most aggregator-style rate pages render plain text we can regex.
-  // Generic works fine for: Kalyan, Malabar, Joyalukkas, CaratLane.
-  // Add explicit overrides here when the generic parser misses.
+  // ── CaratLane: server-side JSON in __NEXT_DATA__-like blob.
+  // Pattern:  "rate_22kt":14528   (only 22K is exposed; derive 24K)
+  'caratlane.com': (html) => {
+    const m = html.match(/"rate_?22kt?"\s*:\s*(\d+(?:\.\d+)?)/i);
+    if (!m) return { r22g: null, r24g: null };
+    const r22g = sanePerGram(+m[1]);
+    return r22g
+      ? { r22g, r24g: r22g / PURITY_22K_OF_24K }
+      : { r22g: null, r24g: null };
+  },
+
+  // ── GRT Jewellers: JSON list with both karats explicit.
+  // Pattern:  "22 KT","amount":14660 ... "24 KT","amount":16004
+  'grtjewels.com': (html) => {
+    const find = (kt) => {
+      const re = new RegExp(`"${kt}\\s*KT"[^}]{0,80}"amount"\\s*:\\s*(\\d+(?:\\.\\d+)?)`, 'i');
+      const m  = html.match(re);
+      return m ? sanePerGram(+m[1]) : null;
+    };
+    return { r22g: find('22'), r24g: find('24') };
+  },
+
+  // ── PC Jeweller: HTML spans with rate IDs (24K sell rate only).
+  // Pattern:  <span id="spnBeforLoginSellRate">15417.08</span>
+  // (derive 22K = 24K × 0.9167)
+  'dg.pcjeweller.com': (html) => {
+    const m = html.match(/id="spnBeforLoginSellRate"\s*>\s*([\d.]+)\s*</i);
+    if (!m) return { r22g: null, r24g: null };
+    const r24g = sanePerGram(+m[1]);
+    return r24g
+      ? { r22g: r24g * PURITY_22K_OF_24K, r24g }
+      : { r22g: null, r24g: null };
+  },
 };
 
 function parseFor(url, html) {

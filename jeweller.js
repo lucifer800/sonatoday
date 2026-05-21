@@ -7,6 +7,8 @@
 const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
 
 function fmt(n)   { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+function dispRate(n) { return (n == null || isNaN(n)) ? '—' : fmt(n); }
+function hasRate(j)  { return j && j.r22g != null && !isNaN(j.r22g); }
 function stars(n) {
   return Array.from({ length: 5 }).map((_, i) =>
     `<span style="color:${i < Math.round(n) ? 'var(--acc)' : '#2a3a50'};font-size:14px">★</span>`
@@ -15,12 +17,13 @@ function stars(n) {
 function shareJewellerWA(id) {
   const j = J.find(x => x.id === id); if (!j) return;
   const url  = `${window.location.origin}/jeweller.html?id=${j.id}`;
-  const text =
-    `💰 *${j.name}* (${j.area}) — today's gold rate:\n\n` +
-    `• 22K: ₹${j.r22g.toLocaleString('en-IN')}/g  (₹${(j.r22g*10).toLocaleString('en-IN')}/10g)\n` +
-    `• 24K: ₹${j.r24g.toLocaleString('en-IN')}/g\n` +
-    `• Making: ${j.making}%\n\n` +
-    `View live rates: ${url}`;
+  const text = hasRate(j)
+    ? `💰 *${j.name}* (${j.area}) — today's gold rate:\n\n` +
+      `• 22K: ₹${j.r22g.toLocaleString('en-IN')}/g  (₹${(j.r22g*10).toLocaleString('en-IN')}/10g)\n` +
+      `• 24K: ₹${j.r24g.toLocaleString('en-IN')}/g\n` +
+      (j.making != null ? `• Making: ${j.making}%\n` : '') +
+      `\nView live rates: ${url}`
+    : `*${j.name}* (${j.area}) — daily rate not yet integrated. Compare verified Ahmedabad jewellers: ${url}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 window.shareJewellerWA = shareJewellerWA;
@@ -60,10 +63,11 @@ async function syncFromDB() {
     rows.forEach(row => {
       const j = J.find(x => x.id === row.id);
       if (!j) return;
-      j.r22g    = row.r22g    ?? j.r22g;
-      j.r24g    = row.r24g    ?? j.r24g;
-      j.making  = row.making  ?? j.making;
-      j.updated = row.updated || j.updated;
+      // Direct assignment so NULL from backend clears stale local data.
+      j.r22g    = row.r22g;
+      j.r24g    = row.r24g;
+      j.making  = row.making;
+      j.updated = row.updated;
     });
   } catch (_) { /* fall back to J */ }
 }
@@ -82,8 +86,9 @@ function render() {
   document.title = `${j.name} — Ahmedabad Gold & Silver Rates`;
 
   const trust = trustOf(j);
-  const r22t  = j.r22g * 10;
-  const r24t  = j.r24g * 10;
+  const hasR  = hasRate(j);
+  const r22t  = hasR ? j.r22g * 10 : null;
+  const r24t  = hasR ? j.r24g * 10 : null;
 
   const reviewsHtml = (j.reviews || []).filter(r => r.status === 'approved').length
     ? j.reviews.filter(r => r.status === 'approved').map(r => `
@@ -125,16 +130,21 @@ function render() {
         </button>
       </div>
 
+      ${!hasR ? `
+      <div style="margin-top:1rem;padding:1rem;background:rgba(255,165,0,0.1);border:1px solid rgba(255,165,0,0.3);border-radius:8px;font-size:13px;color:#ffa500">
+        ⚠ Today's daily rate from this jeweller isn't yet integrated into our system. ${j.rate_url ? `Check their official page <a href="${j.rate_url}" target="_blank" rel="noopener" style="color:var(--acc)">here</a>, ` : ''}or call the shop directly.
+      </div>` : ''}
+
       <div class="jp-rates">
         <div class="jp-rate">
           <div class="jp-rate-lbl">22K Gold · per gram</div>
-          <div class="jp-rate-val">${fmt(j.r22g)}</div>
-          <div class="jp-rate-sub">${fmt(r22t)} per 10g</div>
+          <div class="jp-rate-val">${dispRate(j.r22g)}</div>
+          <div class="jp-rate-sub">${dispRate(r22t)} per 10g</div>
         </div>
         <div class="jp-rate">
           <div class="jp-rate-lbl">24K Gold · per gram</div>
-          <div class="jp-rate-val">${fmt(j.r24g)}</div>
-          <div class="jp-rate-sub">${fmt(r24t)} per 10g</div>
+          <div class="jp-rate-val">${dispRate(j.r24g)}</div>
+          <div class="jp-rate-sub">${dispRate(r24t)} per 10g</div>
         </div>
         <div class="jp-rate">
           <div class="jp-rate-lbl">Making charge</div>

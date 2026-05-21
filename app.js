@@ -22,6 +22,11 @@ let pendingPhoto = null;       // base64 of uploaded photo
 /* ─── HELPERS ───────────────────────────────────────────── */
 function D()    { return metal === 'gold' ? J : JS; }
 function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+// Display-safe rate formatter — returns '—' for null/undefined/NaN
+// so jewellers whose rates we couldn't fetch show an honest blank,
+// never a fabricated number or "₹NaN".
+function dispRate(n) { return (n == null || isNaN(n)) ? '—' : fmt(n); }
+function hasRate(j)  { return j.r22g != null && !isNaN(j.r22g); }
 
 /* Trust score — only count APPROVED reviews */
 function ts(j) {
@@ -97,8 +102,13 @@ function toggleMetal() {
 
 /* ─── TICKER ────────────────────────────────────────────── */
 function buildTicker() {
-  const items = D().map(j =>
-    `<span class="t-item"><strong>${j.sym}</strong> 22K ${fmt(j.r22g * 10)} <span class="up">▲ ₹${Math.floor(Math.random() * 80 + 10)}</span></span>`
+  // Only ticker-show jewellers whose rates we actually have — never
+  // print "₹NaN" or a guessed number for an un-scraped shop.
+  // Show real per-10g rate for each jeweller we have data for. No
+  // fake "▲ ₹50" arrows — those were Math.random() noise pretending
+  // to be price movement.
+  const items = D().filter(hasRate).map(j =>
+    `<span class="t-item"><strong>${j.sym}</strong> 22K ${fmt(j.r22g * 10)}/10g</span>`
   ).join('');
   document.getElementById('tickerTrack').innerHTML = items + items;
 }
@@ -148,7 +158,7 @@ function renderTable() {
   if (making === 'low')   d = d.filter(j => j.making <= 9);
   if (making === 'med')   d = d.filter(j => j.making >= 10 && j.making <= 11);
   if (making === 'high')  d = d.filter(j => j.making >= 12);
-  if (!isNaN(maxPrice))   d = d.filter(j => j.r22g <= maxPrice);
+  if (!isNaN(maxPrice))   d = d.filter(j => hasRate(j) && j.r22g <= maxPrice);
   if (trusted)            d = d.filter(j => (j.reviews || []).some(r => r.status === 'approved'));
 
   const countEl = document.getElementById('fltCount');
@@ -156,13 +166,16 @@ function renderTable() {
     ? `Showing <strong>${d.length}</strong> of ${total} jewellers`
     : `Showing all <strong>${total}</strong> jewellers`;
 
-  /* ── SORT ── */
+  /* ── SORT ──  (always push NULL-rate jewellers to the bottom so
+     the comparison table opens with jewellers whose rates we actually
+     have, and the "no rate yet" rows trail at the end.) */
+  const rateRank = (j) => hasRate(j) ? 0 : 1;
   if (curSort === 'smart') {
-    d.sort(smartSort);
+    d.sort((a, b) => rateRank(a) - rateRank(b) || smartSort(a, b));
   } else if (curSort === 'cheap') {
-    d.sort((a, b) => a.r22g - b.r22g);
+    d.sort((a, b) => rateRank(a) - rateRank(b) || a.r22g - b.r22g);
   } else if (curSort === 'pricey') {
-    d.sort((a, b) => b.r22g - a.r22g);
+    d.sort((a, b) => rateRank(a) - rateRank(b) || b.r22g - a.r22g);
   } else if (curSort === 'making') {
     d.sort((a, b) => a.making - b.making);
   } else if (curSort === 'trust') {
@@ -175,21 +188,30 @@ function renderTable() {
     });
   }
 
-  /* ── STATS ── */
-  const allR = D().map(j => j.r22g * 10);
-  const mn = Math.min(...allR), mx = Math.max(...allR);
-  document.getElementById('stLow').textContent  = fmt(mn);
-  document.getElementById('stHigh').textContent = fmt(mx);
-  document.getElementById('stAvg').textContent  = fmt(Math.round(allR.reduce((a, b) => a + b, 0) / allR.length));
+  /* ── STATS ── (only count jewellers with real, scraped rates) */
+  const allR = D().filter(hasRate).map(j => j.r22g * 10);
+  if (allR.length) {
+    const mn = Math.min(...allR), mx = Math.max(...allR);
+    document.getElementById('stLow').textContent  = fmt(mn);
+    document.getElementById('stHigh').textContent = fmt(mx);
+    document.getElementById('stAvg').textContent  = fmt(Math.round(allR.reduce((a, b) => a + b, 0) / allR.length));
+  } else {
+    document.getElementById('stLow').textContent  = '—';
+    document.getElementById('stHigh').textContent = '—';
+    document.getElementById('stAvg').textContent  = '—';
+  }
 
-  const lowR = d.length ? Math.min(...d.map(j => j.r22g * 10)) : mn;
-  const hiR  = d.length ? Math.max(...d.map(j => j.r22g * 10)) : mx;
+  const dRated = d.filter(hasRate).map(j => j.r22g * 10);
+  const lowR = dRated.length ? Math.min(...dRated) : null;
+  const hiR  = dRated.length ? Math.max(...dRated) : null;
 
   /* ── ROWS ── */
   document.getElementById('rateBody').innerHTML = d.map((j, i) => {
-    const r22t = j.r22g * 10, r24t = j.r24g * 10;
-    const cheap  = r22t === lowR;
-    const pricey = r22t === hiR && lowR !== hiR;
+    const noRate = !hasRate(j);
+    const r22t = noRate ? null : j.r22g * 10;
+    const r24t = noRate ? null : j.r24g * 10;
+    const cheap  = !noRate && r22t === lowR;
+    const pricey = !noRate && r22t === hiR && lowR !== hiR;
     const mkC    = j.making <= 9 ? 'mk-lo' : j.making <= 11 ? 'mk-md' : 'mk-hi';
     const t      = ts(j);
     const pendingCount = (j.reviews || []).filter(r => r.status === 'pending').length;
@@ -236,13 +258,13 @@ function renderTable() {
         ${valueBadge}
       </td>
       <td><span class="sym-pill">${j.sym}</span></td>
-      <td class="mono">${fmt(j.r22g)}</td>
-      <td class="mono price-22t" style="color:var(--acc);font-weight:600">${fmt(r22t)}</td>
-      <td class="mono">${fmt(j.r24g)}</td>
-      <td class="mono">${fmt(r24t)}</td>
-      <td><span class="mk ${mkC}">${j.making}%</span></td>
+      <td class="mono">${dispRate(j.r22g)}</td>
+      <td class="mono price-22t" style="color:var(--acc);font-weight:600">${dispRate(r22t)}</td>
+      <td class="mono">${dispRate(j.r24g)}</td>
+      <td class="mono">${dispRate(r24t)}</td>
+      <td>${j.making != null ? `<span class="mk ${mkC}">${j.making}%</span>` : '<span class="mono" style="color:var(--muted)">—</span>'}</td>
       <td>${tCell}</td>
-      <td class="upd">${j.updated}</td>
+      <td class="upd">${noRate ? '<span style="font-size:11px;color:var(--muted)">Visit shop for live rate</span>' : (j.updated || '—')}</td>
     </tr>`;
   }).join('');
 
@@ -400,12 +422,28 @@ function showToast(msg, type) {
   t._timer = setTimeout(() => { t.style.transform = 'translateY(80px)'; t.style.opacity = '0'; }, 3500);
 }
 
-/* ─── REFRESH ────────────────────────────────────────────── */
-function refreshRates() {
+/* ─── REFRESH ──────────────────────────────────────────────
+   Re-pulls jeweller data from the backend (where the scraper has
+   put real rates). Previously this faked price drift client-side
+   with Math.random() — that was dishonest and is removed. */
+async function refreshRates() {
   const ic = document.getElementById('spinIcon');
   ic.classList.add('spinning');
-  D().forEach(j => { j.r22g += Math.round((Math.random() - .5) * 14); j.r24g = Math.round(j.r22g * 1.09); });
-  setTimeout(() => { ic.classList.remove('spinning'); renderTable(); buildTicker(); }, 650);
+  try {
+    const res  = await fetch(`${API_BASE}/api/jewellers`);
+    const rows = await res.json();
+    rows.forEach(row => {
+      const j = J.find(x => x.id === row.id);
+      if (!j) return;
+      j.r22g    = row.r22g;
+      j.r24g    = row.r24g;
+      j.updated = row.updated;
+      j.making  = row.making;
+    });
+  } catch (_) { /* offline — keep current state */ }
+  ic.classList.remove('spinning');
+  renderTable();
+  buildTicker();
 }
 
 /* ─── NAV ────────────────────────────────────────────────── */
@@ -723,21 +761,24 @@ async function syncJewellersFromDB() {
     const res = await fetch(`${API_BASE}/api/jewellers`);
     if (!res.ok) return;
     const rows = await res.json();
+    // ⚠ Use direct assignment (not `??`) so NULL from the backend
+    // actually clears any stale local value. Otherwise a jeweller
+    // we can't scrape would forever display the old seed number.
     rows.forEach(row => {
       const j = J.find(x => x.id === row.id);
       if (!j) return;
-      j.r22g    = row.r22g    ?? j.r22g;
-      j.r24g    = row.r24g    ?? j.r24g;
-      j.making  = row.making  ?? j.making;
-      j.updated = row.updated || j.updated;
+      j.r22g    = row.r22g;
+      j.r24g    = row.r24g;
+      j.making  = row.making;
+      j.updated = row.updated;
     });
-    // Recompute the silver mirror so toggling to silver also shows fresh rates
+    // Recompute the silver mirror; null gold rate → null silver rate.
     rows.forEach(row => {
       const js = JS.find(x => x.id === row.id);
-      if (!js || row.r22g == null) return;
-      js.r22g   = Math.round(row.r22g * 0.012);
-      js.r24g   = Math.round(row.r24g * 0.012);
-      js.making = Math.max(6, (row.making ?? js.making) - 3);
+      if (!js) return;
+      js.r22g   = row.r22g != null ? Math.round(row.r22g * 0.012) : null;
+      js.r24g   = row.r24g != null ? Math.round(row.r24g * 0.012) : null;
+      js.making = row.making != null ? Math.max(6, row.making - 3) : null;
     });
     renderTable();
     buildTicker();

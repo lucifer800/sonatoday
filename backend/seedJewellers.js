@@ -70,9 +70,14 @@ db.serialize(() => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
+  // ⚠ Seed rates as NULL — never hardcode prices. The rateScraper
+  // populates the 3 jewellers whose sites we can parse (CaratLane,
+  // GRT, PCJ). The rest stay NULL and the UI shows "Rate unavailable"
+  // — honest, no fake numbers. Phone numbers are also seeded as NULL
+  // for the same reason (they were placeholder sequential values).
   jewellers.forEach(j => {
     const hash = bcrypt.hashSync(j.pass, 10);
-    stmt.run(j.id, j.name, j.sym, j.email, hash, j.phone, j.area, j.r22g, j.r24g, j.making, now);
+    stmt.run(j.id, j.name, j.sym, j.email, hash, null, j.area, null, null, null, null);
   });
 
   stmt.finalize(() => {
