@@ -169,7 +169,11 @@ async function scrapeOne(jeweller) {
       const mcx24 = mcx.price_gram_24k;
       const off22 = Math.abs(r22g - mcx22) / mcx22;
       const off24 = Math.abs(r24g - mcx24) / mcx24;
-      if (off22 > 0.10 || off24 > 0.10) {
+      // Indian jeweller displayed rates include GST (3%) + import duty (~12.5%) + small
+      // hallmarking/refining margin on top of MCX spot. Empirically jeweller rates run
+      // 10–18% above pure MCX. Threshold loosened to 25% to allow that range, while still
+      // catching truly bogus matches like CSS hashes or making-charge numbers.
+      if (off22 > 0.25 || off24 > 0.25) {
         console.log(`     ⚠ rejected ${jeweller.name}: 22K ₹${Math.round(r22g)} vs MCX ₹${Math.round(mcx22)} (${(off22*100).toFixed(1)}% off)`);
         return finish(jeweller, `reject-sanity:${Math.round(r22g)}`);
       }
