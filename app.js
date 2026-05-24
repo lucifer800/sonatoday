@@ -519,12 +519,12 @@ function buildJwlDash(j) {
   document.getElementById('jwlName').textContent      = j.name;
   document.getElementById('jwlRole').textContent      = 'Jeweller · ' + j.sym;
   document.getElementById('jwlWelcome').textContent   = 'Welcome back, ' + j.name;
-  document.getElementById('jwlUpdated').textContent   = 'Last updated: ' + j.updated + ' today';
-  document.getElementById('ov22g').textContent        = fmt(j.r22g);
-  document.getElementById('ov22t').textContent        = fmt(j.r22g * 10);
-  document.getElementById('ov24g').textContent        = fmt(j.r24g);
-  document.getElementById('ov24t').textContent        = fmt(j.r24g * 10);
-  document.getElementById('ovMk').textContent         = j.making + '%';
+  document.getElementById('jwlUpdated').textContent   = 'Last updated: ' + (j.updated || '—');
+  document.getElementById('ov22g').textContent        = dispRate(j.r22g);
+  document.getElementById('ov22t').textContent        = dispRate(j.r22g != null ? j.r22g * 10 : null);
+  document.getElementById('ov24g').textContent        = dispRate(j.r24g);
+  document.getElementById('ov24t').textContent        = dispRate(j.r24g != null ? j.r24g * 10 : null);
+  document.getElementById('ovMk').textContent         = j.making != null ? j.making + '%' : '—';
   const t = ts(j);
   document.getElementById('ovTrust').textContent      = t ? t.avg + '/5 (' + t.n + ' verified)' : 'No approved reviews';
   document.getElementById('f22g').value  = j.r22g; document.getElementById('f22t').value = j.r22g * 10;
@@ -800,22 +800,41 @@ async function refreshLivePrice() {
 
     // Gold card shows 22K per 10g; silver shows 24K per 10g (silver is sold pure)
     const perGram = metal === 'silver' ? data.price_gram_24k : data.price_gram_22k;
-    if (!perGram) return;
-    const per10g  = perGram * 10;
-
     const priceEl = document.getElementById('mcxPrice');
     const chgEl   = document.getElementById('mcxChg');
+
+    // ── STRICT: if no real data, show "—" not a fake number ──
+    if (!perGram || data.unavailable) {
+      if (priceEl) priceEl.textContent = '—';
+      if (chgEl) {
+        chgEl.textContent = 'MCX rate unavailable — try again shortly';
+        chgEl.className   = 'mcx-chg';
+      }
+      lastLivePrice10g = null;
+      return;
+    }
+
+    const per10g = perGram * 10;
     if (priceEl) priceEl.textContent = fmt(per10g);
 
     if (chgEl) {
-      if (lastLivePrice10g != null) {
+      // ── Stale (weekend / API down): show the real timestamp ──
+      if (data.stale && data.fetchedAt) {
+        const d = new Date(data.fetchedAt);
+        const when = d.toLocaleString('en-IN', {
+          weekday: 'short', day: '2-digit', month: 'short',
+          hour: '2-digit', minute: '2-digit', hour12: true,
+        });
+        chgEl.textContent = `Market closed · Last update: ${when}`;
+        chgEl.className   = 'mcx-chg';
+      } else if (lastLivePrice10g != null) {
         const diff = per10g - lastLivePrice10g;
         const pct  = (diff / lastLivePrice10g) * 100;
         const up   = diff >= 0;
         chgEl.textContent = (up ? '▲ ₹' : '▼ ₹') + Math.abs(Math.round(diff)) + ' (' + Math.abs(pct).toFixed(2) + '%)';
         chgEl.className   = 'mcx-chg ' + (up ? 'up' : 'dn');
       } else {
-        chgEl.textContent = data.fallback ? '— (offline)' : data.cached ? '● live (cached)' : '● live';
+        chgEl.textContent = data.cached ? '● live (cached)' : '● live';
         chgEl.className   = 'mcx-chg';
       }
     }
@@ -825,9 +844,10 @@ async function refreshLivePrice() {
   }
 }
 
-// Refresh whenever metal toggles, and every 60s
+// Refresh whenever metal toggles, and every 5 minutes.
+// (Server cache is 6 hours — polling faster wastes nothing but bandwidth.)
 window.addEventListener('metal-changed', () => { lastLivePrice10g = null; refreshLivePrice(); });
-setInterval(refreshLivePrice, 60_000);
+setInterval(refreshLivePrice, 5 * 60_000);
 
 /* ─── INIT ───────────────────────────────────────────────── */
 document.getElementById('hdrDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });

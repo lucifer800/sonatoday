@@ -3,25 +3,55 @@
   ───────────────
   Wraps GoldAPI.io so the rest of the app can call one function.
 
-  Free-tier keys are rate-limited (a few hundred calls/month), so we
-  cache the response in memory for CACHE_TTL_MS and only hit the API
-  when the cache is stale. If the API call fails we fall back to the
-  last good value (or a sane default) so the app never crashes.
+  ─── STRICT NO-FAKE-DATA POLICY ───────────────────────────────
+  We NEVER return hardcoded fallback rates. If the API is down and
+  we have no last-known value, we return null and let the UI show
+  "Rate unavailable" honestly. Any displayed number must be a real
+  number that was once fetched from the source.
+
+  Persistence: the last successful response is written to
+  ./last-known-rates.json so it survives server restarts. The UI
+  shows it with the original timestamp so users see "Last updated:
+  Fri 4:30 PM" instead of a fake current rate.
+
+  Rate-limit safety: GoldAPI's free tier is ~100 calls/month. We
+  cache aggressively (6 hours) so even with constant traffic we
+  burn at most ~120 calls/month.
 */
 
-const API_KEY  = process.env.GOLDAPI_KEY;
-const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const fs   = require('fs');
+const path = require('path');
 
+const API_KEY      = process.env.GOLDAPI_KEY;
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000;  // 6 hours (was 15 min — burned through free quota)
+const STORE_PATH   = path.join(__dirname, 'last-known-rates.json');
+
+// In-memory cache, hydrated from disk on boot.
 const cache = {
   gold:   { data: null, fetchedAt: 0 },
   silver: { data: null, fetchedAt: 0 },
 };
 
-// Fallback values used only if the API has never succeeded yet
-const FALLBACK = {
-  gold:   { price_gram_22k: 7200, price_gram_24k: 7850 },
-  silver: { price_gram_24k: 95 },
-};
+// ── Hydrate from disk on startup so weekend/restart still shows
+//    the real Friday rate instead of "—".
+try {
+  if (fs.existsSync(STORE_PATH)) {
+    const persisted = JSON.parse(fs.readFileSync(STORE_PATH, 'utf8'));
+    for (const m of ['gold', 'silver']) {
+      if (persisted[m]?.data && persisted[m]?.fetchedAt) {
+        cache[m] = persisted[m];
+      }
+    }
+    console.log('✓ Loaded last-known rates from disk');
+  }
+} catch (e) {
+  console.warn('⚠ Could not load last-known rates:', e.message);
+}
+
+function persist() {
+  try { fs.writeFileSync(STORE_PATH, JSON.stringify(cache, null, 2)); }
+  catch (e) { console.warn('⚠ Could not persist rates:', e.message); }
+}
 
 async function fetchFromApi(symbol /* 'XAU' | 'XAG' */) {
   if (!API_KEY) throw new Error('GOLDAPI_KEY not set in .env');
@@ -45,20 +75,27 @@ async function getPrices(metal /* 'gold' | 'silver' */) {
   const slot   = cache[metal];
   const age    = Date.now() - slot.fetchedAt;
 
+  // Fresh cache → return it.
   if (slot.data && age < CACHE_TTL_MS) {
-    return { ...slot.data, cached: true, ageMs: age };
+    return { ...slot.data, cached: true, ageMs: age, fetchedAt: slot.fetchedAt };
   }
 
   try {
     const data = await fetchFromApi(symbol);
     slot.data      = data;
     slot.fetchedAt = Date.now();
+    persist();
     console.log(`✓ GoldAPI ${symbol}: 24K ₹${data.price_gram_24k}/g${metal === 'gold' ? `, 22K ₹${data.price_gram_22k}/g` : ''}`);
-    return { ...data, cached: false, ageMs: 0 };
+    return { ...data, cached: false, ageMs: 0, fetchedAt: slot.fetchedAt };
   } catch (err) {
     console.error(`✗ GoldAPI ${symbol} failed:`, err.message);
-    if (slot.data) return { ...slot.data, cached: true, stale: true, ageMs: age };
-    return { ...FALLBACK[metal], fallback: true };
+    // STRICT: never return a hardcoded fallback. If we have a stale
+    // real value, return it tagged as stale (UI will show the date).
+    // If we have nothing at all, return null and let UI say so.
+    if (slot.data) {
+      return { ...slot.data, cached: true, stale: true, ageMs: age, fetchedAt: slot.fetchedAt };
+    }
+    return { price_gram_22k: null, price_gram_24k: null, price_gram_18k: null, unavailable: true };
   }
 }
 
