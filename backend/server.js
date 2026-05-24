@@ -13,6 +13,7 @@ const { startAlertChecker }             = require('./alertChecker');
 const { sendPriceAlert, sendConfirmationEmail } = require('./mailer');
 const { getPrices }                     = require('./goldPriceApi');
 const { startRateScraper, scrapeAll }   = require('./rateScraper');
+const { startIbjaScraper }              = require('./ibjaScraper');
 const { getHomePng, getJewellerPng }    = require('./ogImage');
 const fs                                = require('fs');
 
@@ -620,10 +621,14 @@ app.get('/api/live-price', async (req, res) => {
   }
 });
 
+// ── Start the IBJA live-rate scraper (every 30 min via node-cron)
+// ── This replaces GoldAPI.io. Free, unlimited, India-authoritative.
+startIbjaScraper();
+
 // ── Start the alert checker (every 10 minutes via node-cron) ──
 startAlertChecker();
 
-// ── Start the rate scraper (every 15 minutes via node-cron) ───
+// ── Start the per-jeweller rate scraper (every 15 min via node-cron)
 startRateScraper();
 
 // ── TEST ROUTE: manually fire the checker right now ──────────
