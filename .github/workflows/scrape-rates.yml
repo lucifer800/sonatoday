@@ -20,8 +20,12 @@ name: Scrape Jeweller Rates (Playwright)
 
 on:
   schedule:
-    # Every 2 hours, on the hour. UTC.
-    - cron: '0 */2 * * *'
+    # Every 2 hours at :17 past the hour, UTC.
+    # NOT on the hour (HH:00) — thousands of workflows worldwide
+    # schedule at HH:00 and GitHub's scheduler gets congested,
+    # sometimes silently skipping runs. :17 is off-peak.
+    # Reference: https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '17 */2 * * *'
   # Allow manual triggering from the Actions tab for testing.
   workflow_dispatch:
 
