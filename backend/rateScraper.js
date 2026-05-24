@@ -99,11 +99,15 @@ const SITE_PARSERS = {
       : { r22g: null, r24g: null };
   },
 
-  // ── GRT Jewellers: JSON list with both karats explicit.
-  // Pattern:  "22 KT","amount":14660 ... "24 KT","amount":16004
+  // ── GRT Jewellers: rate lives in escaped JSON embedded inside a
+  // <script> tag, so quotes show up as \"22 KT\" (with literal
+  // backslashes). The optional `\\?` before each `"` matches both
+  // the raw and the escaped form, so this works whether the page
+  // changes layout again.
+  // Pattern (escaped):  \"22 KT\",\"amount\":14580 ... \"24 KT\",\"amount\":15917
   'grtjewels.com': (html) => {
     const find = (kt) => {
-      const re = new RegExp(`"${kt}\\s*KT"[^}]{0,80}"amount"\\s*:\\s*(\\d+(?:\\.\\d+)?)`, 'i');
+      const re = new RegExp(`\\\\?"${kt}\\s*KT\\\\?"[^}]{0,80}\\\\?"amount\\\\?"\\s*:\\s*(\\d+(?:\\.\\d+)?)`, 'i');
       const m  = html.match(re);
       return m ? sanePerGram(+m[1]) : null;
     };
