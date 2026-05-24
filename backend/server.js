@@ -238,6 +238,86 @@ const upload = multer({
 
 // ============ ROUTES ============
 
+// 0. SCRAPER UPDATE API
+// ─────────────────────────────────────────────────────────────
+// POST /api/admin/scraper-update
+// Called by the GitHub Actions Playwright scraper (every 2 hrs)
+// to push real per-jeweller rates scraped from JS-rendered sites.
+// Authenticated by SCRAPER_SECRET (same value set in GitHub repo
+// secrets and Render env vars).
+//
+// Body:
+// {
+//   "secret": "<SCRAPER_SECRET>",
+//   "updates": [
+//     { "id": 1,  "r22g": 13950, "r24g": 15230, "source": "playwright:malabar" },
+//     { "id": 4,  "r22g": 13960, "r24g": 15240, "source": "playwright:kalyan" },
+//     ...
+//   ]
+// }
+//
+// Behaviour:
+// - Validates secret. 401 on mismatch.
+// - For each update with non-null rates, updates jewellers row
+//   (r22g, r24g, updated, last_scraped_at, scrape_status='ok-playwright')
+//   and logs to price_history.
+// - For updates with null rates, marks scrape_status as 'playwright-miss'
+//   but DOES NOT overwrite existing real rates — so a transient miss
+//   doesn't blank a previously good rate.
+// ─────────────────────────────────────────────────────────────
+app.post('/api/admin/scraper-update', (req, res) => {
+  const { secret, updates } = req.body || {};
+  const expected = process.env.SCRAPER_SECRET;
+
+  if (!expected) {
+    return res.status(503).json({ error: 'SCRAPER_SECRET not configured on server' });
+  }
+  if (secret !== expected) {
+    return res.status(401).json({ error: 'Invalid secret' });
+  }
+  if (!Array.isArray(updates)) {
+    return res.status(400).json({ error: 'updates must be an array' });
+  }
+
+  const now    = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  const nowISO = new Date().toISOString();
+  const results = { ok: 0, miss: 0, skipped: 0 };
+
+  // Sanity bounds: per-gram gold should be ₹5,000–₹20,000.
+  const sane = (n) => Number.isFinite(n) && n >= 5_000 && n <= 20_000;
+
+  for (const u of updates) {
+    if (!u || typeof u.id !== 'number') { results.skipped++; continue; }
+
+    const has22 = sane(u.r22g);
+    const has24 = sane(u.r24g);
+
+    if (has22 && has24) {
+      db.run(
+        `UPDATE jewellers
+            SET r22g = ?, r24g = ?, updated = ?, last_scraped_at = ?, scrape_status = ?
+          WHERE id = ?`,
+        [Math.round(u.r22g), Math.round(u.r24g), now, nowISO, `ok-${u.source || 'playwright'}`, u.id]
+      );
+      db.run(
+        `INSERT INTO price_history (jeweller_id, r22g, r24g) VALUES (?, ?, ?)`,
+        [u.id, Math.round(u.r22g), Math.round(u.r24g)]
+      );
+      results.ok++;
+    } else {
+      // Don't blank existing rates on a transient miss — just log status.
+      db.run(
+        `UPDATE jewellers SET last_scraped_at = ?, scrape_status = ? WHERE id = ?`,
+        [nowISO, `miss-${u.source || 'playwright'}`, u.id]
+      );
+      results.miss++;
+    }
+  }
+
+  console.log(`📡 Scraper push: ${results.ok} ok, ${results.miss} miss, ${results.skipped} skipped`);
+  res.json({ success: true, ...results });
+});
+
 // 1. PRICE CALCULATOR API
 app.post('/api/calculate-price', (req, res) => {
   const { weight, rate, making_percent } = req.body;

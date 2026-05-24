@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────
+# Playwright rate scraper for JS-rendered jeweller sites.
+# Runs on GitHub Actions every 2 hours (12 runs/day ≈ 1,080
+# min/month — safely inside the 2,000-min free private-repo
+# limit, or unlimited if the repo is public).
+#
+# Pipeline:
+#   1. spin up Ubuntu runner
+#   2. install Node 20 + Playwright with Chromium
+#   3. run scripts/scrape-with-browser.js
+#   4. that script visits Malabar / Kalyan / Joyalukkas / PNG /
+#      Tanishq, extracts 22K + 24K rates, and POSTs them to
+#      https://sonatoday.com/api/admin/scraper-update
+#
+# Required GitHub repo secrets:
+#   SCRAPER_SECRET   — shared secret with the Render server
+#   SITE_URL         — usually https://sonatoday.com
+# ─────────────────────────────────────────────────────────────
+name: Scrape Jeweller Rates (Playwright)
+
+on:
+  schedule:
+    # Every 2 hours, on the hour. UTC.
+    - cron: '0 */2 * * *'
+  # Allow manual triggering from the Actions tab for testing.
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8   # hard kill if a site hangs — protects monthly budget
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install playwright --no-save
+          npx playwright install --with-deps chromium
+
+      - name: Run scraper
+        env:
+          SITE_URL:       ${{ secrets.SITE_URL }}
+          SCRAPER_SECRET: ${{ secrets.SCRAPER_SECRET }}
+        run: node scripts/scrape-with-browser.js
