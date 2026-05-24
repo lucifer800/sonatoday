@@ -170,6 +170,35 @@ function extractKaratPair(plainText) {
           console.log(`  ✓ 22K ₹${Math.round(result.r22g)}/g, 24K ₹${Math.round(result.r24g)}/g`);
         } else {
           console.log(`  ✗ parse-miss (got: ${JSON.stringify(result)})`);
+          // ── DEBUG: dump rate-vicinity text so we can write per-site
+          //    selectors. Shows ±200 chars around every "22 K/Kt/Karat/Carat"
+          //    or "24 K/Kt/Karat/Carat" mention. Looking for the actual
+          //    ₹ value structure (table cell? span? sibling node?).
+          try {
+            const debug = await page.evaluate(() => {
+              const txt = document.body.innerText;
+              const out = [];
+              const re = /(\d{2}\s*(?:K|Kt|Karat|Carat))/gi;
+              let m;
+              while ((m = re.exec(txt)) !== null && out.length < 6) {
+                const s = Math.max(0, m.index - 80);
+                const e = Math.min(txt.length, m.index + 240);
+                out.push(txt.slice(s, e).replace(/\s+/g, ' '));
+              }
+              return out;
+            });
+            if (debug.length) {
+              console.log('  ── debug: rate-vicinity text snippets ──');
+              debug.forEach((s, i) => console.log(`    [${i}] ${s}`));
+            } else {
+              console.log('  ── debug: NO "22K/22Karat" text found on page at all');
+              // Tell us what text IS on the page
+              const sample = await page.evaluate(() => document.body.innerText.slice(0, 400));
+              console.log(`  ── debug: body.innerText[0..400]:\n    ${sample.replace(/\n/g, ' | ')}`);
+            }
+          } catch (dbgErr) {
+            console.log('  ── debug dump failed:', dbgErr.message);
+          }
         }
       }
     } catch (err) {
