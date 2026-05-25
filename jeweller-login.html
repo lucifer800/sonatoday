@@ -2,59 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Jeweller Login — Ahmedabad Gold & Silver Rates</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f1e" />
+  <title>Jeweller Login — SonaToday</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    .login-wrap   { max-width: 420px; margin: 4rem auto; padding: 0 1rem; }
-    .login-card   { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 2rem; }
-    .login-title  { font-size: 1.5rem; font-weight: 700; margin: 0 0 .35rem; }
-    .login-sub    { color: var(--muted); font-size: 13px; margin: 0 0 1.5rem; }
+    .login-wrap   { max-width: 420px; margin: 2.5rem auto; padding: 0 1rem; }
+    .login-card   { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.75rem; }
+    .login-brand  { text-align: center; margin-bottom: 1.25rem; }
+    .login-brand .logo { font-size: 1.75rem; font-weight: 800; background: linear-gradient(135deg,#ffd700,#ff9500); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .login-brand .tag  { color: var(--muted); font-size: 12px; margin-top: .1rem; }
+    .login-title  { font-size: 1.3rem; font-weight: 700; margin: 0 0 .25rem; }
+    .login-sub    { color: var(--muted); font-size: 13px; margin: 0 0 1.25rem; }
     .login-field  { margin-bottom: 1rem; }
-    .login-field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: .35rem; text-transform: uppercase; letter-spacing: .5px; }
-    .login-field input { width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .75rem .85rem; border-radius: 8px; font-size: 14px; }
+    .login-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .5px; }
+    /* Bigger touch targets — 48 px min on phones */
+    .login-field input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .9rem 1rem; border-radius: 10px; font-size: 16px; min-height: 48px; }
     .login-field input:focus { outline: none; border-color: var(--acc); }
-    .login-btn    { width: 100%; background: var(--acc); color: #000; border: 0; padding: .85rem; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; }
-    .login-btn:hover    { filter: brightness(1.1); }
-    .login-btn:disabled { opacity: .5; cursor: not-allowed; }
+    .pwd-wrap     { position: relative; }
+    .pwd-toggle   { position: absolute; right: .6rem; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); padding: .35rem .5rem; font-size: 12px; cursor: pointer; }
+    .pwd-toggle:hover { color: var(--acc); }
+    .login-btn    { width: 100%; background: var(--acc); color: #000; border: 0; padding: 1rem; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 52px; box-shadow: 0 6px 18px -6px rgba(212,175,55,0.5); }
+    .login-btn:hover    { filter: brightness(1.08); }
+    .login-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
     .login-msg    { margin-top: 1rem; padding: .65rem .85rem; border-radius: 8px; font-size: 13px; display: none; }
     .login-msg.err { background: rgba(239,68,68,0.1); color: #f87171; display: block; }
     .login-msg.ok  { background: rgba(34,197,94,0.1); color: #4ade80; display: block; }
-    .login-back   { display: inline-block; margin-bottom: 1rem; color: var(--acc); text-decoration: none; font-size: 13px; }
-    .login-hint   { margin-top: 1rem; padding: .75rem; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .login-back   { display: inline-block; margin-bottom: 1rem; color: var(--muted); text-decoration: none; font-size: 12px; }
+    .login-back:hover { color: var(--acc); }
+    .login-hint   { margin-top: 1rem; padding: .65rem .8rem; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 11px; color: var(--muted); line-height: 1.5; display: none; }
     .login-hint code { color: var(--acc); }
+    .login-foot   { text-align: center; margin-top: 1rem; font-size: 12px; color: var(--muted); }
+    .login-foot a { color: var(--acc); text-decoration: none; }
   </style>
 </head>
 <body>
   <div class="login-wrap">
-    <a class="login-back" href="index.html">← Back to dashboard</a>
+    <a class="login-back" href="index.html">← Back to comparison</a>
     <div class="login-card">
-      <h1 class="login-title">Jeweller Login</h1>
-      <p class="login-sub">Sign in to manage your rates and profile.</p>
+      <div class="login-brand">
+        <div class="logo">SonaToday</div>
+        <div class="tag">Jeweller Portal</div>
+      </div>
+      <h1 class="login-title">Sign in</h1>
+      <p class="login-sub">Manage your shop's daily rates and profile.</p>
 
       <form id="loginForm">
         <div class="login-field">
           <label for="email">Email</label>
-          <input id="email" type="email" required autocomplete="username" />
+          <input id="email" type="email" inputmode="email" required autocomplete="username" placeholder="shop@example.com" />
         </div>
         <div class="login-field">
           <label for="password">Password</label>
-          <input id="password" type="password" required autocomplete="current-password" />
+          <div class="pwd-wrap">
+            <input id="password" type="password" required autocomplete="current-password" />
+            <button type="button" id="pwdToggle" class="pwd-toggle" aria-label="Show password">Show</button>
+          </div>
         </div>
         <button id="loginBtn" type="submit" class="login-btn">Sign in</button>
       </form>
 
       <div id="loginMsg" class="login-msg"></div>
 
-      <div class="login-hint">
-        <strong>Demo logins:</strong> any of the 15 seeded emails (e.g. <code>tanishq@ahm.com</code>, <code>malabar@ahm.com</code>) with password <code>pass123</code>.
+      <div class="login-hint" id="demoHint">
+        <strong>Local demo:</strong> seeded emails (e.g. <code>tanishq@ahm.com</code>) with password <code>pass123</code>.
+      </div>
+
+      <div class="login-foot">
+        Not on SonaToday yet? <a href="mailto:hello@sonatoday.com">Request a free listing →</a>
       </div>
     </div>
   </div>
 
-  <script src="/config.js?v=4"></script>
+  <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
+
+    // Only show the demo-credentials hint on localhost — production
+    // jewellers shouldn't see seeded-account credentials in the wild.
+    const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
+    if (isLocal) document.getElementById('demoHint').style.display = 'block';
+
+    // Show/hide password toggle
+    const pwdInput  = document.getElementById('password');
+    const pwdToggle = document.getElementById('pwdToggle');
+    pwdToggle.addEventListener('click', () => {
+      const showing = pwdInput.type === 'text';
+      pwdInput.type = showing ? 'password' : 'text';
+      pwdToggle.textContent = showing ? 'Show' : 'Hide';
+    });
 
     // If already logged in, jump straight to the dashboard
     if (localStorage.getItem('jwl_token')) {

@@ -164,6 +164,14 @@ const initDb = () => {
       updated TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    // Profile-credibility columns. Added via ALTER so the migration
+    // is safe on a DB that already has the table without these fields.
+    // SQLite ignores ALTER TABLE ADD COLUMN errors on duplicate add.
+    db.run(`ALTER TABLE jewellers ADD COLUMN photo_url TEXT`,    () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN gst_number TEXT`,   () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN bis_license TEXT`,  () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN address_line TEXT`, () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN whatsapp TEXT`,     () => {});
 
     // Reviews table with photo support
     db.run(`CREATE TABLE IF NOT EXISTS reviews (
@@ -525,15 +533,39 @@ function requireAuth(req, res, next) {
 // GET /api/jewellers/me — the logged-in jeweller's own record (no password)
 app.get('/api/jewellers/me', requireAuth, (req, res) => {
   db.get(
-    'SELECT id, name, symbol, email, phone, area, verified, r22g, r24g, making, updated FROM jewellers WHERE id = ?',
+    `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
+            verified, photo_url, gst_number, bis_license,
+            r22g, r24g, making, updated
+       FROM jewellers WHERE id = ?`,
     [req.jeweller.id],
     (err, row) => {
       if (err)  return res.status(500).json({ error: err.message });
       if (!row) return res.status(404).json({ error: 'Jeweller not found' });
-      res.json(row);
+
+      // ── Profile completeness — a 0–100 score the dashboard uses to
+      // gamify onboarding. Fields are weighted by how much they raise
+      // buyer trust on the public profile.
+      const completeness = computeCompleteness(row);
+      res.json({ ...row, completeness });
     }
   );
 });
+
+// Helper used by /me and exposed for the dashboard's gauge.
+function computeCompleteness(j) {
+  const checks = [
+    { key: 'rates',       has: j.r22g != null && j.r24g != null, weight: 25, label: 'Today\'s rates posted' },
+    { key: 'phone',       has: !!j.phone,                        weight: 15, label: 'Shop phone' },
+    { key: 'whatsapp',    has: !!j.whatsapp,                     weight: 10, label: 'WhatsApp number' },
+    { key: 'address',     has: !!j.address_line,                 weight: 10, label: 'Full address' },
+    { key: 'photo',       has: !!j.photo_url,                    weight: 15, label: 'Shop photo' },
+    { key: 'gst',         has: !!j.gst_number,                   weight: 10, label: 'GST number' },
+    { key: 'bis',         has: !!j.bis_license,                  weight: 15, label: 'BIS hallmark licence' },
+  ];
+  const score = checks.reduce((s, c) => s + (c.has ? c.weight : 0), 0);
+  const verified = score >= 75;   // unlock the green "Verified" badge
+  return { score, verified, checks };
+}
 
 // 6. UPDATE RATES (for jewellers) — jeweller can only update their own rates
 app.post('/api/jewellers/:id/rates', requireAuth, (req, res) => {
@@ -565,6 +597,63 @@ app.post('/api/jewellers/:id/rates', requireAuth, (req, res) => {
   );
 });
 
+// PUT /api/jewellers/me/profile — update credibility fields
+// (phone, WhatsApp, address, GST, BIS licence). Photo handled separately.
+app.put('/api/jewellers/me/profile', requireAuth, (req, res) => {
+  const { phone, whatsapp, address_line, gst_number, bis_license } = req.body || {};
+  // Light validation — these are display fields, not security-critical.
+  // Trim everything and treat empty strings as null so the DB stays clean.
+  const norm = (v) => {
+    if (typeof v !== 'string') return v == null ? null : null;
+    const t = v.trim();
+    return t === '' ? null : t;
+  };
+  const updates = {
+    phone:        norm(phone),
+    whatsapp:     norm(whatsapp),
+    address_line: norm(address_line),
+    gst_number:   norm(gst_number),
+    bis_license:  norm(bis_license),
+  };
+  db.run(
+    `UPDATE jewellers
+        SET phone = ?, whatsapp = ?, address_line = ?, gst_number = ?, bis_license = ?
+      WHERE id = ?`,
+    [updates.phone, updates.whatsapp, updates.address_line, updates.gst_number, updates.bis_license, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      // Re-read so the response includes the recomputed completeness.
+      db.get(
+        `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
+                verified, photo_url, gst_number, bis_license,
+                r22g, r24g, making, updated
+           FROM jewellers WHERE id = ?`,
+        [req.jeweller.id],
+        (e, row) => {
+          if (e || !row) return res.status(500).json({ error: 'Re-read failed' });
+          res.json({ ...row, completeness: computeCompleteness(row) });
+        }
+      );
+    }
+  );
+});
+
+// POST /api/jewellers/me/photo — upload shop photo (multipart/form-data).
+// Reuses the existing multer config; cap at 5 MB, JPG/PNG/WebP.
+app.post('/api/jewellers/me/photo', requireAuth, upload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
+  // Relative URL — served by the express.static('uploads') middleware.
+  const photo_url = `/${req.file.filename}`;
+  db.run(
+    'UPDATE jewellers SET photo_url = ? WHERE id = ?',
+    [photo_url, req.jeweller.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ photo_url });
+    }
+  );
+});
+
 // GET /api/jewellers/:id/history — price history for the trend chart
 app.get('/api/jewellers/:id/history', (req, res) => {
   db.all(
@@ -580,7 +669,9 @@ app.get('/api/jewellers/:id/history', (req, res) => {
 // Get all jewellers with verification status (no passwords leaked)
 app.get('/api/jewellers', (req, res) => {
   db.all(
-    `SELECT id, name, symbol, email, phone, area, verified, r22g, r24g, making, updated,
+    `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
+            verified, photo_url, gst_number, bis_license,
+            r22g, r24g, making, updated,
             last_scraped_at, scrape_status
        FROM jewellers
       ORDER BY r22g ASC`,
