@@ -24,6 +24,15 @@
     .jp-back { color: var(--acc); text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1rem; }
     .jp-back:hover { opacity: .8; }
     .jp-card { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.25rem; }
+    /* Shop photo banner (top of profile, when jeweller uploads one) */
+    .jp-photo { height: 200px; background: rgba(255,255,255,0.04) center/cover; border-radius: 12px; margin: -.5rem 0 1.25rem; border: 1px solid var(--acc-border); }
+    @media (max-width: 600px) { .jp-photo { height: 150px; } }
+    /* Credibility badge row (BIS / GST / WhatsApp) */
+    .cred-row    { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .85rem; padding-top: .85rem; border-top: 1px solid rgba(255,255,255,0.06); }
+    .cred-badge  { display: inline-flex; align-items: center; gap: .35rem; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .35rem .65rem; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; }
+    .cred-badge.cred-gold { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.35); color: var(--acc); }
+    .cred-badge.cred-wa   { background: rgba(37,211,102,0.1); border-color: rgba(37,211,102,0.35); color: #25D366; }
+    .cred-badge.cred-wa:hover { background: rgba(37,211,102,0.18); }
     .jp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .jp-name { font-size: 1.85rem; font-weight: 700; margin: 0 0 .25rem; }
     .jp-area { color: var(--muted); font-size: 14px; }

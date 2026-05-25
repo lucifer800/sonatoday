@@ -64,10 +64,18 @@ async function syncFromDB() {
       const j = J.find(x => x.id === row.id);
       if (!j) return;
       // Direct assignment so NULL from backend clears stale local data.
-      j.r22g    = row.r22g;
-      j.r24g    = row.r24g;
-      j.making  = row.making;
-      j.updated = row.updated;
+      j.r22g         = row.r22g;
+      j.r24g         = row.r24g;
+      j.making       = row.making;
+      j.updated      = row.updated;
+      // Credibility fields populated via dashboard (Phase 1.1 onboarding).
+      j.phone        = row.phone;
+      j.whatsapp     = row.whatsapp;
+      j.address_line = row.address_line;
+      j.photo_url    = row.photo_url;
+      j.gst_number   = row.gst_number;
+      j.bis_license  = row.bis_license;
+      j.verified     = row.verified;
     });
   } catch (_) { /* fall back to J */ }
 }
@@ -106,16 +114,35 @@ function render() {
         </div>`).join('')
     : '<div class="jp-empty">No reviews yet. Be the first to review.</div>';
 
+  // ── Credibility badges (from dashboard credibility section)
+  const credBadges = [];
+  if (j.bis_license)  credBadges.push(`<span class="cred-badge cred-gold">⚖ BIS Hallmark Licensed</span>`);
+  if (j.gst_number)   credBadges.push(`<span class="cred-badge">📑 GST ${j.gst_number}</span>`);
+  if (j.whatsapp)     credBadges.push(`<a class="cred-badge cred-wa" href="https://wa.me/${j.whatsapp.replace(/[^0-9]/g,'')}" target="_blank" rel="noopener">💬 WhatsApp</a>`);
+  const credRow = credBadges.length
+    ? `<div class="cred-row">${credBadges.join('')}</div>`
+    : '';
+
+  // ── Photo (shop storefront) — full-width hero above the head
+  const photoHtml = j.photo_url
+    ? `<div class="jp-photo" style="background-image:url(${j.photo_url})"></div>`
+    : '';
+
+  // ── Address line (full, if provided via dashboard)
+  const addressLine = j.address_line || j.area;
+
   root.innerHTML = `
     <div class="jp-card">
+      ${photoHtml}
       <div class="jp-head">
         <div>
           <h1 class="jp-name">${j.name}<span class="jp-sym">${j.sym}</span></h1>
-          <div class="jp-area">📍 ${j.area} · 📞 ${j.phone || '—'}</div>
+          <div class="jp-area">📍 ${addressLine}${j.phone ? ` · 📞 ${j.phone}` : ''}</div>
           ${trust ? `<div style="margin-top:.5rem">${stars(trust.avg)} <strong>${trust.avg}</strong> <span style="color:var(--muted);font-size:12px">(${trust.n} verified review${trust.n === 1 ? '' : 's'})</span></div>` : ''}
         </div>
         ${j.active ? '<span class="jp-verified">✓ Active Partner</span>' : ''}
       </div>
+      ${credRow}
 
       ${j.rate_url ? `
       <div style="margin-top:.75rem;padding:.6rem .85rem;background:var(--acc-dim);border:1px solid var(--acc-border);border-radius:8px;font-size:12px">
