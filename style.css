@@ -38,73 +38,79 @@
    that reads them flips automatically. Below the var block, we
    neutralise the hard-coded rgba(0,0,0,…) / rgba(255,255,255,…)
    backgrounds that bypass vars and would otherwise look wrong. */
+/* ─── LIGHT MODE: "Warm Parchment" palette ─────────────────────
+   Old palette was Apple-style cool-white (#fbfbfd / #ffffff) which
+   reads like a tube light next to a dark UI. Jewellery is warm,
+   not surgical. New palette borrows from Tanishq's print catalog:
+   cream paper, charcoal text, antique-gold accents, soft shadows
+   instead of stark borders. Eye-friendly even at midday.        */
 body.light {
-  --navy:        #fbfbfd;                       /* page bg — Apple's neutral off-white */
-  --navy2:       #ffffff;                       /* card / panel bg */
-  --navy3:       #f5f5f7;                       /* secondary panel */
-  --white:       #1d1d1f;                       /* primary text */
-  --muted:       #6e6e73;                       /* secondary text */
-  --acc:         #9C7A18;                       /* gold, darkened so it reads on white */
-  --acc-light:   #C39A24;
-  --acc-dim:     rgba(156, 122, 24, 0.06);
-  --acc-border:  rgba(0, 0, 0, 0.08);            /* hairline gray, not gold */
-  --gold-grad:   linear-gradient(135deg, #C39A24 0%, #9C7A18 100%);
-  --gold-glow:   0 1px 2px rgba(0, 0, 0, 0.06);
-  --glass-bg:    #ffffff;
-  --glass-border: 1px solid rgba(0, 0, 0, 0.08);
-  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --navy:        #faf6ee;                       /* page bg — warm cream, no blue */
+  --navy2:       #fffaf0;                       /* card bg — softer than pure white */
+  --navy3:       #f3ece0;                       /* secondary panel — warm beige */
+  --white:       #2a241c;                       /* text — warm charcoal, not pure black */
+  --muted:       #7a6f5f;                       /* secondary text — warm taupe */
+  --acc:         #8B6914;                       /* antique gold, deep enough to read */
+  --acc-light:   #B8881F;
+  --acc-dim:     rgba(139, 105, 20, 0.08);
+  --acc-border:  rgba(139, 105, 20, 0.18);      /* gold-tinted hairline */
+  --gold-grad:   linear-gradient(135deg, #B8881F 0%, #8B6914 100%);
+  --gold-glow:   0 1px 3px rgba(139, 105, 20, 0.12);
+  --glass-bg:    #fffaf0;
+  --glass-border: 1px solid rgba(139, 105, 20, 0.15);
+  --glass-shadow: 0 2px 8px rgba(60, 40, 10, 0.06), 0 1px 2px rgba(60, 40, 10, 0.04);
 }
 
 /* Kill the moody dark backgrounds & glow effects */
 body.light { background: var(--navy); }
 body.light .ticker-bar,
 body.light .rm-head,
-body.light .foot                              { background: var(--navy3); }
+body.light .foot                              { background: var(--navy3); border-color: var(--acc-border); }
 body.light .sort-btns,
 body.light .mcx-chg,
 body.light .sym-pill,
-body.light .refresh-btn                       { background: #ffffff; border: 1px solid rgba(0,0,0,0.08); color: var(--white); }
-body.light .sym-pill                          { color: var(--acc); }
-body.light .sc                                { background: #ffffff; border-color: rgba(0,0,0,0.06); }
-body.light .sc:hover                          { background: #ffffff; border-color: rgba(0,0,0,0.12); }
+body.light .refresh-btn                       { background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white); }
+body.light .sym-pill                          { color: var(--acc); background: var(--acc-dim); border-color: rgba(139,105,20,0.22); }
+body.light .sc                                { background: var(--navy2); border-color: var(--acc-border); box-shadow: var(--glass-shadow); }
+body.light .sc:hover                          { background: var(--navy2); border-color: rgba(139,105,20,0.28); box-shadow: 0 4px 14px rgba(60,40,10,0.08); }
 
-/* Form controls */
+/* Form controls — cream inputs, warm focus glow */
 body.light .srch-wrap input,
 body.light .fb-field select,
 body.light .fb-field input[type=number] {
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.12);
+  background: var(--navy2);
+  border: 1px solid var(--acc-border);
   color: var(--white);
-  box-shadow: none;
+  box-shadow: inset 0 1px 2px rgba(60,40,10,0.03);
 }
 body.light .srch-wrap input:focus,
 body.light .fb-field select:focus,
 body.light .fb-field input[type=number]:focus {
   border-color: var(--acc);
-  box-shadow: 0 0 0 3px rgba(156,122,24,0.12);
-  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(139,105,20,0.14);
+  background: var(--navy2);
 }
-body.light .fb-field select option { background: #fff; color: var(--white); }
+body.light .fb-field select option { background: var(--navy2); color: var(--white); }
 
-/* Table */
+/* Table — warm parchment rows, gold-tinted dividers */
 body.light table                              { background: transparent; }
-body.light th                                 { background: var(--navy3); color: var(--muted); border-bottom: 1px solid rgba(0,0,0,0.08); }
-body.light td                                 { border-top: 1px solid rgba(0,0,0,0.06); border-bottom: 0; background: #ffffff; }
-body.light tr:hover td                        { background: #f9f9fb; }
+body.light th                                 { background: var(--navy3); color: var(--muted); border-bottom: 1px solid var(--acc-border); }
+body.light td                                 { border-top: 1px solid rgba(139,105,20,0.10); border-bottom: 0; background: var(--navy2); }
+body.light tr:hover td                        { background: #fff5e0; }
 
 /* Soften the loud purity badges so they don't shout */
-body.light .mk-lo        { background: rgba(34,197,94,0.10);   color: #1a8b4a; border-color: rgba(34,197,94,0.25); }
-body.light .mk-md        { background: rgba(156,122,24,0.10);  color: var(--acc); border-color: rgba(156,122,24,0.25); }
-body.light .mk-hi        { background: rgba(239,68,68,0.08);   color: #c0392b; border-color: rgba(239,68,68,0.25); }
+body.light .mk-lo        { background: rgba(64,160,90,0.10);  color: #2e7d3f; border-color: rgba(64,160,90,0.25); }
+body.light .mk-md        { background: rgba(139,105,20,0.10); color: var(--acc); border-color: rgba(139,105,20,0.25); }
+body.light .mk-hi        { background: rgba(180,80,60,0.08);  color: #a04030; border-color: rgba(180,80,60,0.25); }
 body.light .trusted-badge,
-body.light .ver-badge    { background: rgba(34,197,94,0.10); color: #1a8b4a; border-color: rgba(34,197,94,0.20); }
+body.light .ver-badge    { background: rgba(64,160,90,0.10); color: #2e7d3f; border-color: rgba(64,160,90,0.22); }
 
-/* Buttons */
+/* Buttons — muted gold, subtle warm shadow */
 body.light .sb                                { color: var(--muted); }
 body.light .sb:hover                          { color: var(--white); }
-body.light .sb.active                         { background: var(--acc); color: #ffffff; box-shadow: none; }
+body.light .sb.active                         { background: var(--acc); color: #fffaf0; box-shadow: 0 2px 6px rgba(139,105,20,0.20); }
 body.light .btn-acc,
-body.light .btn-acc:hover                     { background: var(--acc); color: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+body.light .btn-acc:hover                     { background: var(--gold-grad); color: #fffaf0; box-shadow: 0 2px 8px rgba(139,105,20,0.22); border: 0; }
 
 /* Header / logo text */
 body.light .logo-txt                          { color: var(--white); }
@@ -116,15 +122,27 @@ body.light .m-mode                            { color: var(--muted); }
 body.light .mcx-price,
 body.light .sc-val                            { color: var(--white); }
 
-/* Modal */
-body.light .rm                                { background: var(--navy2); border-color: rgba(0,0,0,0.08); }
-body.light .rev-card                          { background: var(--navy3); border-color: rgba(0,0,0,0.06); }
-body.light .rev-card:hover                    { background: #eef0f4; }
-body.light .rm-close                          { background: #ffffff; color: var(--white); border-color: rgba(0,0,0,0.08); }
+/* Modal — cream card, gold-tinted edges */
+body.light .rm                                { background: var(--navy2); border-color: var(--acc-border); box-shadow: 0 20px 60px rgba(60,40,10,0.18); }
+body.light .rev-card                          { background: var(--navy3); border-color: var(--acc-border); }
+body.light .rev-card:hover                    { background: #ebe2cf; }
+body.light .rm-close                          { background: var(--navy2); color: var(--white); border-color: var(--acc-border); }
 
-/* Disable shimmer & glow noise in light mode */
-body.light .gold-shimmer { animation: none; background: none; -webkit-text-fill-color: var(--white); color: var(--white); }
-body.light .live-dot     { box-shadow: none; }
+/* Re-enable a SUBTLE gold shimmer on the logo — full kill made the
+   brand text look dead. Soft animated gradient, no glow. */
+body.light .gold-shimmer {
+  background: linear-gradient(135deg, #8B6914 0%, #B8881F 50%, #8B6914 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+body.light .live-dot     { box-shadow: 0 0 0 2px rgba(74,222,128,0.18); }
+
+/* Ambient background glows on body::before/::after — in light
+   mode they were dark blobs on white = ugly. Soften to warm gold. */
+body.light::before { background: radial-gradient(circle, rgba(184,136,31,0.10), transparent 60%) !important; }
+body.light::after  { background: radial-gradient(circle, rgba(139,105,20,0.06), transparent 60%) !important; }
 
 html { scroll-behavior: smooth; }
 

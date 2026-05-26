@@ -73,6 +73,22 @@ function extractRate(html, purityCode) {
   return null;
 }
 
+// ── Silver extraction: IBJA embeds a JSON-encoded silverRate array
+// in the page (used for their chart widget). The LAST entry is today's
+// silver rate in INR per KG. We convert to per-gram (÷1000).
+// Per-gram silver in India 2026 sits around ₹240–340 — anything outside
+// that range we treat as a parse failure.
+function extractSilverPerGram(html) {
+  const m = html.match(/silverRate&quot;:\[([\d,]+)\]/);
+  if (!m) return null;
+  const arr = m[1].split(',').map(Number).filter(Number.isFinite);
+  if (!arr.length) return null;
+  const perKg    = arr[arr.length - 1];
+  const perGram  = perKg / 1000;
+  if (perGram < 100 || perGram > 500) return null;  // sanity band
+  return Math.round(perGram * 100) / 100;
+}
+
 // ── Cross-check parsed rates: 916 should be ~91.6% of 999 (±2%).
 // If the ratio is way off we picked up an unrelated number — better
 // to fail loudly than ship a wrong rate.
@@ -128,9 +144,28 @@ async function scrapeIbja() {
        r18g ? Math.round(r18g * 100) / 100 : null, fetched_at]
     );
 
+    // ── Silver: same page, different parser (chart array).
+    // Silver is sold pure (.999) so we store the same value in r22g/r24g
+    // for shape-compatibility; UI only ever uses r24g for silver.
+    const silverPg = extractSilverPerGram(html);
+    if (silverPg) {
+      db.run(
+        `INSERT OR REPLACE INTO live_rates
+           (metal, r24g, r22g, r18g, source, fetched_at, stale)
+         VALUES ('silver', ?, ?, NULL, 'ibja', ?, 0)`,
+        [silverPg, silverPg, fetched_at]
+      );
+    } else {
+      db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'silver'`);
+    }
+
     const ms = Date.now() - startedAt;
-    console.log(`   ✓ IBJA: 22K ₹${Math.round(r22g)}/g · 24K ₹${Math.round(r24g)}/g  (${ms}ms)`);
-    return { r24g, r22g, r18g, fetched_at };
+    console.log(
+      `   ✓ IBJA: 22K ₹${Math.round(r22g)}/g · 24K ₹${Math.round(r24g)}/g` +
+      (silverPg ? ` · Silver ₹${Math.round(silverPg)}/g` : ' · silver:miss') +
+      `  (${ms}ms)`
+    );
+    return { r24g, r22g, r18g, silver: silverPg, fetched_at };
 
   } catch (err) {
     console.error(`   ✗ IBJA scrape failed: ${err.message} — keeping cached value`);
