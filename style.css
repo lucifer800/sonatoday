@@ -119,6 +119,15 @@ body.light .hdr-date,
 body.light .mcx-lbl,
 body.light .sc-lbl,
 body.light .m-mode                            { color: var(--muted); }
+/* Metal toggle labels — light mode override.
+   Dark mode used pale cool-blue silver (#A8B8CC) and glowing gold —
+   both vanish on warm cream. Replace with high-contrast warm tones. */
+body.light .m-gold     { color: var(--acc); text-shadow: none; }
+body.light .m-silver   { color: #4a5560; text-shadow: none; }      /* deep slate, reads strong on cream */
+/* When a metal is INACTIVE we dim it via inline opacity:.4; that's
+   too faint on cream — bump min-visibility by adding a slight tint. */
+body.light .m-lbl[style*="opacity:.4"],
+body.light .m-lbl[style*="opacity: .4"] { opacity: 0.55 !important; }
 body.light .mcx-price,
 body.light .sc-val                            { color: var(--white); }
 
