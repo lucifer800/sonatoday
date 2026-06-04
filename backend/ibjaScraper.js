@@ -70,7 +70,12 @@ function upsertDailySnapshot(metal, r24g, r22g, r18g, source) {
   db.run(
     `INSERT OR REPLACE INTO mcx_history (metal, day, r24g, r22g, r18g, source)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [metal, day, r24g, r22g, r18g, source]
+    [metal, day, r24g, r22g, r18g, source],
+    // Callback prevents unhandled-error event from killing the process
+    // if the table isn't ready yet on this connection (e.g. fresh DB).
+    (err) => {
+      if (err) console.warn('   ⚠ mcx_history upsert skipped:', err.message);
+    }
   );
 }
 ensureSchema();

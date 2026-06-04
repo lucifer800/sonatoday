@@ -173,6 +173,33 @@ const initDb = () => {
     db.run(`ALTER TABLE jewellers ADD COLUMN address_line TEXT`, () => {});
     db.run(`ALTER TABLE jewellers ADD COLUMN whatsapp TEXT`,     () => {});
 
+    // MCX history archive — one row per metal per calendar day (IST).
+    // Lives here (not in ibjaScraper.js) so it's guaranteed to exist on
+    // the *primary* DB connection before any scraper writes to it. The
+    // scraper opens its own connection but sees the same SQLite file.
+    db.run(`CREATE TABLE IF NOT EXISTS mcx_history (
+      metal        TEXT NOT NULL,
+      day          TEXT NOT NULL,
+      r24g         REAL,
+      r22g         REAL,
+      r18g         REAL,
+      source       TEXT,
+      PRIMARY KEY (metal, day)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_mcx_history_day ON mcx_history(day)`);
+
+    // Also pre-create live_rates here so the IBJA scraper's first write
+    // never races with its own ensureSchema(). Same reasoning.
+    db.run(`CREATE TABLE IF NOT EXISTS live_rates (
+      metal        TEXT PRIMARY KEY,
+      r24g         REAL,
+      r22g         REAL,
+      r18g         REAL,
+      source       TEXT,
+      fetched_at   TEXT,
+      stale        INTEGER DEFAULT 0
+    )`);
+
     // Reviews table with photo support
     db.run(`CREATE TABLE IF NOT EXISTS reviews (
       id INTEGER PRIMARY KEY,
