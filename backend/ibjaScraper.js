@@ -34,29 +34,30 @@ const USER_AGENT =
 // the table exists no matter which entry point calls us first
 // (scrapeIbja directly, startIbjaScraper, or getCachedRate).
 function ensureSchema() {
-  db.run(`CREATE TABLE IF NOT EXISTS live_rates (
-    metal        TEXT PRIMARY KEY,        -- 'gold' | 'silver'
-    r24g         REAL,                    -- ₹/gram 999 (pure 24K)
-    r22g         REAL,                    -- ₹/gram 916 (22K hallmark)
-    r18g         REAL,                    -- ₹/gram 750 (18K)
-    source       TEXT,                    -- 'ibja' | future sources
-    fetched_at   TEXT,                    -- ISO timestamp
-    stale        INTEGER DEFAULT 0        -- 1 = last fetch failed, value is old
-  )`);
-  // ── Historical archive — one row per metal per day.
-  // Populated by upsertDailySnapshot() on every successful scrape,
-  // so over time we build a growing timeline. Future: backfill from
-  // an IBJA archive to extend the timeline backward (one-time job).
-  db.run(`CREATE TABLE IF NOT EXISTS mcx_history (
-    metal        TEXT NOT NULL,
-    day          TEXT NOT NULL,            -- YYYY-MM-DD (IST)
-    r24g         REAL,
-    r22g         REAL,
-    r18g         REAL,
-    source       TEXT,
-    PRIMARY KEY (metal, day)
-  )`);
-  db.run(`CREATE INDEX IF NOT EXISTS idx_mcx_history_day ON mcx_history(day)`);
+  // db.serialize guarantees these run sequentially on this connection.
+  // Every db.run has an explicit no-op callback so a transient SQLite
+  // error never bubbles to the process and crashes the server.
+  db.serialize(() => {
+    db.run(`CREATE TABLE IF NOT EXISTS live_rates (
+      metal        TEXT PRIMARY KEY,
+      r24g         REAL,
+      r22g         REAL,
+      r18g         REAL,
+      source       TEXT,
+      fetched_at   TEXT,
+      stale        INTEGER DEFAULT 0
+    )`, () => {});
+    db.run(`CREATE TABLE IF NOT EXISTS mcx_history (
+      metal        TEXT NOT NULL,
+      day          TEXT NOT NULL,
+      r24g         REAL,
+      r22g         REAL,
+      r18g         REAL,
+      source       TEXT,
+      PRIMARY KEY (metal, day)
+    )`, () => {});
+    db.run(`CREATE INDEX IF NOT EXISTS idx_mcx_history_day ON mcx_history(day)`, () => {});
+  });
 }
 
 // Write a daily snapshot. PRIMARY KEY (metal, day) means subsequent
@@ -161,7 +162,7 @@ async function scrapeIbja() {
     if (!r24g || !r22g) {
       // IBJA shows "NA" on Sat/Sun/holidays — keep cache, mark stale.
       console.log(`   ⚠ IBJA: no current rate (weekend/holiday?) — keeping cached value`);
-      db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'gold'`);
+      db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'gold'`, () => {});
       return null;
     }
 
@@ -178,7 +179,8 @@ async function scrapeIbja() {
       `INSERT OR REPLACE INTO live_rates
          (metal, r24g, r22g, r18g, source, fetched_at, stale)
        VALUES ('gold', ?, ?, ?, 'ibja', ?, 0)`,
-      [g24, g22, g18, fetched_at]
+      [g24, g22, g18, fetched_at],
+      (err) => { if (err) console.warn('   ⚠ live_rates gold write skipped:', err.message); }
     );
     upsertDailySnapshot('gold', g24, g22, g18, 'ibja');
 
@@ -191,11 +193,12 @@ async function scrapeIbja() {
         `INSERT OR REPLACE INTO live_rates
            (metal, r24g, r22g, r18g, source, fetched_at, stale)
          VALUES ('silver', ?, ?, NULL, 'ibja', ?, 0)`,
-        [silverPg, silverPg, fetched_at]
+        [silverPg, silverPg, fetched_at],
+        (err) => { if (err) console.warn('   ⚠ live_rates silver write skipped:', err.message); }
       );
       upsertDailySnapshot('silver', silverPg, silverPg, null, 'ibja');
     } else {
-      db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'silver'`);
+      db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'silver'`, () => {});
     }
 
     const ms = Date.now() - startedAt;
@@ -208,7 +211,7 @@ async function scrapeIbja() {
 
   } catch (err) {
     console.error(`   ✗ IBJA scrape failed: ${err.message} — keeping cached value`);
-    db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'gold'`);
+    db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'gold'`, () => {});
     return null;
   }
 }
