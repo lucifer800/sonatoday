@@ -43,6 +43,35 @@ function ensureSchema() {
     fetched_at   TEXT,                    -- ISO timestamp
     stale        INTEGER DEFAULT 0        -- 1 = last fetch failed, value is old
   )`);
+  // ── Historical archive — one row per metal per day.
+  // Populated by upsertDailySnapshot() on every successful scrape,
+  // so over time we build a growing timeline. Future: backfill from
+  // an IBJA archive to extend the timeline backward (one-time job).
+  db.run(`CREATE TABLE IF NOT EXISTS mcx_history (
+    metal        TEXT NOT NULL,
+    day          TEXT NOT NULL,            -- YYYY-MM-DD (IST)
+    r24g         REAL,
+    r22g         REAL,
+    r18g         REAL,
+    source       TEXT,
+    PRIMARY KEY (metal, day)
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_mcx_history_day ON mcx_history(day)`);
+}
+
+// Write a daily snapshot. PRIMARY KEY (metal, day) means subsequent
+// scrapes on the same day overwrite, so the row always holds the
+// latest known value for that calendar day.
+function upsertDailySnapshot(metal, r24g, r22g, r18g, source) {
+  // IST = UTC+5:30. Compute YYYY-MM-DD in IST so "today" matches
+  // an Indian buyer's calendar even when the server is in another TZ.
+  const nowIST = new Date(Date.now() + 5.5 * 3600 * 1000);
+  const day    = nowIST.toISOString().slice(0, 10);   // YYYY-MM-DD
+  db.run(
+    `INSERT OR REPLACE INTO mcx_history (metal, day, r24g, r22g, r18g, source)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [metal, day, r24g, r22g, r18g, source]
+  );
 }
 ensureSchema();
 
@@ -136,13 +165,17 @@ async function scrapeIbja() {
     }
 
     const fetched_at = new Date().toISOString();
+    const round2 = (n) => n == null ? null : Math.round(n * 100) / 100;
+    const g24    = round2(r24g);
+    const g22    = round2(r22g);
+    const g18    = round2(r18g);
     db.run(
       `INSERT OR REPLACE INTO live_rates
          (metal, r24g, r22g, r18g, source, fetched_at, stale)
        VALUES ('gold', ?, ?, ?, 'ibja', ?, 0)`,
-      [Math.round(r24g * 100) / 100, Math.round(r22g * 100) / 100,
-       r18g ? Math.round(r18g * 100) / 100 : null, fetched_at]
+      [g24, g22, g18, fetched_at]
     );
+    upsertDailySnapshot('gold', g24, g22, g18, 'ibja');
 
     // ── Silver: same page, different parser (chart array).
     // Silver is sold pure (.999) so we store the same value in r22g/r24g
@@ -155,6 +188,7 @@ async function scrapeIbja() {
          VALUES ('silver', ?, ?, NULL, 'ibja', ?, 0)`,
         [silverPg, silverPg, fetched_at]
       );
+      upsertDailySnapshot('silver', silverPg, silverPg, null, 'ibja');
     } else {
       db.run(`UPDATE live_rates SET stale = 1 WHERE metal = 'silver'`);
     }

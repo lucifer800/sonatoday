@@ -654,16 +654,95 @@ app.post('/api/jewellers/me/photo', requireAuth, upload.single('photo'), (req, r
   );
 });
 
-// GET /api/jewellers/:id/history — price history for the trend chart
+// GET /api/mcx-history — daily IBJA reference rates for chart overlay.
+// Same range params as the jeweller history endpoint.
+// Returns one row per calendar day (IST) for the requested range.
+app.get('/api/mcx-history', (req, res) => {
+  const range = (req.query.range || '1m').toLowerCase();
+  const metal = req.query.metal === 'silver' ? 'silver' : 'gold';
+
+  const RANGE_DAYS = { '1d': 2, '1w': 8, '1m': 32, '3m': 95, '1y': 370, 'all': null };
+  const days = RANGE_DAYS[range] === null ? null : (RANGE_DAYS[range] || 32);
+  // YYYY-MM-DD cutoff in IST.
+  const cutoff = days
+    ? new Date(Date.now() + 5.5 * 3600 * 1000 - days * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    : null;
+
+  const args = cutoff ? [metal, cutoff] : [metal];
+  const sql  = cutoff
+    ? `SELECT day, r24g, r22g, r18g FROM mcx_history
+        WHERE metal = ? AND day >= ?  ORDER BY day ASC`
+    : `SELECT day, r24g, r22g, r18g FROM mcx_history
+        WHERE metal = ?               ORDER BY day ASC`;
+  db.all(sql, args, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ range, metal, points: rows });
+  });
+});
+
+// GET /api/jewellers/:id/history — price history for the trend chart.
+// Query params (all optional):
+//   range  = 1d | 1w | 1m | 3m | 1y | all      (default: 1m)
+//   bucket = raw | day                         (default: day for ranges >= 1m)
+// Returns OHLC-ish daily buckets when bucket=day, raw ticks otherwise.
+// No row cap when bucket=day (5 years × 365 days = 1,825 points — fine).
 app.get('/api/jewellers/:id/history', (req, res) => {
-  db.all(
-    'SELECT r22g, r24g, recorded_at FROM price_history WHERE jeweller_id = ? ORDER BY recorded_at DESC LIMIT 30',
-    [req.params.id],
-    (err, rows) => {
+  const range  = (req.query.range  || '1m').toLowerCase();
+  const bucket = (req.query.bucket || (range === '1d' || range === '1w' ? 'raw' : 'day')).toLowerCase();
+
+  // Translate range → cutoff timestamp (UTC ISO).
+  const now = Date.now();
+  const RANGE_MS = {
+    '1d':  24 * 3600 * 1000,
+    '1w':  7  * 24 * 3600 * 1000,
+    '1m':  30 * 24 * 3600 * 1000,
+    '3m':  90 * 24 * 3600 * 1000,
+    '1y':  365* 24 * 3600 * 1000,
+    'all': null,
+  };
+  const cutoffMs = RANGE_MS[range] === null ? null : now - (RANGE_MS[range] || RANGE_MS['1m']);
+  const cutoffISO = cutoffMs ? new Date(cutoffMs).toISOString() : null;
+
+  if (bucket === 'raw') {
+    // Tick-level — every recorded update inside the range.
+    const args = cutoffISO ? [req.params.id, cutoffISO] : [req.params.id];
+    const sql  = cutoffISO
+      ? `SELECT r22g, r24g, recorded_at FROM price_history
+           WHERE jeweller_id = ? AND recorded_at >= ?
+           ORDER BY recorded_at ASC`
+      : `SELECT r22g, r24g, recorded_at FROM price_history
+           WHERE jeweller_id = ?
+           ORDER BY recorded_at ASC`;
+    return db.all(sql, args, (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json(rows.reverse()); // oldest first for charting
-    }
-  );
+      res.json({ range, bucket, points: rows });
+    });
+  }
+
+  // Daily bucket — one row per day with open/high/low/close for 22K + 24K.
+  // SQLite has date() — group by YYYY-MM-DD of recorded_at.
+  const args = cutoffISO ? [req.params.id, cutoffISO] : [req.params.id];
+  const sql  = cutoffISO
+    ? `SELECT date(recorded_at) AS day,
+              MIN(r22g) AS low22, MAX(r22g) AS high22, AVG(r22g) AS close22,
+              MIN(r24g) AS low24, MAX(r24g) AS high24, AVG(r24g) AS close24,
+              COUNT(*) AS n
+         FROM price_history
+        WHERE jeweller_id = ? AND recorded_at >= ?
+        GROUP BY date(recorded_at)
+        ORDER BY day ASC`
+    : `SELECT date(recorded_at) AS day,
+              MIN(r22g) AS low22, MAX(r22g) AS high22, AVG(r22g) AS close22,
+              MIN(r24g) AS low24, MAX(r24g) AS high24, AVG(r24g) AS close24,
+              COUNT(*) AS n
+         FROM price_history
+        WHERE jeweller_id = ?
+        GROUP BY date(recorded_at)
+        ORDER BY day ASC`;
+  db.all(sql, args, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ range, bucket, points: rows });
+  });
 });
 
 // Get all jewellers with verification status (no passwords leaked)

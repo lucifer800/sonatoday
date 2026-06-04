@@ -230,9 +230,21 @@ function render() {
     </div>
 
     <div class="jp-card">
-      <h3 class="jp-section-title">📈 Price trend</h3>
-      <p style="color:var(--muted);font-size:13px;margin:0 0 .75rem">Last 30 rate updates by this jeweller.</p>
-      <div style="position:relative;height:260px"><canvas id="priceChart"></canvas></div>
+      <h3 class="jp-section-title">📈 Price trend
+        <span style="font-size:12px;font-weight:400;color:var(--muted);margin-left:.4rem">vs IBJA reference</span>
+      </h3>
+      <div class="jp-range-bar" id="jpRangeBar">
+        <button class="jp-range-btn" data-range="1w">1W</button>
+        <button class="jp-range-btn active" data-range="1m">1M</button>
+        <button class="jp-range-btn" data-range="3m">3M</button>
+        <button class="jp-range-btn" data-range="1y">1Y</button>
+        <button class="jp-range-btn" data-range="all">All</button>
+        <span class="jp-range-legend">
+          <span class="jp-dot" style="background:#D4AF37"></span> ${j.name}
+          <span class="jp-dot" style="background:#6c7a8c;margin-left:.7rem"></span> IBJA 22K
+        </span>
+      </div>
+      <div id="priceChart" style="width:100%;height:280px"></div>
       <div id="chartEmpty" style="display:none;color:var(--muted);font-size:13px;font-style:italic;text-align:center;padding:1rem">No price history yet — chart will populate as the jeweller updates rates.</div>
     </div>
 
@@ -246,33 +258,85 @@ function render() {
   renderPriceChart(j.id);
 }
 
-async function renderPriceChart(jewellerId) {
-  try {
-    const res  = await fetch(`${API_BASE}/api/jewellers/${jewellerId}/history`);
-    const rows = await res.json();
-    const canvas = document.getElementById('priceChart');
-    const empty  = document.getElementById('chartEmpty');
-    if (!rows.length) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
+/* ─── Trend chart — TradingView Lightweight Charts ────────
+   Same UX as the dashboard chart so buyers and jewellers see
+   the same visualisation. Gold line = this shop's 22K, dashed
+   grey = IBJA market reference. Range selector reloads both.
+─────────────────────────────────────────────────────────── */
+let jpTvChart = null, jpSeriesYou = null, jpSeriesMcx = null;
+let jpCurrentRange = '1m';
+let jpJewellerId = null;
 
-    const labels = rows.map(r => new Date(r.recorded_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }));
-    new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: '22K ₹/g', data: rows.map(r => r.r22g), borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.15)', tension: 0.3, fill: true },
-          { label: '24K ₹/g', data: rows.map(r => r.r24g), borderColor: '#F0CC60', backgroundColor: 'rgba(240,204,96,0.10)', tension: 0.3, fill: false },
-        ],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#a0a8b8', font: { size: 11 } } } },
-        scales: {
-          x: { ticks: { color: '#6c7a8c', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-          y: { ticks: { color: '#6c7a8c', font: { size: 10 }, callback: v => '₹' + v }, grid: { color: 'rgba(255,255,255,0.04)' } },
-        },
-      },
-    });
+function jpInitChart() {
+  if (jpTvChart) return;
+  const el = document.getElementById('priceChart');
+  jpTvChart = LightweightCharts.createChart(el, {
+    width: el.clientWidth,
+    height: 280,
+    layout: { background: { color: 'transparent' }, textColor: '#a0a8b8', fontSize: 11 },
+    grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+    rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+    timeScale:       { borderColor: 'rgba(255,255,255,0.08)', timeVisible: false, secondsVisible: false },
+    crosshair: { mode: 1 },
+    localization: { priceFormatter: (v) => '₹' + Math.round(v).toLocaleString('en-IN') },
+  });
+  jpSeriesMcx = jpTvChart.addLineSeries({
+    color: '#6c7a8c', lineWidth: 1, lineStyle: 2,
+    priceLineVisible: false, lastValueVisible: false, title: 'IBJA 22K',
+  });
+  jpSeriesYou = jpTvChart.addLineSeries({
+    color: '#D4AF37', lineWidth: 2,
+    priceLineVisible: true, lastValueVisible: true, title: 'Shop 22K',
+  });
+  new ResizeObserver(() => jpTvChart.applyOptions({ width: el.clientWidth })).observe(el);
+
+  document.getElementById('jpRangeBar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.jp-range-btn');
+    if (!btn) return;
+    document.querySelectorAll('.jp-range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    jpCurrentRange = btn.dataset.range;
+    renderPriceChart(jpJewellerId);
+  });
+}
+
+function jpPointsToLine(points, valueKey, isoKey = 'day') {
+  return points
+    .filter(p => p[valueKey] != null)
+    .map(p => {
+      const t = p[isoKey] || (p.recorded_at ? p.recorded_at.slice(0, 10) : null);
+      return t ? { time: t, value: p[valueKey] } : null;
+    })
+    .filter(Boolean);
+}
+
+async function renderPriceChart(jewellerId) {
+  jpJewellerId = jewellerId;
+  jpInitChart();
+  const empty = document.getElementById('chartEmpty');
+  const wrap  = document.getElementById('priceChart');
+  try {
+    const [yoursRes, mcxRes] = await Promise.all([
+      fetch(`${API_BASE}/api/jewellers/${jewellerId}/history?range=${jpCurrentRange}`),
+      fetch(`${API_BASE}/api/mcx-history?range=${jpCurrentRange}&metal=gold`),
+    ]);
+    const yours = await yoursRes.json();
+    const mcx   = await mcxRes.json();
+
+    const yourPoints = jpPointsToLine(yours.points || [], 'close22');
+    const mcxPoints  = jpPointsToLine(mcx.points   || [], 'r22g');
+
+    if (!yourPoints.length && !mcxPoints.length) {
+      wrap.style.display  = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    wrap.style.display  = 'block';
+    empty.style.display = 'none';
+
+    jpSeriesYou.setData(yourPoints);
+    jpSeriesMcx.setData(mcxPoints);
+    jpTvChart.timeScale().fitContent();
   } catch (err) {
     console.warn('Chart load failed:', err.message);
   }

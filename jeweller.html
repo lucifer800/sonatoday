@@ -33,6 +33,13 @@
     .cred-badge.cred-gold { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.35); color: var(--acc); }
     .cred-badge.cred-wa   { background: rgba(37,211,102,0.1); border-color: rgba(37,211,102,0.35); color: #25D366; }
     .cred-badge.cred-wa:hover { background: rgba(37,211,102,0.18); }
+    /* Chart time-range selector (1W / 1M / 3M / 1Y / All) */
+    .jp-range-bar    { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; margin-bottom: .65rem; }
+    .jp-range-btn    { background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--muted); padding: .3rem .65rem; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .3px; cursor: pointer; transition: all .12s; }
+    .jp-range-btn:hover { color: var(--text); border-color: var(--acc); }
+    .jp-range-btn.active { background: var(--acc); color: #000; border-color: var(--acc); }
+    .jp-range-legend { margin-left: auto; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
+    .jp-dot   { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .25rem; vertical-align: middle; }
     .jp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
     .jp-name { font-size: 1.85rem; font-weight: 700; margin: 0 0 .25rem; }
     .jp-area { color: var(--muted); font-size: 14px; }
@@ -79,7 +86,7 @@
     <div id="jpContent">Loading…</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="/config.js?v=4"></script>
   <script src="data.js"></script>
   <script src="jeweller.js"></script>

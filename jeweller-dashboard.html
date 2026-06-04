@@ -248,21 +248,46 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════
-         TREND CHART — last 30 rate updates.
-         Lower priority — pushed to bottom.
+         PRICE TREND — TradingView Lightweight Charts.
+         Gold line   = your rate over time.
+         Faint line  = IBJA market reference.
          ═══════════════════════════════════════════════════ -->
     <div class="dash-card">
-      <h3 class="dash-title">📈 Your price trend</h3>
-      <p class="dash-sub">Last 30 rate updates you've published.</p>
-      <div style="position:relative;height:240px"><canvas id="priceChart"></canvas></div>
+      <h3 class="dash-title">📈 Your price trend
+        <span style="font-size:11px;font-weight:400;color:var(--muted);margin-left:.4rem">vs IBJA reference</span>
+      </h3>
+      <div class="range-bar" id="rangeBar">
+        <button class="range-btn" data-range="1w">1W</button>
+        <button class="range-btn active" data-range="1m">1M</button>
+        <button class="range-btn" data-range="3m">3M</button>
+        <button class="range-btn" data-range="1y">1Y</button>
+        <button class="range-btn" data-range="all">All</button>
+        <span class="range-legend">
+          <span class="legend-dot" style="background:#D4AF37"></span> Your 22K
+          <span class="legend-dot" style="background:#6c7a8c;margin-left:.7rem"></span> IBJA 22K
+        </span>
+      </div>
+      <div id="priceChart" style="width:100%;height:320px"></div>
       <div id="chartEmpty" style="display:none;color:var(--muted);font-size:13px;font-style:italic;text-align:center;padding:1rem">
-        No history yet — save your first rate update to start building this chart.
+        No history yet — publish today's rate to start your timeline.
+        The IBJA market line will appear too as we collect more days.
       </div>
     </div>
 
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .range-bar    { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; margin-bottom: .6rem; }
+    .range-btn    { background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--muted); padding: .3rem .65rem; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .3px; cursor: pointer; transition: all .12s; }
+    .range-btn:hover { color: var(--text); border-color: var(--acc); }
+    .range-btn.active { background: var(--acc); color: #000; border-color: var(--acc); }
+    .range-legend { margin-left: auto; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
+    .legend-dot   { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .25rem; vertical-align: middle; }
+  </style>
+
+  <!-- TradingView Lightweight Charts (free, MIT, 35 KB). The same engine
+       behind TradingView's own price charts. -->
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
@@ -505,39 +530,97 @@
       renderPreview();
     });
 
-    /* ─── Trend chart ───────────────────────────────────── */
+    /* ─── Trend chart — TradingView Lightweight Charts ────
+       Two series:
+         • Gold-coloured line: this jeweller's 22K rate
+         • Faint grey line:    IBJA 22K market reference
+       Time-range selector reloads both series with new range param.
+       Empty-state shown when neither series has any points yet.
+    ─────────────────────────────────────────────────────── */
+    let tvChart = null, tvSeriesYou = null, tvSeriesMcx = null;
+    let currentRange = '1m';
+
+    function initChart() {
+      if (tvChart) return;
+      const el = document.getElementById('priceChart');
+      tvChart = LightweightCharts.createChart(el, {
+        width: el.clientWidth,
+        height: 320,
+        layout: { background: { color: 'transparent' }, textColor: '#a0a8b8', fontSize: 11 },
+        grid:   { vertLines: { color: 'rgba(255,255,255,0.04)' }, horzLines: { color: 'rgba(255,255,255,0.04)' } },
+        rightPriceScale: { borderColor: 'rgba(255,255,255,0.08)' },
+        timeScale:       { borderColor: 'rgba(255,255,255,0.08)', timeVisible: false, secondsVisible: false },
+        crosshair: { mode: 1 },
+        localization: {
+          priceFormatter: (v) => '₹' + Math.round(v).toLocaleString('en-IN'),
+        },
+      });
+      tvSeriesMcx = tvChart.addLineSeries({
+        color: '#6c7a8c', lineWidth: 1, lineStyle: 2,   // dashed
+        priceLineVisible: false, lastValueVisible: false, title: 'IBJA 22K',
+      });
+      tvSeriesYou = tvChart.addLineSeries({
+        color: '#D4AF37', lineWidth: 2,
+        priceLineVisible: true, lastValueVisible: true, title: 'Your 22K',
+      });
+      // Make chart responsive
+      new ResizeObserver(() => {
+        tvChart.applyOptions({ width: el.clientWidth });
+      }).observe(el);
+    }
+
+    function pointsToLine(points, valueKey, isoKey = 'day') {
+      // Convert API rows → [{ time: 'YYYY-MM-DD', value: number }]
+      return points
+        .filter(p => p[valueKey] != null)
+        .map(p => {
+          const t = p[isoKey] || (p.recorded_at ? p.recorded_at.slice(0, 10) : null);
+          return t ? { time: t, value: p[valueKey] } : null;
+        })
+        .filter(Boolean);
+    }
+
     async function renderPriceChart() {
       if (!me) return;
+      initChart();
+      const empty = document.getElementById('chartEmpty');
+      const wrap  = document.getElementById('priceChart');
       try {
-        const res  = await fetch(`${API_BASE}/api/jewellers/${me.id}/history`);
-        const rows = await res.json();
-        const canvas = document.getElementById('priceChart');
-        const empty  = document.getElementById('chartEmpty');
-        if (!rows.length) { canvas.style.display = 'none'; empty.style.display = 'block'; return; }
-        canvas.style.display = 'block'; empty.style.display = 'none';
+        const [yoursRes, mcxRes] = await Promise.all([
+          fetch(`${API_BASE}/api/jewellers/${me.id}/history?range=${currentRange}`),
+          fetch(`${API_BASE}/api/mcx-history?range=${currentRange}&metal=gold`),
+        ]);
+        const yours = await yoursRes.json();
+        const mcx   = await mcxRes.json();
 
-        const labels = rows.map(r => new Date(r.recorded_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }));
-        if (priceChart) priceChart.destroy();
-        priceChart = new Chart(canvas, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [
-              { label: '22K ₹/g', data: rows.map(r => r.r22g), borderColor: '#D4AF37', backgroundColor: 'rgba(212,175,55,0.15)', tension: 0.3, fill: true },
-              { label: '24K ₹/g', data: rows.map(r => r.r24g), borderColor: '#F0CC60', backgroundColor: 'rgba(240,204,96,0.10)', tension: 0.3, fill: false },
-            ],
-          },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: '#a0a8b8', font: { size: 11 } } } },
-            scales: {
-              x: { ticks: { color: '#6c7a8c', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
-              y: { ticks: { color: '#6c7a8c', font: { size: 10 }, callback: v => '₹' + v }, grid: { color: 'rgba(255,255,255,0.04)' } },
-            },
-          },
-        });
-      } catch (err) { console.warn('Chart load failed:', err.message); }
+        const yourPoints = pointsToLine(yours.points || [], 'close22');
+        const mcxPoints  = pointsToLine(mcx.points   || [], 'r22g');
+
+        if (!yourPoints.length && !mcxPoints.length) {
+          wrap.style.display  = 'none';
+          empty.style.display = 'block';
+          return;
+        }
+        wrap.style.display  = 'block';
+        empty.style.display = 'none';
+
+        tvSeriesYou.setData(yourPoints);
+        tvSeriesMcx.setData(mcxPoints);
+        tvChart.timeScale().fitContent();
+      } catch (err) {
+        console.warn('Chart load failed:', err.message);
+      }
     }
+
+    // Time-range buttons
+    document.getElementById('rangeBar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.range-btn');
+      if (!btn) return;
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentRange = btn.dataset.range;
+      renderPriceChart();
+    });
 
     function logout() {
       localStorage.removeItem('jwl_token');
