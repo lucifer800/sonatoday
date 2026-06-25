@@ -772,6 +772,38 @@ app.get('/api/jewellers/:id/history', (req, res) => {
   });
 });
 
+// GET /sitemap.xml — dynamic sitemap with every jeweller profile.
+// Google + Bing read this once a day; helps them discover all 12
+// (and any future) jeweller pages without needing internal-link crawl.
+app.get('/sitemap.xml', (req, res) => {
+  db.all(`SELECT id, updated FROM jewellers ORDER BY id`, (err, rows) => {
+    const origin = (process.env.SITE_URL || `https://${req.get('host')}`).replace(/\/$/, '');
+    const today  = new Date().toISOString().slice(0, 10);
+    const staticUrls = [
+      { loc: `${origin}/`,                 priority: '1.0', changefreq: 'hourly' },
+      { loc: `${origin}/index.html`,       priority: '0.9', changefreq: 'hourly' },
+      { loc: `${origin}/my-alerts.html`,   priority: '0.5', changefreq: 'monthly' },
+    ];
+    const jewellerUrls = (err || !rows) ? [] : rows.map(r => ({
+      loc:        `${origin}/jeweller.html?id=${r.id}`,
+      priority:   '0.8',
+      changefreq: 'daily',
+      lastmod:    today,
+    }));
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${[...staticUrls, ...jewellerUrls].map(u => `  <url>
+    <loc>${u.loc}</loc>
+    <changefreq>${u.changefreq}</changefreq>
+    <priority>${u.priority}</priority>${u.lastmod ? `\n    <lastmod>${u.lastmod}</lastmod>` : ''}
+  </url>`).join('\n')}
+</urlset>`;
+    res.set('Content-Type', 'application/xml; charset=utf-8');
+    res.set('Cache-Control', 'public, max-age=3600');   // 1 hr cache
+    res.send(xml);
+  });
+});
+
 // Get all jewellers with verification status (no passwords leaked)
 app.get('/api/jewellers', (req, res) => {
   db.all(

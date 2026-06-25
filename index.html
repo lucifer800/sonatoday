@@ -72,6 +72,8 @@
                     <span class="live-lbl">Live</span>
                     <span class="hdr-date" id="hdrDate"></span>
                     <button class="btn btn-sm" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark mode" style="margin-right:.5rem">🌙</button>
+                    <button class="btn btn-sm" onclick="openCalc()" title="Price calculator" style="margin-right:.5rem">🧮 Calculator</button>
+                    <button class="btn btn-sm" onclick="shareAllRates()" title="Share today's rates on WhatsApp" style="margin-right:.5rem;background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.35);color:#25D366">💬 Share Rates</button>
                     <a class="btn btn-sm" href="my-alerts.html" style="text-decoration:none;margin-right:.5rem">🔔 My Alerts</a>
                     <a class="btn btn-sm" href="jeweller-login.html" style="text-decoration:none">Jeweller Login</a>
                 </div>
@@ -487,17 +489,188 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════
+         Price Calculator Modal
+         Live: weight × today's MCX rate + making + 3% GST.
+         Auto-updates the moment any input changes.
+         ═══════════════════════════════════════════════════ -->
+    <div id="calcModal" class="calc-modal" style="display:none" onclick="if(event.target===this)closeCalc()">
+      <div class="calc-card">
+        <div class="calc-head">
+          <h3 style="margin:0;font-size:1.1rem;font-weight:700">🧮 Gold Price Calculator</h3>
+          <button onclick="closeCalc()" class="calc-close" aria-label="Close">×</button>
+        </div>
+        <p class="calc-sub">Pick a jeweller, enter the weight, see the total cost broken down.</p>
+
+        <div class="calc-grid">
+          <div>
+            <label>Jeweller</label>
+            <select id="calcJeweller"></select>
+          </div>
+          <div>
+            <label>Purity</label>
+            <select id="calcPurity">
+              <option value="22">22 Karat (916 hallmark)</option>
+              <option value="24">24 Karat (pure gold)</option>
+            </select>
+          </div>
+          <div>
+            <label>Weight (grams)</label>
+            <input id="calcWeight" type="number" inputmode="decimal" min="0" step="0.1" value="10" />
+          </div>
+          <div>
+            <label>Making charge override (%)</label>
+            <input id="calcMaking" type="number" inputmode="numeric" min="0" max="50" step="0.5" placeholder="Auto from jeweller" />
+          </div>
+        </div>
+
+        <div class="calc-result" id="calcResult">
+          <div class="calc-row"><span>Gold value</span> <span id="calcGold">—</span></div>
+          <div class="calc-row"><span>Making charge</span> <span id="calcMake">—</span></div>
+          <div class="calc-row"><span>GST (3% on gold + making)</span> <span id="calcGst">—</span></div>
+          <div class="calc-row calc-total"><span>Total to pay</span> <span id="calcTotal">—</span></div>
+          <div class="calc-note" id="calcNote"></div>
+        </div>
+
+        <div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="copyCalc()" style="flex:1;min-width:120px">📋 Copy breakdown</button>
+          <button class="btn btn-sm" onclick="shareCalc()" style="flex:1;min-width:120px;background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.35);color:#25D366">💬 Send to WhatsApp</button>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .calc-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+      .calc-card  { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.5rem; max-width: 520px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 60px -16px rgba(0,0,0,0.6); }
+      .calc-head  { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; }
+      .calc-close { background: none; border: 0; color: var(--muted); font-size: 1.6rem; line-height: 1; padding: 0 .35rem; cursor: pointer; }
+      .calc-close:hover { color: var(--text); }
+      .calc-sub   { color: var(--muted); font-size: 13px; margin: 0 0 1.1rem; }
+      .calc-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
+      @media (max-width: 460px) { .calc-grid { grid-template-columns: 1fr; } }
+      .calc-grid label { display: block; font-size: 11px; color: var(--muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .4px; }
+      .calc-grid input, .calc-grid select { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .65rem .8rem; border-radius: 8px; font-size: 14px; }
+      .calc-grid input:focus, .calc-grid select:focus { outline: none; border-color: var(--acc); }
+      .calc-result { background: rgba(255,255,255,0.03); border: 1px solid var(--acc-border); border-radius: 10px; padding: .85rem 1rem; }
+      .calc-row  { display: flex; justify-content: space-between; align-items: baseline; padding: .25rem 0; font-size: 14px; color: var(--text); }
+      .calc-row span:first-child { color: var(--muted); font-size: 13px; }
+      .calc-row.calc-total { border-top: 1px solid rgba(255,255,255,0.08); margin-top: .35rem; padding-top: .65rem; font-weight: 700; font-size: 1.05rem; }
+      .calc-row.calc-total span:last-child { color: var(--acc); font-size: 1.25rem; }
+      .calc-note { color: var(--muted); font-size: 11px; margin-top: .65rem; font-style: italic; }
+    </style>
+
     <script src="/config.js?v=4"></script>
     <script src="data.js?v=3"></script>
-    <script src="app.js?v=3"></script>
+    <script src="app.js?v=4"></script>
     <script>
-      // Register service worker for PWA install + offline support
+      // ── Register service worker for PWA install + offline support ──
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW register failed:', err));
         });
       }
+
+      /* ════════════════════════════════════════════════════════
+         PRICE CALCULATOR
+         Pure client-side: reuses J (the live jeweller dataset
+         already loaded by app.js) so the picker stays in sync
+         with whatever the server returned.
+      ════════════════════════════════════════════════════════ */
+      function _fmtIN(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+
+      function _populateCalcJewellers() {
+        const sel = document.getElementById('calcJeweller');
+        if (!sel) return;
+        // Only list jewellers that have a real rate today.
+        const list = (typeof J !== 'undefined' ? J : [])
+          .filter(j => j.r22g != null && j.r24g != null)
+          .sort((a, b) => a.r22g - b.r22g);
+        sel.innerHTML = list.length
+          ? list.map(j => `<option value="${j.id}" data-r22="${j.r22g}" data-r24="${j.r24g}" data-mk="${j.making || 10}">${j.name} (22K ₹${Math.round(j.r22g)}/g)</option>`).join('')
+          : '<option disabled>No rates available right now</option>';
+      }
+
+      function _runCalc() {
+        const sel    = document.getElementById('calcJeweller');
+        const opt    = sel?.selectedOptions?.[0];
+        if (!opt || opt.disabled) return;
+        const purity = document.getElementById('calcPurity').value;
+        const wt     = parseFloat(document.getElementById('calcWeight').value) || 0;
+        const rate   = parseFloat(purity === '24' ? opt.dataset.r24 : opt.dataset.r22);
+        const mkOver = parseFloat(document.getElementById('calcMaking').value);
+        const mkPct  = Number.isFinite(mkOver) ? mkOver : parseFloat(opt.dataset.mk || 10);
+
+        const gold   = wt * rate;
+        const make   = (gold * mkPct) / 100;
+        const gst    = (gold + make) * 0.03;
+        const total  = gold + make + gst;
+
+        document.getElementById('calcGold').textContent  = _fmtIN(gold);
+        document.getElementById('calcMake').textContent  = `${_fmtIN(make)}  (${mkPct}%)`;
+        document.getElementById('calcGst').textContent   = _fmtIN(gst);
+        document.getElementById('calcTotal').textContent = _fmtIN(total);
+        document.getElementById('calcNote').textContent =
+          `${opt.textContent.split(' (')[0]} · ${wt}g of ${purity}K @ ₹${Math.round(rate)}/g`;
+      }
+
+      function openCalc() {
+        _populateCalcJewellers();
+        document.getElementById('calcModal').style.display = 'flex';
+        _runCalc();
+      }
+      function closeCalc() { document.getElementById('calcModal').style.display = 'none'; }
+
+      function copyCalc() {
+        const txt = document.getElementById('calcNote').textContent + '\n' +
+                    'Gold: '   + document.getElementById('calcGold').textContent  + '\n' +
+                    'Making: ' + document.getElementById('calcMake').textContent  + '\n' +
+                    'GST 3%: ' + document.getElementById('calcGst').textContent   + '\n' +
+                    'TOTAL: '  + document.getElementById('calcTotal').textContent + '\n\n' +
+                    'Calculated on sonatoday.com';
+        navigator.clipboard?.writeText(txt).then(() => alert('Breakdown copied to clipboard.'));
+      }
+
+      function shareCalc() {
+        const note = document.getElementById('calcNote').textContent;
+        const total = document.getElementById('calcTotal').textContent;
+        const msg = `💰 *Gold Price Estimate*\n${note}\n\n` +
+                    `Gold: ${document.getElementById('calcGold').textContent}\n` +
+                    `Making: ${document.getElementById('calcMake').textContent}\n` +
+                    `GST 3%: ${document.getElementById('calcGst').textContent}\n` +
+                    `*Total: ${total}*\n\n` +
+                    `Compare verified Ahmedabad jewellers → ${window.location.origin}`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      }
+
+      /* ════════════════════════════════════════════════════════
+         SHARE TODAY'S RATES SUMMARY (all jewellers in one WA msg)
+      ════════════════════════════════════════════════════════ */
+      function shareAllRates() {
+        const list = (typeof J !== 'undefined' ? J : [])
+          .filter(j => j.r22g != null)
+          .sort((a, b) => a.r22g - b.r22g);
+        if (!list.length) { alert('No live rates available to share yet.'); return; }
+
+        const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const lines = list.slice(0, 12).map((j, i) =>
+          `${i + 1}. ${j.name} — 22K ₹${Math.round(j.r22g)}/g${j.making ? ` · making ${j.making}%` : ''}`
+        ).join('\n');
+        const msg =
+          `🌟 *Today's Gold Rates · Ahmedabad*\n` +
+          `${date}\n\n` +
+          lines + '\n\n' +
+          `Live updates → ${window.location.origin}\n` +
+          `Powered by SonaToday`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      }
+
+      // Re-run calc whenever the user changes anything in the modal.
+      ['calcJeweller','calcPurity','calcWeight','calcMaking'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input',  _runCalc);
+        document.getElementById(id)?.addEventListener('change', _runCalc);
+      });
+      // Close modal on Esc.
+      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCalc(); });
     </script>
-    <!-- features.js and modals-new.html removed — all logic now lives in app.js -->
 </body>
 </html>

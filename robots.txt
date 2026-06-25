@@ -1,0 +1,12 @@
+# SonaToday — robots.txt
+# Allow all good crawlers. Block /api/ since it's data, not pages.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /jeweller-dashboard.html
+Disallow: /jeweller-login.html
+Disallow: /uploads/
+
+# Sitemap location (helps Google discover all jeweller profiles)
+Sitemap: https://sonatoday.com/sitemap.xml
