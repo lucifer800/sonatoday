@@ -28,6 +28,65 @@ function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function dispRate(n) { return (n == null || isNaN(n)) ? '—' : fmt(n); }
 function hasRate(j)  { return j.r22g != null && !isNaN(j.r22g); }
 
+/* ─── COMPARE STATE ──────────────────────────────────────
+   Up to 2 jeweller IDs at a time. Persisted in localStorage
+   so a reload doesn't lose the selection. When a 3rd ID is
+   added, the oldest drops automatically (FIFO).
+─────────────────────────────────────────────────────────── */
+function _getCompare()      { try { return JSON.parse(localStorage.getItem('cmpIds') || '[]'); } catch { return []; } }
+function _setCompare(ids)   { localStorage.setItem('cmpIds', JSON.stringify(ids)); }
+function isCompareSelected(id) { return _getCompare().includes(id); }
+function toggleCompare(id) {
+  let ids = _getCompare();
+  if (ids.includes(id)) {
+    ids = ids.filter(x => x !== id);
+  } else {
+    ids.push(id);
+    if (ids.length > 2) ids = ids.slice(-2);   // keep latest 2
+  }
+  _setCompare(ids);
+  _refreshCompareUI();
+}
+function clearCompare() { _setCompare([]); _refreshCompareUI(); }
+function _refreshCompareUI() {
+  const ids = _getCompare();
+  // Sync every checkbox state with localStorage
+  document.querySelectorAll('.cmp-check').forEach(cb => {
+    cb.checked = ids.includes(parseInt(cb.dataset.id, 10));
+  });
+  // Show / hide the floating "Compare these 2" button
+  const fab = document.getElementById('cmpFab');
+  if (!fab) return;
+  if (ids.length === 2) {
+    fab.style.display = 'flex';
+    fab.dataset.ids = ids.join(',');
+    const names = ids.map(id => {
+      const j = (typeof J !== 'undefined' ? J : []).find(x => x.id === id);
+      return j ? j.name : `#${id}`;
+    });
+    document.getElementById('cmpFabLabel').textContent =
+      `⇄ Compare ${names[0]} vs ${names[1]}`;
+  } else if (ids.length === 1) {
+    fab.style.display = 'flex';
+    fab.dataset.ids = '';
+    document.getElementById('cmpFabLabel').textContent =
+      `Pick one more jeweller to compare`;
+    fab.querySelector('.cmp-fab-go').style.display = 'none';
+    fab.querySelector('.cmp-fab-clear').style.display = 'inline-block';
+  } else {
+    fab.style.display = 'none';
+  }
+  if (ids.length === 2) {
+    fab.querySelector('.cmp-fab-go').style.display = 'inline-block';
+    fab.querySelector('.cmp-fab-clear').style.display = 'inline-block';
+  }
+}
+function goCompare() {
+  const ids = _getCompare();
+  if (ids.length !== 2) return;
+  window.location.href = `compare.html?ids=${ids.join(',')}`;
+}
+
 /* Trust score — only count APPROVED reviews */
 function ts(j) {
   const approved = (j.reviews || []).filter(r => r.status === 'approved');
@@ -242,7 +301,13 @@ function renderTable() {
       ? '<span class="value-badge">💎 Best Value</span>'
       : '';
 
+    const cmpChecked = isCompareSelected(j.id) ? 'checked' : '';
+    const cmpDisabled = !hasRate(j) ? 'disabled title="No rate to compare yet"' : '';
     return `<tr class="${cheap ? 'row-cheap' : pricey ? 'row-pricey' : ''}" style="animation-delay:${i * 0.04}s">
+      <td style="text-align:center">
+        <input type="checkbox" class="cmp-check" data-id="${j.id}" ${cmpChecked} ${cmpDisabled}
+               onchange="toggleCompare(${j.id})" aria-label="Add to compare" />
+      </td>
       <td>
         <div style="display:flex;align-items:center;gap:.4rem">
           <span class="rank-num">${i + 1}</span>
@@ -267,6 +332,9 @@ function renderTable() {
       <td class="upd">${noRate ? '<span style="font-size:11px;color:var(--muted)">Visit shop for live rate</span>' : (j.updated || '—')}</td>
     </tr>`;
   }).join('');
+
+  // Sync the compare-FAB after every render (checkbox states + button label).
+  _refreshCompareUI();
 
   /* Pending review count in admin sidebar */
   const totalPending = J.reduce((s, j) => s + (j.reviews || []).filter(r => r.status === 'pending').length, 0);

@@ -149,6 +149,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th title="Tick two rows to compare them side-by-side" style="text-align:center;width:38px">⇄</th>
                         <th>#</th>
                         <th>Jeweller</th>
                         <th>Symbol</th>
@@ -490,6 +491,41 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════
+         Compare FAB — appears when 1 or 2 jewellers ticked.
+         Hidden by default; _refreshCompareUI() toggles it.
+         ═══════════════════════════════════════════════════ -->
+    <div id="cmpFab" style="display:none">
+      <span id="cmpFabLabel">⇄ Compare</span>
+      <button class="cmp-fab-go"    onclick="goCompare()">Open →</button>
+      <button class="cmp-fab-clear" onclick="clearCompare()" aria-label="Clear selection">×</button>
+    </div>
+
+    <style>
+      /* Compare-row checkbox: bigger touch target, accent colour */
+      .cmp-check { width: 18px; height: 18px; accent-color: var(--acc); cursor: pointer; }
+      .cmp-check:disabled { cursor: not-allowed; opacity: .35; }
+      /* Floating "Compare these 2" pill, bottom-right */
+      #cmpFab {
+        position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 900;
+        display: flex; align-items: center; gap: .65rem;
+        background: var(--card); border: 1px solid var(--acc);
+        border-radius: 999px; padding: .55rem .65rem .55rem 1rem;
+        box-shadow: 0 16px 40px -12px rgba(212,175,55,0.45), 0 2px 8px rgba(0,0,0,0.35);
+        font-size: 13px; font-weight: 600; color: var(--text);
+        animation: cmpPop .2s ease-out;
+      }
+      @keyframes cmpPop { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      #cmpFab button { border: 0; border-radius: 999px; padding: .45rem .9rem; font-size: 12px; font-weight: 700; cursor: pointer; }
+      .cmp-fab-go { background: var(--acc); color: #000; }
+      .cmp-fab-go:hover { filter: brightness(1.08); }
+      .cmp-fab-clear { background: rgba(255,255,255,0.05); color: var(--muted); width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
+      .cmp-fab-clear:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+      @media (max-width: 520px) {
+        #cmpFab { left: 1rem; right: 1rem; justify-content: space-between; border-radius: 14px; }
+      }
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
          Price Calculator Modal
          Live: weight × today's MCX rate + making + 3% GST.
          Auto-updates the moment any input changes.
@@ -561,7 +597,7 @@
 
     <script src="/config.js?v=4"></script>
     <script src="data.js?v=3"></script>
-    <script src="app.js?v=4"></script>
+    <script src="app.js?v=5"></script>
     <script>
       // ── Register service worker for PWA install + offline support ──
       if ('serviceWorker' in navigator) {
