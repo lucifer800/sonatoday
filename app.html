@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <!-- ───── iOS standalone "app" config ─────
+       These make "Add to Home Screen" open fullscreen with no
+       Safari chrome, a dark status bar, and the SonaToday icon. -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SonaToday" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0f0f1e" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+  <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/app-manifest.json" />
+
+  <title>SonaToday — Jeweller App</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* ════════════════ APP SHELL ════════════════ */
+    :root { --nav-h: 64px; }
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+    body {
+      background: var(--bg, #0f0f1e);
+      /* Reserve space for bottom nav + iOS home-indicator inset */
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    }
+
+    /* ── Top bar (sticky, frosted) ── */
+    .app-top {
+      position: sticky; top: 0; z-index: 50;
+      padding: calc(env(safe-area-inset-top) + .6rem) 1rem .6rem;
+      background: color-mix(in srgb, var(--card) 88%, transparent);
+      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--acc-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .app-top .brand { font-weight: 800; font-size: 1.05rem; letter-spacing:-.01em;
+      background: linear-gradient(135deg,#ffd700,#ff9500); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+    .app-top .shop  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .app-top .logout { background: rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.4rem .7rem; border-radius:8px; font-size:11px; cursor:pointer; }
+
+    /* ── Screen container ── */
+    .screen { display: none; padding: 1rem; max-width: 640px; margin: 0 auto; animation: fade .2s ease; }
+    .screen.active { display: block; }
+    @keyframes fade { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+
+    /* ── Bottom tab bar ── */
+    .tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+      height: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+      display: grid; grid-template-columns: repeat(5, 1fr);
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid var(--acc-border);
+    }
+    .tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+      border:0; background:none; color:var(--muted); font-size:10px; font-weight:600; cursor:pointer; padding-top:.5rem; }
+    .tab .ic { font-size: 20px; line-height:1; }
+    .tab.active { color: var(--acc); }
+    .tab .badge { position:absolute; transform: translate(14px,-8px); background:#f87171; color:#fff; font-size:8px; font-weight:700; min-width:14px; height:14px; border-radius:7px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+    /* ── Cards / common ── */
+    .card { background: var(--card); border:1px solid var(--acc-border); border-radius:16px; padding:1.1rem; margin-bottom:1rem; }
+    .card.hero { background: linear-gradient(135deg, rgba(212,175,55,.08), rgba(212,175,55,.03)); border-color: rgba(212,175,55,.3); }
+    .card-title { font-size:1rem; font-weight:700; margin:0 0 .8rem; display:flex; align-items:center; gap:.45rem; }
+    .muted { color: var(--muted); font-size:13px; }
+
+    .stat-row { display:grid; grid-template-columns: repeat(3,1fr); gap:.6rem; }
+    .stat { background: rgba(255,255,255,.03); border:1px solid var(--acc-border); border-radius:12px; padding:.7rem; text-align:center; }
+    .stat .v { font-size:1.05rem; font-weight:700; color:var(--acc); }
+    .stat .l { font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+
+    .status-pill { display:inline-flex; align-items:center; gap:.4rem; padding:.45rem .8rem; border-radius:999px; font-size:12px; font-weight:600; }
+    .status-pill.ok  { background: rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.3); }
+    .status-pill.warn{ background: rgba(251,191,36,.12); color:#fbbf24; border:1px solid rgba(251,191,36,.3); }
+
+    /* ── Rate inputs (ported) ── */
+    .rate-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin-bottom:.9rem; }
+    .rate-field { background: rgba(0,0,0,.25); border:1px solid var(--acc-border); border-radius:12px; padding:.8rem .9rem; }
+    .rate-field.focused { border-color: var(--acc); }
+    .rate-field .kl { font-size:10.5px; font-weight:700; color:var(--acc); letter-spacing:.5px; text-transform:uppercase; }
+    .rate-field .ks { font-size:9.5px; color:var(--muted); margin-top:1px; }
+    .rate-field .ir { display:flex; align-items:baseline; gap:.15rem; margin-top:.35rem; }
+    .rate-field .rs { font-size:1.4rem; color:var(--muted); }
+    .rate-field input { width:100%; background:transparent; border:0; color:var(--text); font-size:1.6rem; font-weight:700; padding:0; outline:none; }
+    .rate-field input::placeholder { color: rgba(255,255,255,.15); }
+    .rate-field .gl { font-size:11px; color:var(--muted); }
+    .making { display:flex; align-items:center; gap:.6rem; margin-top:.2rem; }
+    .making label { font-size:12px; color:var(--muted); flex:1; }
+    .making input { width:84px; background:rgba(0,0,0,.25); border:1px solid var(--acc-border); color:var(--text); padding:.45rem .6rem; border-radius:6px; font-size:14px; text-align:right; }
+    .pub-btn { width:100%; background:var(--acc); color:#000; border:0; padding:1.05rem; border-radius:12px; font-weight:700; font-size:1.02rem; cursor:pointer; box-shadow:0 8px 24px -8px rgba(212,175,55,.5); margin-top:.9rem; }
+    .pub-btn:active { transform: scale(.985); }
+    .pub-btn:disabled { opacity:.55; box-shadow:none; }
+    .mcx-hint { margin-top:.75rem; padding:.55rem .75rem; background:rgba(255,255,255,.03); border-radius:8px; font-size:12px; color:var(--muted); line-height:1.5; }
+    .mcx-hint strong { color: var(--acc); }
+    .msg { margin-top:.8rem; padding:.6rem .8rem; border-radius:8px; font-size:13px; display:none; }
+    .msg.err { background:rgba(239,68,68,.1); color:#f87171; display:block; }
+    .msg.ok  { background:rgba(34,197,94,.1); color:#4ade80; display:block; }
+
+    /* ── Feed ── */
+    .feed-item { display:flex; gap:.7rem; padding:.6rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13px; }
+    .feed-item:last-child { border-bottom:0; }
+    .feed-item .fic { font-size:18px; }
+    .feed-item .ft  { color:var(--muted); font-size:11px; }
+
+    /* ── Coming-soon placeholder ── */
+    .soon { text-align:center; padding:3rem 1.5rem; }
+    .soon .em { font-size:3rem; }
+    .soon h2 { font-size:1.2rem; margin:.8rem 0 .4rem; }
+    .soon p  { color:var(--muted); font-size:13px; line-height:1.6; max-width:340px; margin:0 auto; }
+    .soon ul { text-align:left; max-width:300px; margin:1.2rem auto 0; color:var(--muted); font-size:13px; line-height:1.9; }
+    .soon .tag { display:inline-block; margin-top:1.4rem; background:rgba(212,175,55,.12); color:var(--acc); border:1px solid rgba(212,175,55,.3); border-radius:999px; padding:.35rem .9rem; font-size:11px; font-weight:600; }
+
+    /* completeness ring (reused, small) */
+    .ring-wrap { display:flex; align-items:center; gap:.9rem; }
+    .ring { position:relative; width:56px; height:56px; flex-shrink:0; }
+    .ring svg { transform: rotate(-90deg); }
+    .ring .n { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; }
+  </style>
+</head>
+<body>
+
+  <!-- ════════ TOP BAR ════════ -->
+  <div class="app-top">
+    <div>
+      <div class="brand">SonaToday</div>
+      <div class="shop" id="topShop">Loading…</div>
+    </div>
+    <button class="logout" id="logoutBtn">Logout</button>
+  </div>
+
+  <!-- ════════ HOME ════════ -->
+  <section class="screen active" id="scr-home">
+    <div class="card hero">
+      <div class="card-title">☀️ Good morning</div>
+      <div id="rateStatus"><span class="status-pill warn">⚠️ Checking…</span></div>
+      <div class="mcx-hint" id="homeMcx" style="margin-top:.85rem">Loading live market rate…</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Today at a glance</div>
+      <div class="stat-row">
+        <div class="stat"><div class="v" id="stToday">₹0</div><div class="l">Today's sales</div></div>
+        <div class="stat"><div class="v" id="stMonth">₹0</div><div class="l">This month</div></div>
+        <div class="stat"><div class="v" id="stStock">₹0</div><div class="l">Stock value</div></div>
+      </div>
+      <p class="muted" style="margin:.8rem 0 0;font-size:11px">Sales &amp; stock stats activate once you start using the Bills and Stock tabs.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Profile credibility</div>
+      <div class="ring-wrap">
+        <div class="ring">
+          <svg width="56" height="56" viewBox="0 0 56 56">
+            <circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.08)" stroke-width="5" fill="none"/>
+            <circle id="ringArc" cx="28" cy="28" r="23" stroke="#D4AF37" stroke-width="5" fill="none"
+                    stroke-dasharray="144.5" stroke-dashoffset="144.5" stroke-linecap="round"/>
+          </svg>
+          <div class="n" id="ringNum">0%</div>
+        </div>
+        <div>
+          <div style="font-weight:600;font-size:13px" id="ringHead">Complete your profile</div>
+          <div class="muted" style="font-size:11.5px;margin-top:2px" id="ringMsg">Reach 75% to unlock the Verified ✓ badge.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Recent activity</div>
+      <div id="feed"><div class="muted" style="font-size:12px;padding:.5rem 0">No activity yet. Publish a rate or record a sale to see it here.</div></div>
+    </div>
+  </section>
+
+  <!-- ════════ RATES ════════ -->
+  <section class="screen" id="scr-rates">
+    <div class="card hero">
+      <div class="card-title">💰 Today's rates <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
+      <p class="muted" id="rateSub" style="margin:-.4rem 0 .9rem">Publish once — buyers see it instantly.</p>
+      <form id="rateForm">
+        <div class="rate-grid">
+          <div class="rate-field" id="f22">
+            <div class="kl">22 Karat</div><div class="ks">Hallmark daily rate</div>
+            <div class="ir"><span class="rs">₹</span><input id="r22g" type="number" inputmode="numeric" min="1000" max="50000" placeholder="—" required/><span class="gl">/g</span></div>
+          </div>
+          <div class="rate-field" id="f24">
+            <div class="kl">24 Karat</div><div class="ks">Pure gold daily rate</div>
+            <div class="ir"><span class="rs">₹</span><input id="r24g" type="number" inputmode="numeric" min="1000" max="50000" placeholder="—" required/><span class="gl">/g</span></div>
+          </div>
+        </div>
+        <div class="making"><label for="making">Making charge (optional)</label><input id="making" type="number" inputmode="numeric" min="0" max="50" placeholder="%"/></div>
+        <div class="mcx-hint" id="rateMcx">Loading MCX reference…</div>
+        <button class="pub-btn" id="pubBtn" type="submit">Publish rates →</button>
+        <div class="msg" id="rateMsg"></div>
+      </form>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 Your price trend</div>
+      <p class="muted" style="margin:-.4rem 0 .6rem">Opens the full chart with history &amp; ranges.</p>
+      <a href="/jeweller-dashboard.html" style="color:var(--acc);text-decoration:none;font-size:13px">→ Open full trend chart</a>
+    </div>
+  </section>
+
+  <!-- ════════ STOCK (Phase 1) ════════ -->
+  <section class="screen" id="scr-stock">
+    <div class="soon">
+      <div class="em">📦</div>
+      <h2>Inventory &amp; Stock</h2>
+      <p>Track every item in your shop — chains, rings, coins — with live total stock value based on today's rate.</p>
+      <ul>
+        <li>📷 Photo + purity + weight per item</li>
+        <li>🔢 In-stock count, auto-decrements on sale</li>
+        <li>💰 Live total stock value</li>
+        <li>🔍 Search &amp; filter by type / purity</li>
+      </ul>
+      <div class="tag">Coming in the next update</div>
+    </div>
+  </section>
+
+  <!-- ════════ CUSTOMERS (Phase 2) ════════ -->
+  <section class="screen" id="scr-cust">
+    <div class="soon">
+      <div class="em">👥</div>
+      <h2>Customers</h2>
+      <p>Your shop's little black book — every customer, every purchase, one tap to reach them.</p>
+      <ul>
+        <li>📒 Full purchase history per customer</li>
+        <li>💎 Lifetime value tracking</li>
+        <li>🎂 Birthday &amp; festival reminders</li>
+        <li>💬 One-tap WhatsApp greetings</li>
+      </ul>
+      <div class="tag">Coming soon</div>
+    </div>
+  </section>
+
+  <!-- ════════ BILLS (Phase 3) ════════ -->
+  <section class="screen" id="scr-bills">
+    <div class="soon">
+      <div class="em">🧾</div>
+      <h2>Bills &amp; Invoices</h2>
+      <p>Make a GST-compliant bill in 20 seconds. Rate auto-fills from today's published rate.</p>
+      <ul>
+        <li>🧮 Auto-calc: gold + making + 3% GST</li>
+        <li>📄 GST invoice PDF (HSN 7113)</li>
+        <li>💬 Send invoice on WhatsApp</li>
+        <li>📊 Every sale flows into Reports</li>
+      </ul>
+      <div class="tag">Coming soon</div>
+    </div>
+  </section>
+
+  <!-- ════════ BOTTOM NAV ════════ -->
+  <nav class="tabbar">
+    <button class="tab active" data-scr="home"><span class="ic">🏠</span>Home</button>
+    <button class="tab" data-scr="rates"><span class="ic">💰</span>Rates</button>
+    <button class="tab" data-scr="stock"><span class="ic">📦</span>Stock</button>
+    <button class="tab" data-scr="cust"><span class="ic">👥</span>Customers</button>
+    <button class="tab" data-scr="bills"><span class="ic">🧾</span>Bills</button>
+  </nav>
+
+  <script src="/config.js?v=5"></script>
+  <script>
+    const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
+    const token = localStorage.getItem('jwl_token');
+    if (!token) location.href = 'jeweller-login.html';
+    let me = null;
+    const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+    /* ── Tab switching ── */
+    document.querySelector('.tabbar').addEventListener('click', e => {
+      const btn = e.target.closest('.tab'); if (!btn) return;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('scr-' + btn.dataset.scr).classList.add('active');
+      window.scrollTo(0, 0);
+    });
+
+    /* ── Load profile ── */
+    async function loadMe() {
+      try {
+        const r = await fetch(`${API_BASE}/api/jewellers/me`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.status === 401) return logout();
+        me = await r.json();
+        render();
+      } catch(e){ document.getElementById('topShop').textContent = 'Error loading'; }
+    }
+
+    function render() {
+      document.getElementById('topShop').textContent = `${me.name} · ${me.area}`;
+
+      // Rate inputs
+      if (me.r22g != null) document.getElementById('r22g').value = Math.round(me.r22g);
+      if (me.r24g != null) document.getElementById('r24g').value = Math.round(me.r24g);
+      if (me.making != null) document.getElementById('making').value = me.making;
+
+      // Home rate status
+      const st = document.getElementById('rateStatus');
+      if (me.r22g != null && me.updated) {
+        st.innerHTML = `<span class="status-pill ok">✅ Published 22K ${fmt(me.r22g)} at ${me.updated}</span>`;
+      } else {
+        st.innerHTML = `<span class="status-pill warn">⚠️ Today's rate not posted yet</span>`;
+      }
+      document.getElementById('rateSub').textContent = me.updated
+        ? `Last published at ${me.updated}. Buyers see it live.`
+        : `You haven't posted today's rate. Post once — buyers see it instantly.`;
+
+      // Completeness ring
+      const c = me.completeness || { score:0, verified:false, checks:[] };
+      const CIRC = 2 * Math.PI * 23;
+      const arc = document.getElementById('ringArc');
+      arc.setAttribute('stroke-dashoffset', CIRC - CIRC * c.score / 100);
+      arc.setAttribute('stroke', c.verified ? '#4ade80' : '#D4AF37');
+      document.getElementById('ringNum').textContent = c.score + '%';
+      if (c.verified) {
+        document.getElementById('ringHead').textContent = 'Verified ✓ active';
+        document.getElementById('ringMsg').textContent = 'Buyers see your green Verified tick.';
+      } else {
+        const miss = (c.checks||[]).filter(x=>!x.has).sort((a,b)=>b.weight-a.weight)[0];
+        document.getElementById('ringMsg').textContent = miss
+          ? `Quickest win: add ${miss.label.toLowerCase()} (+${miss.weight}%).`
+          : 'Reach 75% to unlock the Verified ✓ badge.';
+      }
+    }
+
+    /* ── Live MCX hint (home + rates) ── */
+    async function loadMcx() {
+      try {
+        const r = await fetch(`${API_BASE}/api/live-price`); const d = await r.json();
+        const home = document.getElementById('homeMcx');
+        const rate = document.getElementById('rateMcx');
+        if (!d.price_gram_22k) { home.textContent = rate.textContent = 'MCX rate unavailable right now.'; return; }
+        const mine = parseFloat(document.getElementById('r22g').value) || me?.r22g;
+        let cmp = '';
+        if (mine) { const diff = mine - d.price_gram_22k; cmp = ` · You're <strong>${diff>=0?'+':'−'}₹${Math.abs(Math.round(diff))}</strong> vs MCX`; }
+        const txt = `Today's MCX: <strong>22K ${fmt(d.price_gram_22k)}/g</strong>${cmp}`;
+        home.innerHTML = txt; rate.innerHTML = txt;
+      } catch(_){}
+    }
+
+    /* ── Publish rates ── */
+    document.getElementById('rateForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const msg = document.getElementById('rateMsg'), btn = document.getElementById('pubBtn');
+      msg.className='msg'; btn.disabled=true; btn.textContent='Publishing…';
+      try {
+        const body = { r22g:+document.getElementById('r22g').value, r24g:+document.getElementById('r24g').value, making:+document.getElementById('making').value||0 };
+        const r = await fetch(`${API_BASE}/api/jewellers/${me.id}/rates`, {
+          method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify(body) });
+        const d = await r.json(); if(!r.ok) throw new Error(d.error||'Save failed');
+        await loadMe(); loadMcx();
+        msg.className='msg ok'; msg.textContent='✓ Published! Buyers see your new rate instantly.';
+      } catch(err){ msg.className='msg err'; msg.textContent=err.message; }
+      finally { btn.disabled=false; btn.textContent='Publish rates →'; }
+    });
+
+    ['r22g','r24g'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.addEventListener('input', loadMcx);
+      el.addEventListener('focus', ()=>document.getElementById(id==='r22g'?'f22':'f24').classList.add('focused'));
+      el.addEventListener('blur',  ()=>document.getElementById(id==='r22g'?'f22':'f24').classList.remove('focused'));
+    });
+
+    function logout(){ localStorage.removeItem('jwl_token'); localStorage.removeItem('jwl_user'); location.href='jeweller-login.html'; }
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    /* ── PWA service worker ── */
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+    loadMe().then(loadMcx);
+  </script>
+</body>
+</html>
