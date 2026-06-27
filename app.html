@@ -116,6 +116,31 @@
     .soon ul { text-align:left; max-width:300px; margin:1.2rem auto 0; color:var(--muted); font-size:13px; line-height:1.9; }
     .soon .tag { display:inline-block; margin-top:1.4rem; background:rgba(212,175,55,.12); color:var(--acc); border:1px solid rgba(212,175,55,.3); border-radius:999px; padding:.35rem .9rem; font-size:11px; font-weight:600; }
 
+    /* ── Inventory item cards ── */
+    .item { display:flex; gap:.8rem; align-items:center; background:var(--card); border:1px solid var(--acc-border); border-radius:14px; padding:.7rem; margin-bottom:.6rem; cursor:pointer; }
+    .item:active { transform: scale(.99); }
+    .item-photo { width:54px; height:54px; border-radius:10px; background:rgba(255,255,255,.05) center/cover; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .item-info { flex:1; min-width:0; }
+    .item-name { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .item-meta { color:var(--muted); font-size:11.5px; margin-top:2px; }
+    .item-val  { text-align:right; flex-shrink:0; }
+    .item-val .v { font-weight:700; color:var(--acc); font-size:14px; }
+    .item-val .q { font-size:10px; color:var(--muted); margin-top:2px; }
+    .pill-purity { display:inline-block; background:var(--acc-dim,rgba(212,175,55,.12)); color:var(--acc); border-radius:5px; font-size:10px; font-weight:700; padding:1px 5px; margin-right:.35rem; }
+
+    /* ── Bottom sheet (add/edit) ── */
+    .sheet { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); backdrop-filter:blur(3px); display:flex; align-items:flex-end; justify-content:center; }
+    .sheet-card { background:var(--card); border:1px solid var(--acc-border); border-radius:18px 18px 0 0; padding:1.2rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom)); width:100%; max-width:640px; max-height:92vh; overflow-y:auto; animation:slideup .22s ease; }
+    @keyframes slideup { from { transform: translateY(100%);} to { transform:none;} }
+    .sheet-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; }
+    .sheet-x { background:none; border:0; color:var(--muted); font-size:1.7rem; line-height:1; cursor:pointer; padding:0 .3rem; }
+    .if { margin-bottom:.8rem; }
+    .if label { display:block; font-size:11px; color:var(--muted); margin-bottom:.25rem; text-transform:uppercase; letter-spacing:.4px; }
+    .if input, .if select { width:100%; box-sizing:border-box; background:rgba(0,0,0,.25); border:1px solid var(--acc-border); color:var(--text); padding:.7rem .8rem; border-radius:9px; font-size:15px; }
+    .if input:focus, .if select:focus { outline:none; border-color:var(--acc); }
+    .if-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+    .del-btn { width:100%; background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.8rem; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; margin-top:.6rem; }
+
     /* completeness ring (reused, small) */
     .ring-wrap { display:flex; align-items:center; gap:.9rem; }
     .ring { position:relative; width:56px; height:56px; flex-shrink:0; }
@@ -205,21 +230,60 @@
     </div>
   </section>
 
-  <!-- ════════ STOCK (Phase 1) ════════ -->
+  <!-- ════════ STOCK (Phase 1 — live) ════════ -->
   <section class="screen" id="scr-stock">
-    <div class="soon">
+    <div class="card hero">
+      <div class="card-title">📦 Stock value <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
+      <div style="font-size:1.8rem;font-weight:800;color:var(--acc)" id="stockTotal">₹0</div>
+      <p class="muted" id="stockBreak" style="margin:.3rem 0 0;font-size:11.5px">Add items to see your live stock value at today's rate.</p>
+    </div>
+
+    <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
+      <input id="stockSearch" placeholder="🔍 Search items…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
+      <button class="pub-btn" id="addItemBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
+    </div>
+
+    <div id="stockList"></div>
+    <div id="stockEmpty" class="soon" style="display:none;padding:2rem 1rem">
       <div class="em">📦</div>
-      <h2>Inventory &amp; Stock</h2>
-      <p>Track every item in your shop — chains, rings, coins — with live total stock value based on today's rate.</p>
-      <ul>
-        <li>📷 Photo + purity + weight per item</li>
-        <li>🔢 In-stock count, auto-decrements on sale</li>
-        <li>💰 Live total stock value</li>
-        <li>🔍 Search &amp; filter by type / purity</li>
-      </ul>
-      <div class="tag">Coming in the next update</div>
+      <h2>No items yet</h2>
+      <p>Tap <strong>+ Add</strong> to add your first stock item. Total value updates live with today's rate.</p>
     </div>
   </section>
+
+  <!-- ════════ ADD / EDIT ITEM SHEET ════════ -->
+  <div id="itemSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 id="itemSheetTitle" style="margin:0;font-size:1.05rem;font-weight:700">Add item</h3>
+        <button class="sheet-x" onclick="closeItemSheet()">×</button>
+      </div>
+      <div class="if">
+        <label>Item name *</label>
+        <input id="itName" placeholder="e.g. Gold chain 20-inch" />
+      </div>
+      <div class="if-row">
+        <div class="if"><label>Category</label>
+          <select id="itCat"><option value="chain">Chain</option><option value="ring">Ring</option><option value="bangle">Bangle / Kada</option><option value="necklace">Necklace</option><option value="earring">Earrings</option><option value="coin">Coin / Bar</option><option value="other">Other</option></select>
+        </div>
+        <div class="if"><label>Purity</label>
+          <select id="itPurity"><option value="22">22K</option><option value="24">24K</option><option value="18">18K</option></select>
+        </div>
+      </div>
+      <div class="if-row">
+        <div class="if"><label>Weight (g)</label><input id="itWeight" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.0" /></div>
+        <div class="if"><label>In stock (qty)</label><input id="itQty" type="number" inputmode="numeric" min="0" value="1" /></div>
+      </div>
+      <div class="if"><label>Cost price (optional, ₹)</label><input id="itCost" type="number" inputmode="numeric" min="0" placeholder="What you paid" /></div>
+      <div class="if-row" style="align-items:end">
+        <div class="if"><label>Photo (optional)</label><input id="itPhoto" type="file" accept="image/jpeg,image/png,image/webp" /></div>
+        <div id="itValuePreview" class="muted" style="font-size:12px;padding-bottom:.6rem">Est. value: <strong id="itValue" style="color:var(--acc)">—</strong></div>
+      </div>
+      <button class="pub-btn" id="itSaveBtn" style="margin-top:.6rem">Save item</button>
+      <button class="del-btn" id="itDeleteBtn" style="display:none">Delete item</button>
+      <div class="msg" id="itMsg"></div>
+    </div>
+  </div>
 
   <!-- ════════ CUSTOMERS (Phase 2) ════════ -->
   <section class="screen" id="scr-cust">
@@ -278,6 +342,7 @@
       btn.classList.add('active');
       document.getElementById('scr-' + btn.dataset.scr).classList.add('active');
       window.scrollTo(0, 0);
+      if (btn.dataset.scr === 'stock') loadInventory();   // refresh on open
     });
 
     /* ── Load profile ── */
@@ -363,6 +428,172 @@
       el.addEventListener('input', loadMcx);
       el.addEventListener('focus', ()=>document.getElementById(id==='r22g'?'f22':'f24').classList.add('focused'));
       el.addEventListener('blur',  ()=>document.getElementById(id==='r22g'?'f22':'f24').classList.remove('focused'));
+    });
+
+    /* ════════════ INVENTORY (Phase 1) ════════════ */
+    let inventory = [];
+    let editingId = null;
+
+    // Per-gram rate for a purity, using the jeweller's own published rate.
+    // 18K derived from 24K (×0.75) when not separately tracked.
+    function rateFor(purity) {
+      if (purity === '24') return me?.r24g || null;
+      if (purity === '18') return me?.r24g ? me.r24g * 0.75 : null;
+      return me?.r22g || null; // default 22
+    }
+    function itemValue(it) {
+      const r = rateFor(it.purity);
+      if (!r || !it.weight_g) return null;
+      return r * it.weight_g * (it.in_stock || 0);
+    }
+
+    async function loadInventory() {
+      try {
+        const r = await fetch(`${API_BASE}/api/inventory`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.status === 401) return logout();
+        const d = await r.json();
+        inventory = d.items || [];
+        renderInventory();
+      } catch(e){ console.warn('inventory load failed', e); }
+    }
+
+    function renderInventory() {
+      const q = (document.getElementById('stockSearch').value || '').toLowerCase().trim();
+      const list = document.getElementById('stockList');
+      const empty = document.getElementById('stockEmpty');
+      const filtered = inventory.filter(it =>
+        !q || it.name.toLowerCase().includes(q) || (it.category||'').toLowerCase().includes(q));
+
+      // Live total value across ALL items (not just filtered).
+      let total = 0, valued = 0;
+      inventory.forEach(it => { const v = itemValue(it); if (v != null) { total += v; valued++; } });
+      document.getElementById('stockTotal').textContent = fmt(total);
+      const totalQty = inventory.reduce((s,it)=>s+(it.in_stock||0),0);
+      document.getElementById('stockBreak').textContent = inventory.length
+        ? `${inventory.length} item type${inventory.length>1?'s':''} · ${totalQty} piece${totalQty>1?'s':''} in stock` +
+          (valued < inventory.length ? ` · ${inventory.length-valued} need a rate/weight to value` : '')
+        : 'Add items to see your live stock value at today\'s rate.';
+
+      if (!inventory.length) { list.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+
+      list.innerHTML = filtered.map(it => {
+        const v = itemValue(it);
+        const icon = { chain:'📿', ring:'💍', bangle:'⭕', necklace:'📿', earring:'👂', coin:'🪙', other:'✨' }[it.category] || '✨';
+        const photo = it.photo_url
+          ? `<div class="item-photo" style="background-image:url(${it.photo_url})"></div>`
+          : `<div class="item-photo">${icon}</div>`;
+        return `<div class="item" onclick="openEditItem(${it.id})">
+          ${photo}
+          <div class="item-info">
+            <div class="item-name">${it.name}</div>
+            <div class="item-meta"><span class="pill-purity">${it.purity}K</span>${it.weight_g?`${it.weight_g}g`:'—'}${it.category?` · ${it.category}`:''}</div>
+          </div>
+          <div class="item-val">
+            <div class="v">${v!=null?fmt(v):'—'}</div>
+            <div class="q">×${it.in_stock||0} in stock</div>
+          </div>
+        </div>`;
+      }).join('') || `<div class="muted" style="text-align:center;padding:1.5rem;font-size:13px">No items match "${q}"</div>`;
+    }
+
+    document.getElementById('stockSearch').addEventListener('input', renderInventory);
+
+    /* ── Add / edit sheet ── */
+    function openAddItem() {
+      editingId = null;
+      document.getElementById('itemSheetTitle').textContent = 'Add item';
+      document.getElementById('itName').value = '';
+      document.getElementById('itCat').value = 'chain';
+      document.getElementById('itPurity').value = '22';
+      document.getElementById('itWeight').value = '';
+      document.getElementById('itQty').value = '1';
+      document.getElementById('itCost').value = '';
+      document.getElementById('itPhoto').value = '';
+      document.getElementById('itDeleteBtn').style.display = 'none';
+      document.getElementById('itMsg').className = 'msg';
+      _updateItemValuePreview();
+      document.getElementById('itemSheet').style.display = 'flex';
+    }
+    function openEditItem(id) {
+      const it = inventory.find(x => x.id === id); if (!it) return;
+      editingId = id;
+      document.getElementById('itemSheetTitle').textContent = 'Edit item';
+      document.getElementById('itName').value = it.name || '';
+      document.getElementById('itCat').value = it.category || 'other';
+      document.getElementById('itPurity').value = it.purity || '22';
+      document.getElementById('itWeight').value = it.weight_g ?? '';
+      document.getElementById('itQty').value = it.in_stock ?? 0;
+      document.getElementById('itCost').value = it.cost_price ?? '';
+      document.getElementById('itPhoto').value = '';
+      document.getElementById('itDeleteBtn').style.display = 'block';
+      document.getElementById('itMsg').className = 'msg';
+      _updateItemValuePreview();
+      document.getElementById('itemSheet').style.display = 'flex';
+    }
+    function closeItemSheet(){ document.getElementById('itemSheet').style.display = 'none'; }
+    window.openEditItem = openEditItem;
+    window.closeItemSheet = closeItemSheet;
+
+    function _updateItemValuePreview() {
+      const purity = document.getElementById('itPurity').value;
+      const wt = parseFloat(document.getElementById('itWeight').value) || 0;
+      const qty = parseInt(document.getElementById('itQty').value) || 0;
+      const r = rateFor(purity);
+      const el = document.getElementById('itValue');
+      el.textContent = (r && wt) ? fmt(r * wt * qty) : '—';
+    }
+    ['itPurity','itWeight','itQty'].forEach(id =>
+      document.getElementById(id).addEventListener('input', _updateItemValuePreview));
+
+    document.getElementById('addItemBtn').addEventListener('click', openAddItem);
+
+    document.getElementById('itSaveBtn').addEventListener('click', async () => {
+      const msg = document.getElementById('itMsg');
+      const btn = document.getElementById('itSaveBtn');
+      const name = document.getElementById('itName').value.trim();
+      if (!name) { msg.className='msg err'; msg.textContent='Item name is required.'; return; }
+      msg.className='msg'; btn.disabled=true; btn.textContent='Saving…';
+      const body = {
+        name,
+        category: document.getElementById('itCat').value,
+        purity:   document.getElementById('itPurity').value,
+        weight_g: document.getElementById('itWeight').value,
+        cost_price: document.getElementById('itCost').value,
+        in_stock: document.getElementById('itQty').value,
+      };
+      try {
+        const url = editingId ? `${API_BASE}/api/inventory/${editingId}` : `${API_BASE}/api/inventory`;
+        const r = await fetch(url, {
+          method: editingId ? 'PUT' : 'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        const saved = await r.json();
+        if (!r.ok) throw new Error(saved.error || 'Save failed');
+
+        // Photo upload (if a file was picked)
+        const file = document.getElementById('itPhoto').files[0];
+        if (file && saved.id) {
+          const fd = new FormData(); fd.append('photo', file);
+          await fetch(`${API_BASE}/api/inventory/${saved.id}/photo`, {
+            method:'POST', headers:{ Authorization:`Bearer ${token}` }, body: fd });
+        }
+        closeItemSheet();
+        loadInventory();
+      } catch(err){ msg.className='msg err'; msg.textContent=err.message; }
+      finally { btn.disabled=false; btn.textContent='Save item'; }
+    });
+
+    document.getElementById('itDeleteBtn').addEventListener('click', async () => {
+      if (!editingId || !confirm('Delete this item permanently?')) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/inventory/${editingId}`, {
+          method:'DELETE', headers:{ Authorization:`Bearer ${token}` } });
+        if (!r.ok) { const d = await r.json(); throw new Error(d.error||'Delete failed'); }
+        closeItemSheet();
+        loadInventory();
+      } catch(err){ alert(err.message); }
     });
 
     function logout(){ localStorage.removeItem('jwl_token'); localStorage.removeItem('jwl_user'); location.href='jeweller-login.html'; }

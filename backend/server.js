@@ -200,6 +200,25 @@ const initDb = () => {
       stale        INTEGER DEFAULT 0
     )`);
 
+    // ── Jeweller-app: inventory / stock (Phase 1) ──
+    // One row per stock item, scoped to a jeweller. Each jeweller sees
+    // only their own items (enforced in the routes via req.jeweller.id).
+    db.run(`CREATE TABLE IF NOT EXISTS inventory_items (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      jeweller_id INTEGER NOT NULL,
+      name        TEXT NOT NULL,
+      category    TEXT,                       -- ring / chain / coin / bangle / other
+      photo_url   TEXT,
+      purity      TEXT,                       -- '22' | '24' | '18'
+      weight_g    REAL,
+      cost_price  REAL,                       -- what the jeweller paid (optional)
+      in_stock    INTEGER DEFAULT 1,
+      hsn_code    TEXT DEFAULT '7113',        -- GST HSN for gold jewellery
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(jeweller_id) REFERENCES jewellers(id)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_jeweller ON inventory_items(jeweller_id)`);
+
     // Reviews table with photo support
     db.run(`CREATE TABLE IF NOT EXISTS reviews (
       id INTEGER PRIMARY KEY,
@@ -676,6 +695,115 @@ app.post('/api/jewellers/me/photo', requireAuth, upload.single('photo'), (req, r
     [photo_url, req.jeweller.id],
     (err) => {
       if (err) return res.status(500).json({ error: err.message });
+      res.json({ photo_url });
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INVENTORY / STOCK  (Phase 1 of the jeweller app)
+// All routes require auth and are scoped to req.jeweller.id, so a
+// jeweller can only ever see / touch their own items.
+// ═══════════════════════════════════════════════════════════════
+
+// GET /api/inventory — list my items (newest first), with summary.
+app.get('/api/inventory', requireAuth, (req, res) => {
+  db.all(
+    `SELECT id, name, category, photo_url, purity, weight_g, cost_price, in_stock, hsn_code, created_at
+       FROM inventory_items WHERE jeweller_id = ? ORDER BY created_at DESC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // Summary: total items in stock + total weight (value computed
+      // client-side using today's live rate so it's always current).
+      const totalItems  = rows.reduce((s, r) => s + (r.in_stock || 0), 0);
+      const weight22    = rows.filter(r => r.purity === '22').reduce((s, r) => s + (r.weight_g || 0) * (r.in_stock || 0), 0);
+      const weight24    = rows.filter(r => r.purity === '24').reduce((s, r) => s + (r.weight_g || 0) * (r.in_stock || 0), 0);
+      const weight18    = rows.filter(r => r.purity === '18').reduce((s, r) => s + (r.weight_g || 0) * (r.in_stock || 0), 0);
+      res.json({ items: rows, summary: { count: rows.length, totalItems, weight22, weight24, weight18 } });
+    }
+  );
+});
+
+// POST /api/inventory — add an item. Body: name, category, purity,
+// weight_g, cost_price, in_stock. (photo uploaded separately.)
+app.post('/api/inventory', requireAuth, (req, res) => {
+  const { name, category, purity, weight_g, cost_price, in_stock } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Item name is required' });
+  const cleanPurity = ['22', '24', '18'].includes(String(purity)) ? String(purity) : '22';
+  db.run(
+    `INSERT INTO inventory_items
+       (jeweller_id, name, category, purity, weight_g, cost_price, in_stock)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      req.jeweller.id,
+      String(name).trim(),
+      category || null,
+      cleanPurity,
+      parseFloat(weight_g) || null,
+      parseFloat(cost_price) || null,
+      Number.isFinite(parseInt(in_stock, 10)) ? parseInt(in_stock, 10) : 1,
+    ],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get(`SELECT * FROM inventory_items WHERE id = ?`, [this.lastID], (e, row) => {
+        res.json(row || { id: this.lastID });
+      });
+    }
+  );
+});
+
+// PUT /api/inventory/:id — edit an item I own.
+app.put('/api/inventory/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { name, category, purity, weight_g, cost_price, in_stock } = req.body || {};
+  const cleanPurity = ['22', '24', '18'].includes(String(purity)) ? String(purity) : '22';
+  db.run(
+    `UPDATE inventory_items
+        SET name = ?, category = ?, purity = ?, weight_g = ?, cost_price = ?, in_stock = ?
+      WHERE id = ? AND jeweller_id = ?`,
+    [
+      String(name || '').trim(),
+      category || null,
+      cleanPurity,
+      parseFloat(weight_g) || null,
+      parseFloat(cost_price) || null,
+      Number.isFinite(parseInt(in_stock, 10)) ? parseInt(in_stock, 10) : 0,
+      id, req.jeweller.id,
+    ],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
+      db.get(`SELECT * FROM inventory_items WHERE id = ?`, [id], (e, row) => res.json(row));
+    }
+  );
+});
+
+// DELETE /api/inventory/:id — remove an item I own.
+app.delete('/api/inventory/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.run(
+    `DELETE FROM inventory_items WHERE id = ? AND jeweller_id = ?`,
+    [id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// POST /api/inventory/:id/photo — upload a photo for one item.
+app.post('/api/inventory/:id/photo', requireAuth, upload.single('photo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No photo uploaded' });
+  const id = parseInt(req.params.id, 10);
+  const photo_url = `/${req.file.filename}`;
+  db.run(
+    `UPDATE inventory_items SET photo_url = ? WHERE id = ? AND jeweller_id = ?`,
+    [photo_url, id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
       res.json({ photo_url });
     }
   );
