@@ -127,6 +127,8 @@
     .item-val .v { font-weight:700; color:var(--acc); font-size:14px; }
     .item-val .q { font-size:10px; color:var(--muted); margin-top:2px; }
     .pill-purity { display:inline-block; background:var(--acc-dim,rgba(212,175,55,.12)); color:var(--acc); border-radius:5px; font-size:10px; font-weight:700; padding:1px 5px; margin-right:.35rem; }
+    .wa-btn { flex-shrink:0; width:40px; height:40px; border-radius:10px; background:rgba(37,211,102,.12); border:1px solid rgba(37,211,102,.3); display:flex; align-items:center; justify-content:center; font-size:18px; text-decoration:none; }
+    .wa-btn:active { transform: scale(.94); }
 
     /* ── Bottom sheet (add/edit) ── */
     .sheet { position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.6); backdrop-filter:blur(3px); display:flex; align-items:flex-end; justify-content:center; }
@@ -300,21 +302,52 @@
     </div>
   </div>
 
-  <!-- ════════ CUSTOMERS (Phase 2) ════════ -->
+  <!-- ════════ CUSTOMERS (Phase 2 — live) ════════ -->
   <section class="screen" id="scr-cust">
-    <div class="soon">
+    <div class="card hero">
+      <div class="card-title">👥 Customers</div>
+      <div style="font-size:1.8rem;font-weight:800;color:var(--acc)" id="custCount">0</div>
+      <p class="muted" id="custBirthdays" style="margin:.3rem 0 0;font-size:11.5px">Your shop's little black book.</p>
+    </div>
+
+    <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
+      <input id="custSearch" placeholder="🔍 Search name or phone…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
+      <button class="pub-btn" id="addCustBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
+    </div>
+
+    <div id="custList"></div>
+    <div id="custEmpty" class="soon" style="display:none;padding:2rem 1rem">
       <div class="em">👥</div>
-      <h2>Customers</h2>
-      <p>Your shop's little black book — every customer, every purchase, one tap to reach them.</p>
-      <ul>
-        <li>📒 Full purchase history per customer</li>
-        <li>💎 Lifetime value tracking</li>
-        <li>🎂 Birthday &amp; festival reminders</li>
-        <li>💬 One-tap WhatsApp greetings</li>
-      </ul>
-      <div class="tag">Coming soon</div>
+      <h2>No customers yet</h2>
+      <p>Tap <strong>+ Add</strong> to save your first customer. Reach them on WhatsApp in one tap, never lose a contact again.</p>
     </div>
   </section>
+
+  <!-- ════════ ADD / EDIT CUSTOMER SHEET ════════ -->
+  <div id="custSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 id="custSheetTitle" style="margin:0;font-size:1.05rem;font-weight:700">Add customer</h3>
+        <button class="sheet-x" onclick="closeCustSheet()">×</button>
+      </div>
+      <div class="if"><label>Name *</label><input id="cName" placeholder="Customer's full name" /></div>
+      <div class="if-row">
+        <div class="if"><label>Phone</label><input id="cPhone" type="tel" inputmode="tel" placeholder="+91…" /></div>
+        <div class="if"><label>WhatsApp</label><input id="cWhats" type="tel" inputmode="tel" placeholder="+91…" /></div>
+      </div>
+      <div class="if"><label>Email (optional)</label><input id="cEmail" type="email" placeholder="name@example.com" /></div>
+      <div class="if-row">
+        <div class="if"><label>🎂 Birthday</label><input id="cBday" type="date" /></div>
+        <div class="if"><label>💍 Anniversary</label><input id="cAnniv" type="date" /></div>
+      </div>
+      <div class="if"><label>Address (optional)</label><input id="cAddr" placeholder="City / area" /></div>
+      <div class="if"><label>GSTIN (optional, for B2B bills)</label><input id="cGstin" placeholder="24ABCDE…" style="text-transform:uppercase" maxlength="15" /></div>
+      <div class="if"><label>Notes (optional)</label><input id="cNotes" placeholder="e.g. prefers 22K, regular festival buyer" /></div>
+      <button class="pub-btn" id="cSaveBtn" style="margin-top:.6rem">Save customer</button>
+      <button class="del-btn" id="cDeleteBtn" style="display:none">Delete customer</button>
+      <div class="msg" id="cMsg"></div>
+    </div>
+  </div>
 
   <!-- ════════ BILLS (Phase 3) ════════ -->
   <section class="screen" id="scr-bills">
@@ -358,6 +391,7 @@
       document.getElementById('scr-' + btn.dataset.scr).classList.add('active');
       window.scrollTo(0, 0);
       if (btn.dataset.scr === 'stock') loadInventory();   // refresh on open
+      if (btn.dataset.scr === 'cust')  loadCustomers();
     });
 
     /* ── Load profile ── */
@@ -608,6 +642,128 @@
         if (!r.ok) { const d = await r.json(); throw new Error(d.error||'Delete failed'); }
         closeItemSheet();
         loadInventory();
+      } catch(err){ alert(err.message); }
+    });
+
+    /* ════════════ CUSTOMERS (Phase 2) ════════════ */
+    let customers = [];
+    let editingCustId = null;
+
+    async function loadCustomers() {
+      try {
+        const r = await fetch(`${API_BASE}/api/customers`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.status === 401) return logout();
+        const d = await r.json();
+        customers = d.customers || [];
+        renderCustomers();
+      } catch(e){ console.warn('customers load failed', e); }
+    }
+
+    // Birthday/anniversary in the next 30 days → gentle nudge.
+    function upcomingOccasions() {
+      const today = new Date(); const out = [];
+      customers.forEach(c => {
+        [['birthday','🎂'],['anniversary','💍']].forEach(([k,emoji]) => {
+          if (!c[k]) return;
+          const d = new Date(c[k]); if (isNaN(d)) return;
+          const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+          if (next < today) next.setFullYear(today.getFullYear()+1);
+          const days = Math.round((next - today)/(864e5));
+          if (days <= 30) out.push({ name:c.name, emoji, days });
+        });
+      });
+      return out.sort((a,b)=>a.days-b.days);
+    }
+
+    function renderCustomers() {
+      const q = (document.getElementById('custSearch').value||'').toLowerCase().trim();
+      const list = document.getElementById('custList');
+      const empty = document.getElementById('custEmpty');
+
+      document.getElementById('custCount').textContent = customers.length;
+      const occ = upcomingOccasions();
+      document.getElementById('custBirthdays').textContent = occ.length
+        ? `${occ[0].emoji} ${occ[0].name}'s ${occ[0].days===0?'today':occ[0].days+' day'+(occ[0].days>1?'s':'')}` + (occ.length>1?` · +${occ.length-1} more upcoming`:'')
+        : 'Your shop\'s little black book.';
+
+      if (!customers.length) { list.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+
+      const filtered = customers.filter(c =>
+        !q || c.name.toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.whatsapp||'').includes(q));
+
+      list.innerHTML = filtered.map(c => {
+        const initials = c.name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+        const wa = (c.whatsapp||c.phone||'').replace(/[^0-9]/g,'');
+        return `<div class="item">
+          <div class="item-photo" style="background:rgba(212,175,55,.12);color:var(--acc);font-weight:700;font-size:15px">${initials}</div>
+          <div class="item-info" onclick="openEditCust(${c.id})" style="cursor:pointer">
+            <div class="item-name">${c.name}</div>
+            <div class="item-meta">${c.phone||c.whatsapp||'No number'}${c.address?` · ${c.address}`:''}</div>
+          </div>
+          ${wa ? `<a class="wa-btn" href="https://wa.me/${wa}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
+        </div>`;
+      }).join('') || `<div class="muted" style="text-align:center;padding:1.5rem;font-size:13px">No customers match "${q}"</div>`;
+    }
+    document.getElementById('custSearch').addEventListener('input', renderCustomers);
+
+    function openAddCust() {
+      editingCustId = null;
+      document.getElementById('custSheetTitle').textContent='Add customer';
+      ['cName','cPhone','cWhats','cEmail','cBday','cAnniv','cAddr','cGstin','cNotes'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('cDeleteBtn').style.display='none';
+      document.getElementById('cMsg').className='msg';
+      document.getElementById('custSheet').style.display='flex';
+    }
+    function openEditCust(id) {
+      const c = customers.find(x=>x.id===id); if(!c) return;
+      editingCustId = id;
+      document.getElementById('custSheetTitle').textContent='Edit customer';
+      document.getElementById('cName').value=c.name||'';
+      document.getElementById('cPhone').value=c.phone||'';
+      document.getElementById('cWhats').value=c.whatsapp||'';
+      document.getElementById('cEmail').value=c.email||'';
+      document.getElementById('cBday').value=c.birthday||'';
+      document.getElementById('cAnniv').value=c.anniversary||'';
+      document.getElementById('cAddr').value=c.address||'';
+      document.getElementById('cGstin').value=c.gstin||'';
+      document.getElementById('cNotes').value=c.notes||'';
+      document.getElementById('cDeleteBtn').style.display='block';
+      document.getElementById('cMsg').className='msg';
+      document.getElementById('custSheet').style.display='flex';
+    }
+    function closeCustSheet(){ document.getElementById('custSheet').style.display='none'; }
+    window.openEditCust = openEditCust;
+    window.closeCustSheet = closeCustSheet;
+    document.getElementById('addCustBtn').addEventListener('click', openAddCust);
+
+    document.getElementById('cSaveBtn').addEventListener('click', async () => {
+      const msg=document.getElementById('cMsg'), btn=document.getElementById('cSaveBtn');
+      const name=document.getElementById('cName').value.trim();
+      if(!name){ msg.className='msg err'; msg.textContent='Name is required.'; return; }
+      msg.className='msg'; btn.disabled=true; btn.textContent='Saving…';
+      const body = {
+        name, phone:document.getElementById('cPhone').value, whatsapp:document.getElementById('cWhats').value,
+        email:document.getElementById('cEmail').value, birthday:document.getElementById('cBday').value,
+        anniversary:document.getElementById('cAnniv').value, address:document.getElementById('cAddr').value,
+        gstin:document.getElementById('cGstin').value, notes:document.getElementById('cNotes').value,
+      };
+      try {
+        const url = editingCustId ? `${API_BASE}/api/customers/${editingCustId}` : `${API_BASE}/api/customers`;
+        const r = await fetch(url, { method: editingCustId?'PUT':'POST',
+          headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify(body) });
+        const d = await r.json(); if(!r.ok) throw new Error(d.error||'Save failed');
+        closeCustSheet(); loadCustomers();
+      } catch(err){ msg.className='msg err'; msg.textContent=err.message; }
+      finally { btn.disabled=false; btn.textContent='Save customer'; }
+    });
+
+    document.getElementById('cDeleteBtn').addEventListener('click', async () => {
+      if(!editingCustId || !confirm('Delete this customer permanently?')) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/customers/${editingCustId}`, { method:'DELETE', headers:{ Authorization:`Bearer ${token}` } });
+        if(!r.ok){ const d=await r.json(); throw new Error(d.error||'Delete failed'); }
+        closeCustSheet(); loadCustomers();
       } catch(err){ alert(err.message); }
     });
 

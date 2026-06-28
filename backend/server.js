@@ -219,6 +219,24 @@ const initDb = () => {
     )`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_inventory_jeweller ON inventory_items(jeweller_id)`);
 
+    // ── Jeweller-app: customers / CRM (Phase 2) ──
+    db.run(`CREATE TABLE IF NOT EXISTS customers (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      jeweller_id INTEGER NOT NULL,
+      name        TEXT NOT NULL,
+      phone       TEXT,
+      whatsapp    TEXT,
+      email       TEXT,
+      birthday    TEXT,                       -- YYYY-MM-DD
+      anniversary TEXT,                       -- YYYY-MM-DD
+      address     TEXT,
+      gstin       TEXT,
+      notes       TEXT,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(jeweller_id) REFERENCES jewellers(id)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_customers_jeweller ON customers(jeweller_id)`);
+
     // Reviews table with photo support
     db.run(`CREATE TABLE IF NOT EXISTS reviews (
       id INTEGER PRIMARY KEY,
@@ -805,6 +823,76 @@ app.post('/api/inventory/:id/photo', requireAuth, upload.single('photo'), (req, 
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
       res.json({ photo_url });
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// CUSTOMERS / CRM  (Phase 2 of the jeweller app)
+// All routes require auth, scoped to req.jeweller.id.
+// ═══════════════════════════════════════════════════════════════
+
+// GET /api/customers — list my customers (newest first).
+app.get('/api/customers', requireAuth, (req, res) => {
+  db.all(
+    `SELECT id, name, phone, whatsapp, email, birthday, anniversary, address, gstin, notes, created_at
+       FROM customers WHERE jeweller_id = ? ORDER BY name COLLATE NOCASE ASC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ customers: rows, summary: { count: rows.length } });
+    }
+  );
+});
+
+// POST /api/customers — add a customer.
+app.post('/api/customers', requireAuth, (req, res) => {
+  const { name, phone, whatsapp, email, birthday, anniversary, address, gstin, notes } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Customer name is required' });
+  const clean = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  db.run(
+    `INSERT INTO customers
+       (jeweller_id, name, phone, whatsapp, email, birthday, anniversary, address, gstin, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [req.jeweller.id, String(name).trim(), clean(phone), clean(whatsapp), clean(email),
+     clean(birthday), clean(anniversary), clean(address), clean(gstin), clean(notes)],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get(`SELECT * FROM customers WHERE id = ?`, [this.lastID], (e, row) => res.json(row || { id: this.lastID }));
+    }
+  );
+});
+
+// PUT /api/customers/:id — edit a customer I own.
+app.put('/api/customers/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { name, phone, whatsapp, email, birthday, anniversary, address, gstin, notes } = req.body || {};
+  const clean = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+  db.run(
+    `UPDATE customers
+        SET name = ?, phone = ?, whatsapp = ?, email = ?, birthday = ?,
+            anniversary = ?, address = ?, gstin = ?, notes = ?
+      WHERE id = ? AND jeweller_id = ?`,
+    [String(name || '').trim(), clean(phone), clean(whatsapp), clean(email), clean(birthday),
+     clean(anniversary), clean(address), clean(gstin), clean(notes), id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Customer not found' });
+      db.get(`SELECT * FROM customers WHERE id = ?`, [id], (e, row) => res.json(row));
+    }
+  );
+});
+
+// DELETE /api/customers/:id — remove a customer I own.
+app.delete('/api/customers/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.run(
+    `DELETE FROM customers WHERE id = ? AND jeweller_id = ?`,
+    [id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Customer not found' });
+      res.json({ success: true });
     }
   );
 });
