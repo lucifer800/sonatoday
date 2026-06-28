@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
   <meta name="theme-color" content="#0f0f1e" />
   <title>Jeweller Login — SonaToday</title>
+  <!-- PWA install support (so the app is installable from the login page too) -->
+  <link rel="manifest" href="/app-manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SonaToday" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
   <style>
     .login-wrap   { max-width: 420px; margin: 2.5rem auto; padding: 0 1rem; }
@@ -77,6 +84,9 @@
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
+
+    // Register the service worker so the login page is PWA-installable too.
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
     // Only show the demo-credentials hint on localhost — production
     // jewellers shouldn't see seeded-account credentials in the wild.
