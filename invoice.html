@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Invoice — SonaToday</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#e9e9ee; color:#1a1a1a; padding:1rem; }
+    .actions { max-width:780px; margin:0 auto .8rem; display:flex; gap:.5rem; }
+    .actions button { flex:1; padding:.8rem; border:0; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
+    .btn-print { background:#1a1a2e; color:#fff; }
+    .btn-wa { background:#25D366; color:#fff; }
+    .btn-back { background:#fff; color:#1a1a2e; border:1px solid #ccc !important; flex:0 0 auto !important; padding:.8rem 1rem !important; text-decoration:none; display:flex; align-items:center; }
+    .inv { max-width:780px; margin:0 auto; background:#fff; padding:2.2rem; box-shadow:0 4px 24px rgba(0,0,0,.1); }
+    .inv-top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #D4AF37; padding-bottom:1rem; margin-bottom:1.2rem; }
+    .brand { font-size:1.6rem; font-weight:800; color:#1a1a2e; }
+    .brand span { color:#D4AF37; }
+    .tax-tag { text-align:right; font-size:11px; color:#888; }
+    .tax-tag h2 { font-size:1.1rem; color:#1a1a2e; letter-spacing:2px; }
+    .parties { display:flex; justify-content:space-between; gap:2rem; margin-bottom:1.4rem; }
+    .party { flex:1; }
+    .party h4 { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#999; margin-bottom:.35rem; }
+    .party .nm { font-weight:700; font-size:14px; }
+    .party div { font-size:12.5px; color:#444; line-height:1.6; }
+    .meta { text-align:right; font-size:12.5px; color:#444; line-height:1.7; }
+    .meta b { color:#1a1a2e; }
+    table { width:100%; border-collapse:collapse; margin-bottom:1.2rem; }
+    th { background:#1a1a2e; color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:.6rem .7rem; text-align:left; }
+    th.r, td.r { text-align:right; }
+    td { padding:.7rem; font-size:13px; border-bottom:1px solid #eee; }
+    .totals { margin-left:auto; width:280px; }
+    .totals .tr { display:flex; justify-content:space-between; padding:.4rem 0; font-size:13px; color:#444; }
+    .totals .tr.grand { border-top:2px solid #1a1a2e; margin-top:.4rem; padding-top:.7rem; font-size:1.15rem; font-weight:800; color:#1a1a2e; }
+    .words { margin-top:1rem; font-size:12px; color:#555; font-style:italic; background:#faf7ed; padding:.7rem; border-radius:6px; }
+    .foot { margin-top:1.6rem; padding-top:1rem; border-top:1px solid #eee; font-size:11px; color:#999; text-align:center; line-height:1.6; }
+    .err { max-width:780px; margin:2rem auto; background:#fff; padding:2rem; text-align:center; color:#c00; border-radius:10px; }
+    @media print {
+      body { background:#fff; padding:0; }
+      .actions { display:none; }
+      .inv { box-shadow:none; max-width:100%; padding:1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <a class="btn-back" href="/app.html">← Back</a>
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+    <button class="btn-wa" id="waBtn">💬 Send on WhatsApp</button>
+  </div>
+  <div id="root"><div class="err">Loading invoice…</div></div>
+
+  <script src="/config.js?v=5"></script>
+  <script>
+    const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
+    const token = localStorage.getItem('jwl_token');
+    const id = new URLSearchParams(location.search).get('id');
+    const fmt = n => '₹' + Number(n||0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+    // Number → Indian-English words (rupees).
+    function inWords(num){
+      num = Math.round(num);
+      if (num === 0) return 'Zero Rupees';
+      const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+      const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+      const two=n=> n<20?a[n]:b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');
+      const three=n=>{const h=Math.floor(n/100),r=n%100;return (h?a[h]+' Hundred'+(r?' ':''):'')+(r?two(r):'');};
+      let out='', crore=Math.floor(num/1e7); num%=1e7;
+      let lakh=Math.floor(num/1e5); num%=1e5;
+      let thou=Math.floor(num/1e3); num%=1e3;
+      if(crore) out+=three(crore)+' Crore ';
+      if(lakh) out+=three(lakh)+' Lakh ';
+      if(thou) out+=three(thou)+' Thousand ';
+      if(num) out+=three(num);
+      return out.trim()+' Rupees Only';
+    }
+
+    let sale=null, seller=null;
+
+    async function load(){
+      if(!token){ location.href='jeweller-login.html'; return; }
+      if(!id){ document.getElementById('root').innerHTML='<div class="err">No invoice id.</div>'; return; }
+      try{
+        const [sr, mr] = await Promise.all([
+          fetch(`${API_BASE}/api/sales/${id}`, {headers:{Authorization:`Bearer ${token}`}}),
+          fetch(`${API_BASE}/api/jewellers/me`, {headers:{Authorization:`Bearer ${token}`}}),
+        ]);
+        if(sr.status===401){ location.href='jeweller-login.html'; return; }
+        if(!sr.ok) throw new Error('Invoice not found');
+        sale = await sr.json();
+        seller = await mr.json();
+        render();
+      }catch(e){ document.getElementById('root').innerHTML=`<div class="err">${e.message}</div>`; }
+    }
+
+    function render(){
+      const s=sale, j=seller;
+      const date = new Date(s.sold_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+      // Intra-state GST split (CGST + SGST). Gujarat shop → Gujarat buyer assumed.
+      const half = (s.gst_amount||0)/2;
+      document.getElementById('root').innerHTML = `
+      <div class="inv">
+        <div class="inv-top">
+          <div>
+            <div class="brand">Sona<span>Today</span></div>
+            <div style="font-size:13px;color:#555;margin-top:.2rem">${j.name||''}</div>
+          </div>
+          <div class="tax-tag"><h2>TAX INVOICE</h2></div>
+        </div>
+
+        <div class="parties">
+          <div class="party">
+            <h4>Seller</h4>
+            <div class="nm">${j.name||'—'}</div>
+            <div>${j.address_line||j.area||''}</div>
+            <div>${j.phone?('📞 '+j.phone):''}</div>
+            <div>${j.gst_number?('GSTIN: '+j.gst_number):'<i style="color:#bbb">GSTIN not set</i>'}</div>
+            <div>${j.bis_license?('BIS: '+j.bis_license):''}</div>
+          </div>
+          <div class="party" style="text-align:right">
+            <h4>Bill To</h4>
+            <div class="nm">${s.customer_name||'Walk-in'}</div>
+            <div>${s.customer_phone?('📞 '+s.customer_phone):''}</div>
+            <div>${s.customer_gstin?('GSTIN: '+s.customer_gstin):''}</div>
+            <div class="meta" style="margin-top:.6rem"><b>Invoice:</b> ${s.invoice_number}<br><b>Date:</b> ${date}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr>
+            <th>Description</th><th>HSN</th><th class="r">Purity</th><th class="r">Wt (g)</th>
+            <th class="r">Rate/g</th><th class="r">Gold Value</th><th class="r">Making</th><th class="r">Taxable</th>
+          </tr></thead>
+          <tbody><tr>
+            <td>${s.description||'Gold jewellery'}</td>
+            <td>7113</td>
+            <td class="r">${s.purity}K</td>
+            <td class="r">${s.weight_g}</td>
+            <td class="r">${fmt(s.rate_per_g)}</td>
+            <td class="r">${fmt(s.gold_value)}</td>
+            <td class="r">${fmt(s.making_amount)}</td>
+            <td class="r">${fmt((s.gold_value||0)+(s.making_amount||0))}</td>
+          </tr></tbody>
+        </table>
+
+        <div class="totals">
+          <div class="tr"><span>Taxable value</span><span>${fmt((s.gold_value||0)+(s.making_amount||0))}</span></div>
+          <div class="tr"><span>CGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
+          <div class="tr"><span>SGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
+          <div class="tr grand"><span>Total</span><span>${fmt(s.total)}</span></div>
+        </div>
+
+        <div class="words">Amount in words: ${inWords(s.total)}</div>
+
+        <div class="foot">
+          This is a computer-generated tax invoice. Gold rate as quoted on date of sale.<br>
+          Generated via SonaToday · sonatoday.com
+        </div>
+      </div>`;
+
+      // WhatsApp share
+      document.getElementById('waBtn').onclick = ()=>{
+        const msg = `🧾 *Tax Invoice · ${j.name}*\n`+
+          `${s.invoice_number} · ${date}\n\n`+
+          `${s.description||'Gold jewellery'}\n`+
+          `${s.weight_g}g ${s.purity}K @ ₹${Math.round(s.rate_per_g)}/g\n`+
+          `Gold: ₹${Math.round(s.gold_value).toLocaleString('en-IN')}\n`+
+          `Making: ₹${Math.round(s.making_amount).toLocaleString('en-IN')}\n`+
+          `GST ${s.gst_pct}%: ₹${Math.round(s.gst_amount).toLocaleString('en-IN')}\n`+
+          `*Total: ₹${Math.round(s.total).toLocaleString('en-IN')}*\n\n`+
+          `Thank you for shopping with ${j.name}!`;
+        const ph = (s.customer_phone||'').replace(/[^0-9]/g,'');
+        window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
+      };
+    }
+    load();
+  </script>
+</body>
+</html>

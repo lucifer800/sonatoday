@@ -237,6 +237,36 @@ const initDb = () => {
     )`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_customers_jeweller ON customers(jeweller_id)`);
 
+    // ── Jeweller-app: sales / invoices (Phase 3) ──
+    // Each row is a complete, self-contained invoice snapshot: we copy
+    // customer name/phone and item description into the row so a past
+    // invoice never changes even if the customer or item is later edited
+    // or deleted. All money fields are stored computed (server-side) so
+    // the invoice total can never be tampered with from the client.
+    db.run(`CREATE TABLE IF NOT EXISTS sales (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      jeweller_id    INTEGER NOT NULL,
+      invoice_number TEXT,
+      customer_id    INTEGER,
+      customer_name  TEXT,
+      customer_phone TEXT,
+      customer_gstin TEXT,
+      item_id        INTEGER,
+      description    TEXT,
+      purity         TEXT,
+      weight_g       REAL,
+      rate_per_g     REAL,
+      gold_value     REAL,
+      making_pct     REAL,
+      making_amount  REAL,
+      gst_pct        REAL,
+      gst_amount     REAL,
+      total          REAL,
+      sold_at        DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(jeweller_id) REFERENCES jewellers(id)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_sales_jeweller ON sales(jeweller_id)`);
+
     // Reviews table with photo support
     db.run(`CREATE TABLE IF NOT EXISTS reviews (
       id INTEGER PRIMARY KEY,
@@ -823,6 +853,119 @@ app.post('/api/inventory/:id/photo', requireAuth, upload.single('photo'), (req, 
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Item not found' });
       res.json({ photo_url });
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SALES / INVOICES  (Phase 3 of the jeweller app)
+// All routes require auth, scoped to req.jeweller.id.
+// Money is ALWAYS computed server-side from weight/rate/making/gst —
+// the client's numbers are ignored, so an invoice total can't be faked.
+// ═══════════════════════════════════════════════════════════════
+
+// Build the next invoice number for a jeweller: INV-<jid>-000001
+function nextInvoiceNumber(jewellerId, cb) {
+  db.get(
+    `SELECT COUNT(*) AS n FROM sales WHERE jeweller_id = ?`,
+    [jewellerId],
+    (err, row) => {
+      const seq = (err || !row ? 0 : row.n) + 1;
+      cb(`INV-${jewellerId}-${String(seq).padStart(6, '0')}`);
+    }
+  );
+}
+
+// POST /api/sales — record a sale + generate an invoice.
+// Body: { customer_id?, customer_name, customer_phone?, customer_gstin?,
+//         item_id?, description, purity, weight_g, rate_per_g,
+//         making_pct, gst_pct }
+app.post('/api/sales', requireAuth, (req, res) => {
+  const b = req.body || {};
+  const weight = parseFloat(b.weight_g);
+  const rate   = parseFloat(b.rate_per_g);
+  if (!Number.isFinite(weight) || weight <= 0)  return res.status(400).json({ error: 'Valid weight is required' });
+  if (!Number.isFinite(rate)   || rate   <= 0)  return res.status(400).json({ error: 'Valid rate is required' });
+  if (!b.customer_name || !String(b.customer_name).trim()) return res.status(400).json({ error: 'Customer name is required' });
+
+  const purity     = ['22', '24', '18'].includes(String(b.purity)) ? String(b.purity) : '22';
+  const makingPct  = Number.isFinite(parseFloat(b.making_pct)) ? parseFloat(b.making_pct) : 0;
+  const gstPct     = Number.isFinite(parseFloat(b.gst_pct)) ? parseFloat(b.gst_pct) : 3;
+
+  // ── Server-side money math (rounded to paise then to rupee on total) ──
+  const goldValue    = weight * rate;
+  const makingAmount = goldValue * (makingPct / 100);
+  const taxable      = goldValue + makingAmount;
+  const gstAmount    = taxable * (gstPct / 100);
+  const total        = taxable + gstAmount;
+  const r2 = (n) => Math.round(n * 100) / 100;
+
+  nextInvoiceNumber(req.jeweller.id, (invoiceNumber) => {
+    db.run(
+      `INSERT INTO sales
+        (jeweller_id, invoice_number, customer_id, customer_name, customer_phone, customer_gstin,
+         item_id, description, purity, weight_g, rate_per_g, gold_value,
+         making_pct, making_amount, gst_pct, gst_amount, total)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        req.jeweller.id, invoiceNumber,
+        b.customer_id || null, String(b.customer_name).trim(),
+        b.customer_phone || null, b.customer_gstin || null,
+        b.item_id || null, b.description || null, purity,
+        r2(weight), r2(rate), r2(goldValue),
+        makingPct, r2(makingAmount), gstPct, r2(gstAmount), r2(total),
+      ],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const saleId = this.lastID;
+
+        // ── Auto-decrement inventory if this sale was tied to a stock item ──
+        if (b.item_id) {
+          db.run(
+            `UPDATE inventory_items
+                SET in_stock = MAX(0, in_stock - 1)
+              WHERE id = ? AND jeweller_id = ?`,
+            [b.item_id, req.jeweller.id],
+            () => {}   // non-fatal: invoice is saved regardless
+          );
+        }
+        db.get(`SELECT * FROM sales WHERE id = ?`, [saleId], (e, row) => res.json(row || { id: saleId, invoice_number: invoiceNumber }));
+      }
+    );
+  });
+});
+
+// GET /api/sales — list my sales (newest first) + summary totals.
+app.get('/api/sales', requireAuth, (req, res) => {
+  db.all(
+    `SELECT * FROM sales WHERE jeweller_id = ? ORDER BY sold_at DESC, id DESC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // Today / this-month totals (IST day boundary).
+      const nowIST = new Date(Date.now() + 5.5 * 3600 * 1000);
+      const todayStr = nowIST.toISOString().slice(0, 10);
+      const monthStr = nowIST.toISOString().slice(0, 7);
+      let today = 0, month = 0;
+      rows.forEach(s => {
+        const d = (s.sold_at || '').slice(0, 10);
+        if (d === todayStr) today += s.total || 0;
+        if ((s.sold_at || '').slice(0, 7) === monthStr) month += s.total || 0;
+      });
+      res.json({ sales: rows, summary: { count: rows.length, today, month } });
+    }
+  );
+});
+
+// GET /api/sales/:id — one sale (for invoice rendering).
+app.get('/api/sales/:id', requireAuth, (req, res) => {
+  db.get(
+    `SELECT * FROM sales WHERE id = ? AND jeweller_id = ?`,
+    [parseInt(req.params.id, 10), req.jeweller.id],
+    (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!row) return res.status(404).json({ error: 'Invoice not found' });
+      res.json(row);
     }
   );
 });

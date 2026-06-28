@@ -143,6 +143,23 @@
     .if-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
     .del-btn { width:100%; background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.8rem; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; margin-top:.6rem; }
 
+    /* ── Sale breakdown box ── */
+    .calc-box { background:rgba(0,0,0,.25); border:1px solid var(--acc-border); border-radius:10px; padding:.7rem .9rem; margin-top:.6rem; }
+    .cb-row { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); padding:.22rem 0; }
+    .cb-row span:last-child { color:var(--text); font-weight:600; }
+    .cb-row.cb-total { border-top:1px solid rgba(255,255,255,.08); margin-top:.3rem; padding-top:.55rem; font-size:1.05rem; }
+    .cb-row.cb-total span { color:var(--acc); font-weight:800; }
+    .cb-row.cb-total span:first-child { color:var(--text); }
+
+    /* ── Bill list rows ── */
+    .bill { display:flex; align-items:center; gap:.7rem; background:var(--card); border:1px solid var(--acc-border); border-radius:12px; padding:.75rem .85rem; margin-bottom:.55rem; cursor:pointer; }
+    .bill:active { transform: scale(.99); }
+    .bill-ic { font-size:18px; }
+    .bill-info { flex:1; min-width:0; }
+    .bill-cust { font-weight:600; font-size:13.5px; }
+    .bill-meta { color:var(--muted); font-size:11px; margin-top:1px; }
+    .bill-amt { color:var(--acc); font-weight:700; font-size:14px; }
+
     /* completeness ring (reused, small) */
     .ring-wrap { display:flex; align-items:center; gap:.9rem; }
     .ring { position:relative; width:56px; height:56px; flex-shrink:0; }
@@ -349,21 +366,72 @@
     </div>
   </div>
 
-  <!-- ════════ BILLS (Phase 3) ════════ -->
+  <!-- ════════ BILLS (Phase 3 — live) ════════ -->
   <section class="screen" id="scr-bills">
-    <div class="soon">
+    <div class="card hero">
+      <div class="card-title">🧾 Sales</div>
+      <div class="stat-row">
+        <div class="stat"><div class="v" id="billToday">₹0</div><div class="l">Today</div></div>
+        <div class="stat"><div class="v" id="billMonth">₹0</div><div class="l">This month</div></div>
+        <div class="stat"><div class="v" id="billCount">0</div><div class="l">Total bills</div></div>
+      </div>
+    </div>
+
+    <button class="pub-btn" id="newSaleBtn" style="margin-bottom:1rem">+ New Sale / Bill</button>
+
+    <div id="billList"></div>
+    <div id="billEmpty" class="soon" style="display:none;padding:2rem 1rem">
       <div class="em">🧾</div>
-      <h2>Bills &amp; Invoices</h2>
-      <p>Make a GST-compliant bill in 20 seconds. Rate auto-fills from today's published rate.</p>
-      <ul>
-        <li>🧮 Auto-calc: gold + making + 3% GST</li>
-        <li>📄 GST invoice PDF (HSN 7113)</li>
-        <li>💬 Send invoice on WhatsApp</li>
-        <li>📊 Every sale flows into Reports</li>
-      </ul>
-      <div class="tag">Coming soon</div>
+      <h2>No bills yet</h2>
+      <p>Tap <strong>+ New Sale</strong> to create your first GST invoice. Rate auto-fills, GST auto-calculates, send it on WhatsApp.</p>
     </div>
   </section>
+
+  <!-- ════════ NEW SALE SHEET ════════ -->
+  <div id="saleSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 style="margin:0;font-size:1.05rem;font-weight:700">New Sale</h3>
+        <button class="sheet-x" onclick="closeSaleSheet()">×</button>
+      </div>
+
+      <div class="if"><label>Customer *</label>
+        <select id="sCust"><option value="">— Walk-in customer —</option></select>
+      </div>
+      <div id="sWalkin" class="if-row">
+        <div class="if"><label>Walk-in name *</label><input id="sCustName" placeholder="Customer name" /></div>
+        <div class="if"><label>Phone (optional)</label><input id="sCustPhone" type="tel" inputmode="tel" placeholder="+91…" /></div>
+      </div>
+
+      <div class="if"><label>Item</label>
+        <select id="sItem"><option value="">— Custom item —</option></select>
+      </div>
+      <div class="if"><label>Description</label><input id="sDesc" placeholder="e.g. Gold chain 20-inch" /></div>
+
+      <div class="if-row">
+        <div class="if"><label>Purity</label>
+          <select id="sPurity"><option value="22">22K</option><option value="24">24K</option><option value="18">18K</option></select>
+        </div>
+        <div class="if"><label>Weight (g) *</label><input id="sWeight" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0.0" /></div>
+      </div>
+      <div class="if-row">
+        <div class="if"><label>Rate ₹/g *</label><input id="sRate" type="number" inputmode="numeric" min="0" placeholder="auto" /></div>
+        <div class="if"><label>Making %</label><input id="sMaking" type="number" inputmode="decimal" step="0.5" min="0" value="10" /></div>
+      </div>
+      <div class="if"><label>GST %</label><input id="sGst" type="number" inputmode="decimal" step="0.5" min="0" value="3" /></div>
+
+      <!-- Live breakdown -->
+      <div class="calc-box" id="sBreak">
+        <div class="cb-row"><span>Gold value</span><span id="cbGold">—</span></div>
+        <div class="cb-row"><span>Making</span><span id="cbMake">—</span></div>
+        <div class="cb-row"><span>GST</span><span id="cbGst">—</span></div>
+        <div class="cb-row cb-total"><span>Total</span><span id="cbTotal">—</span></div>
+      </div>
+
+      <button class="pub-btn" id="genInvBtn" style="margin-top:.7rem">Generate Invoice →</button>
+      <div class="msg" id="sMsg"></div>
+    </div>
+  </div>
 
   <!-- ════════ BOTTOM NAV ════════ -->
   <nav class="tabbar">
@@ -392,6 +460,7 @@
       window.scrollTo(0, 0);
       if (btn.dataset.scr === 'stock') loadInventory();   // refresh on open
       if (btn.dataset.scr === 'cust')  loadCustomers();
+      if (btn.dataset.scr === 'bills') loadSales();
     });
 
     /* ── Load profile ── */
@@ -765,6 +834,162 @@
         if(!r.ok){ const d=await r.json(); throw new Error(d.error||'Delete failed'); }
         closeCustSheet(); loadCustomers();
       } catch(err){ alert(err.message); }
+    });
+
+    /* ════════════ BILLS / SALES (Phase 3) ════════════ */
+    let sales = [];
+
+    async function loadSales() {
+      try {
+        const r = await fetch(`${API_BASE}/api/sales`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.status === 401) return logout();
+        const d = await r.json();
+        sales = d.sales || [];
+        document.getElementById('billToday').textContent = fmt(d.summary.today||0);
+        document.getElementById('billMonth').textContent = fmt(d.summary.month||0);
+        document.getElementById('billCount').textContent = d.summary.count||0;
+        renderBills();
+      } catch(e){ console.warn('sales load failed', e); }
+    }
+
+    function renderBills() {
+      const list = document.getElementById('billList');
+      const empty = document.getElementById('billEmpty');
+      if (!sales.length) { list.innerHTML=''; empty.style.display='block'; return; }
+      empty.style.display='none';
+      list.innerHTML = sales.map(s => {
+        const d = new Date(s.sold_at);
+        const when = isNaN(d) ? '' : d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+        return `<div class="bill" onclick="openInvoice(${s.id})">
+          <div class="bill-ic">🧾</div>
+          <div class="bill-info">
+            <div class="bill-cust">${s.customer_name}</div>
+            <div class="bill-meta">${s.invoice_number} · ${s.weight_g}g ${s.purity}K · ${when}</div>
+          </div>
+          <div class="bill-amt">${fmt(s.total)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    function openInvoice(id){ window.open(`/invoice.html?id=${id}`, '_blank'); }
+    window.openInvoice = openInvoice;
+
+    /* ── New Sale sheet ── */
+    function rateForSale(purity) {
+      if (purity === '24') return me?.r24g || '';
+      if (purity === '18') return me?.r24g ? Math.round(me.r24g*0.75) : '';
+      return me?.r22g || '';
+    }
+
+    async function openNewSale() {
+      // Make sure customer + inventory lists are loaded for the dropdowns.
+      if (!customers.length) await loadCustomers();
+      if (!inventory.length) await loadInventory();
+
+      // Populate customer dropdown
+      const cs = document.getElementById('sCust');
+      cs.innerHTML = '<option value="">— Walk-in customer —</option>' +
+        customers.map(c=>`<option value="${c.id}" data-name="${c.name.replace(/"/g,'&quot;')}" data-phone="${c.phone||''}" data-gstin="${c.gstin||''}">${c.name}</option>`).join('');
+
+      // Populate item dropdown (only in-stock items)
+      const is = document.getElementById('sItem');
+      is.innerHTML = '<option value="">— Custom item —</option>' +
+        inventory.filter(it=>(it.in_stock||0)>0).map(it=>`<option value="${it.id}" data-name="${it.name.replace(/"/g,'&quot;')}" data-purity="${it.purity}" data-weight="${it.weight_g||''}">${it.name} (${it.purity}K${it.weight_g?` · ${it.weight_g}g`:''})</option>`).join('');
+
+      // Reset fields
+      document.getElementById('sCustName').value='';
+      document.getElementById('sCustPhone').value='';
+      document.getElementById('sDesc').value='';
+      document.getElementById('sPurity').value='22';
+      document.getElementById('sWeight').value='';
+      document.getElementById('sMaking').value = me?.making || 10;
+      document.getElementById('sGst').value = 3;
+      document.getElementById('sRate').value = rateForSale('22');
+      document.getElementById('sMsg').className='msg';
+      toggleWalkin();
+      calcSale();
+      document.getElementById('saleSheet').style.display='flex';
+    }
+    function closeSaleSheet(){ document.getElementById('saleSheet').style.display='none'; }
+    window.closeSaleSheet = closeSaleSheet;
+
+    function toggleWalkin() {
+      const picked = document.getElementById('sCust').value;
+      document.getElementById('sWalkin').style.display = picked ? 'none' : 'grid';
+    }
+
+    // Customer dropdown change
+    document.getElementById('sCust').addEventListener('change', toggleWalkin);
+
+    // Item dropdown change → autofill purity / weight / desc
+    document.getElementById('sItem').addEventListener('change', (e) => {
+      const opt = e.target.selectedOptions[0];
+      if (opt && opt.value) {
+        document.getElementById('sDesc').value = opt.dataset.name || '';
+        if (opt.dataset.purity) document.getElementById('sPurity').value = opt.dataset.purity;
+        if (opt.dataset.weight) document.getElementById('sWeight').value = opt.dataset.weight;
+        document.getElementById('sRate').value = rateForSale(document.getElementById('sPurity').value);
+      }
+      calcSale();
+    });
+
+    // Purity change → refresh rate
+    document.getElementById('sPurity').addEventListener('change', () => {
+      document.getElementById('sRate').value = rateForSale(document.getElementById('sPurity').value);
+      calcSale();
+    });
+
+    ['sWeight','sRate','sMaking','sGst'].forEach(id =>
+      document.getElementById(id).addEventListener('input', calcSale));
+
+    function calcSale() {
+      const w = parseFloat(document.getElementById('sWeight').value)||0;
+      const r = parseFloat(document.getElementById('sRate').value)||0;
+      const mk = parseFloat(document.getElementById('sMaking').value)||0;
+      const gst = parseFloat(document.getElementById('sGst').value)||0;
+      const gold = w*r, make = gold*mk/100, g = (gold+make)*gst/100, total = gold+make+g;
+      document.getElementById('cbGold').textContent  = gold?fmt(gold):'—';
+      document.getElementById('cbMake').textContent  = gold?`${fmt(make)} (${mk}%)`:'—';
+      document.getElementById('cbGst').textContent   = gold?`${fmt(g)} (${gst}%)`:'—';
+      document.getElementById('cbTotal').textContent = gold?fmt(total):'—';
+    }
+
+    document.getElementById('newSaleBtn').addEventListener('click', openNewSale);
+
+    document.getElementById('genInvBtn').addEventListener('click', async () => {
+      const msg=document.getElementById('sMsg'), btn=document.getElementById('genInvBtn');
+      // Resolve customer (CRM pick vs walk-in)
+      const cOpt = document.getElementById('sCust').selectedOptions[0];
+      const custId = document.getElementById('sCust').value || null;
+      const custName = custId ? cOpt.dataset.name : document.getElementById('sCustName').value.trim();
+      const custPhone = custId ? cOpt.dataset.phone : document.getElementById('sCustPhone').value.trim();
+      const custGstin = custId ? cOpt.dataset.gstin : '';
+      const weight = parseFloat(document.getElementById('sWeight').value);
+      const rate = parseFloat(document.getElementById('sRate').value);
+
+      if (!custName) { msg.className='msg err'; msg.textContent='Customer name is required.'; return; }
+      if (!weight || weight<=0) { msg.className='msg err'; msg.textContent='Enter a valid weight.'; return; }
+      if (!rate || rate<=0) { msg.className='msg err'; msg.textContent='Enter a valid rate.'; return; }
+
+      msg.className='msg'; btn.disabled=true; btn.textContent='Generating…';
+      const body = {
+        customer_id: custId, customer_name: custName, customer_phone: custPhone, customer_gstin: custGstin,
+        item_id: document.getElementById('sItem').value || null,
+        description: document.getElementById('sDesc').value.trim(),
+        purity: document.getElementById('sPurity').value,
+        weight_g: weight, rate_per_g: rate,
+        making_pct: parseFloat(document.getElementById('sMaking').value)||0,
+        gst_pct: parseFloat(document.getElementById('sGst').value)||0,
+      };
+      try {
+        const r = await fetch(`${API_BASE}/api/sales`, { method:'POST',
+          headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify(body) });
+        const d = await r.json(); if(!r.ok) throw new Error(d.error||'Failed');
+        closeSaleSheet();
+        loadSales();
+        openInvoice(d.id);   // open the generated invoice
+      } catch(err){ msg.className='msg err'; msg.textContent=err.message; }
+      finally { btn.disabled=false; btn.textContent='Generate Invoice →'; }
     });
 
     function logout(){ localStorage.removeItem('jwl_token'); localStorage.removeItem('jwl_user'); location.href='jeweller-login.html'; }
