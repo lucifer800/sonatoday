@@ -259,8 +259,8 @@
     </div>
     <div class="card">
       <div class="card-title">📈 Your price trend</div>
-      <p class="muted" style="margin:-.4rem 0 .6rem">Opens the full chart with history &amp; ranges.</p>
-      <a href="/jeweller-dashboard.html" style="color:var(--acc);text-decoration:none;font-size:13px">→ Open full trend chart</a>
+      <p class="muted" style="margin:-.4rem 0 .6rem">Full chart with history &amp; ranges, as buyers see it.</p>
+      <a id="trendLink" href="#" target="_blank" style="color:var(--acc);text-decoration:none;font-size:13px">→ Open full trend chart</a>
     </div>
   </section>
 
@@ -510,6 +510,10 @@
 
     function render() {
       document.getElementById('topShop').textContent = `${me.name} · ${me.area}`;
+
+      // Trend-chart link → the jeweller's public profile (has the full chart)
+      const tl = document.getElementById('trendLink');
+      if (tl) tl.href = `jeweller.html?id=${me.id}`;
 
       // Rate inputs
       if (me.r22g != null) document.getElementById('r22g').value = Math.round(me.r22g);
