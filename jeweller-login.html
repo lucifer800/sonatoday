@@ -104,7 +104,7 @@
 
     // If already logged in, jump straight to the dashboard
     if (localStorage.getItem('jwl_token')) {
-      window.location.href = 'jeweller-dashboard.html';
+      window.location.href = 'app.html';
     }
 
     const form = document.getElementById('loginForm');
@@ -133,7 +133,7 @@
 
         msg.className   = 'login-msg ok';
         msg.textContent = 'Signed in. Redirecting…';
-        setTimeout(() => { window.location.href = 'jeweller-dashboard.html'; }, 400);
+        setTimeout(() => { window.location.href = 'app.html'; }, 400);
       } catch (err) {
         msg.className   = 'login-msg err';
         msg.textContent = err.message;
