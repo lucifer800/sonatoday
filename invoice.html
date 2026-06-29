@@ -50,6 +50,8 @@
   </div>
   <div id="root"><div class="err">Loading invoice…</div></div>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
@@ -158,21 +160,67 @@
         </div>
       </div>`;
 
-      // WhatsApp share
-      document.getElementById('waBtn').onclick = ()=>{
-        const msg = `🧾 *Tax Invoice · ${j.name}*\n`+
-          `${s.invoice_number} · ${date}\n\n`+
-          `${s.description||'Gold jewellery'}\n`+
-          `${s.weight_g}g ${s.purity}K @ ₹${Math.round(s.rate_per_g)}/g\n`+
-          `Gold: ₹${Math.round(s.gold_value).toLocaleString('en-IN')}\n`+
-          `Making: ₹${Math.round(s.making_amount).toLocaleString('en-IN')}\n`+
-          `GST ${s.gst_pct}%: ₹${Math.round(s.gst_amount).toLocaleString('en-IN')}\n`+
-          `*Total: ₹${Math.round(s.total).toLocaleString('en-IN')}*\n\n`+
-          `Thank you for shopping with ${j.name}!`;
-        const ph = (s.customer_phone||'').replace(/[^0-9]/g,'');
-        window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
-      };
+      // ── WhatsApp share — sends the actual PDF, not just text ──
+      document.getElementById('waBtn').onclick = shareInvoice;
     }
+
+    // The thank-you message that rides along with the PDF.
+    function shareMessage(){
+      const s=sale, j=seller;
+      const date = new Date(s.sold_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+      return `🙏 *Thank you for shopping with ${j.name}!*\n\n`+
+        `Please find your tax invoice attached.\n\n`+
+        `🧾 ${s.invoice_number} · ${date}\n`+
+        `${s.description||'Gold jewellery'} — ${s.weight_g}g ${s.purity}K\n`+
+        `*Total: ₹${Math.round(s.total).toLocaleString('en-IN')}*\n\n`+
+        `We look forward to serving you again. ✨`;
+    }
+
+    // Render the on-screen invoice to a real A4 PDF Blob.
+    async function buildPdfBlob(){
+      const el = document.querySelector('.inv');
+      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+      const img = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageW = pdf.internal.pageSize.getWidth();
+      const imgH = canvas.height * pageW / canvas.width;
+      pdf.addImage(img, 'PNG', 0, 0, pageW, imgH);
+      return pdf.output('blob');
+    }
+
+    async function shareInvoice(){
+      const btn = document.getElementById('waBtn');
+      const orig = btn.textContent;
+      btn.textContent = '⏳ Preparing PDF…'; btn.disabled = true;
+      const ph = (sale.customer_phone||'').replace(/[^0-9]/g,'');
+      const msg = shareMessage();
+      const fname = `${sale.invoice_number}.pdf`;
+      try {
+        const blob = await buildPdfBlob();
+        const file = new File([blob], fname, { type:'application/pdf' });
+
+        // Best path (phones): native share sheet WITH the PDF attached + text.
+        if (navigator.canShare && navigator.canShare({ files:[file] })) {
+          await navigator.share({ files:[file], text: msg, title: 'Tax Invoice' });
+        } else {
+          // Desktop fallback: download the PDF, then open WhatsApp with the text.
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href=url; a.download=fname; a.click();
+          URL.revokeObjectURL(url);
+          window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg + '\n\n📎 (Invoice PDF downloaded to your device — attach it in the chat.)')}`,'_blank');
+        }
+      } catch(err){
+        if (err && err.name === 'AbortError') { /* user cancelled share — ignore */ }
+        else {
+          // Last-resort fallback: text-only WhatsApp.
+          window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
+        }
+      } finally {
+        btn.textContent = orig; btn.disabled = false;
+      }
+    }
+
     load();
   </script>
 </body>
