@@ -957,6 +957,62 @@ app.get('/api/sales', requireAuth, (req, res) => {
   );
 });
 
+// GET /api/reports — aggregated analytics for the Reports screen.
+// Computed server-side from this jeweller's sales. Lightweight: one
+// shop's data, so a few in-memory reductions are plenty fast.
+app.get('/api/reports', requireAuth, (req, res) => {
+  db.all(
+    `SELECT * FROM sales WHERE jeweller_id = ? ORDER BY sold_at ASC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // ── Last 30 days daily series (IST days) ──
+      const dayMap = {};
+      const nowIST = new Date(Date.now() + 5.5 * 3600 * 1000);
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(nowIST); d.setDate(d.getDate() - i);
+        dayMap[d.toISOString().slice(0, 10)] = { day: d.toISOString().slice(0, 10), total: 0, count: 0 };
+      }
+      rows.forEach(s => {
+        const day = (s.sold_at || '').slice(0, 10);
+        if (dayMap[day]) { dayMap[day].total += s.total || 0; dayMap[day].count += 1; }
+      });
+      const daily = Object.values(dayMap);
+
+      // ── Top customers by spend ──
+      const custMap = {};
+      rows.forEach(s => {
+        const k = s.customer_name || 'Walk-in';
+        custMap[k] = custMap[k] || { name: k, total: 0, count: 0 };
+        custMap[k].total += s.total || 0; custMap[k].count += 1;
+      });
+      const topCustomers = Object.values(custMap).sort((a, b) => b.total - a.total).slice(0, 10);
+
+      // ── Top items by units sold ──
+      const itemMap = {};
+      rows.forEach(s => {
+        const k = s.description || 'Custom item';
+        itemMap[k] = itemMap[k] || { description: k, count: 0, total: 0 };
+        itemMap[k].count += 1; itemMap[k].total += s.total || 0;
+      });
+      const topItems = Object.values(itemMap).sort((a, b) => b.count - a.count).slice(0, 10);
+
+      // ── GST summary (for filing) ──
+      const taxable = rows.reduce((s, r) => s + (r.gold_value || 0) + (r.making_amount || 0), 0);
+      const totalGst = rows.reduce((s, r) => s + (r.gst_amount || 0), 0);
+      const grossSales = rows.reduce((s, r) => s + (r.total || 0), 0);
+      const totalWeight = rows.reduce((s, r) => s + (r.weight_g || 0), 0);
+
+      res.json({
+        daily, topCustomers, topItems,
+        gst: { taxable, cgst: totalGst / 2, sgst: totalGst / 2, totalGst, grossSales },
+        totals: { sales: rows.length, weight: totalWeight, gross: grossSales },
+      });
+    }
+  );
+});
+
 // GET /api/sales/:id — one sale (for invoice rendering).
 app.get('/api/sales/:id', requireAuth, (req, res) => {
   db.get(

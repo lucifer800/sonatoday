@@ -208,7 +208,7 @@
         <div class="stat"><div class="v" id="stMonth">₹0</div><div class="l">This month</div></div>
         <div class="stat"><div class="v" id="stStock">₹0</div><div class="l">Stock value</div></div>
       </div>
-      <p class="muted" style="margin:.8rem 0 0;font-size:11px">Sales &amp; stock stats activate once you start using the Bills and Stock tabs.</p>
+      <button onclick="openReports()" style="width:100%;margin-top:.8rem;background:rgba(255,255,255,.04);border:1px solid var(--acc-border);color:var(--acc);padding:.6rem;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">📊 View full reports →</button>
     </div>
 
     <div class="card">
@@ -384,6 +384,39 @@
       <div class="em">🧾</div>
       <h2>No bills yet</h2>
       <p>Tap <strong>+ New Sale</strong> to create your first GST invoice. Rate auto-fills, GST auto-calculates, send it on WhatsApp.</p>
+    </div>
+  </section>
+
+  <!-- ════════ REPORTS (Phase 4) — reached from Home ════════ -->
+  <section class="screen" id="scr-reports">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">
+      <button onclick="goHome()" style="background:rgba(255,255,255,.06);border:1px solid var(--acc-border);color:var(--text);width:34px;height:34px;border-radius:9px;font-size:16px;cursor:pointer">←</button>
+      <h2 style="margin:0;font-size:1.15rem;font-weight:700">📊 Reports</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Sales — last 30 days</div>
+      <div id="repChart" style="height:140px;display:flex;align-items:flex-end;gap:2px"></div>
+      <div class="muted" id="repChartSub" style="font-size:11px;margin-top:.5rem;text-align:center">—</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">GST summary <span class="muted" style="font-size:11px;font-weight:400">(all-time)</span></div>
+      <div class="cb-row"><span>Taxable value</span><span id="repTaxable">—</span></div>
+      <div class="cb-row"><span>CGST collected</span><span id="repCgst">—</span></div>
+      <div class="cb-row"><span>SGST collected</span><span id="repSgst">—</span></div>
+      <div class="cb-row cb-total" style="border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;padding-top:.55rem"><span>Total GST</span><span id="repGst">—</span></div>
+      <div class="cb-row" style="margin-top:.4rem"><span>Gross sales</span><span id="repGross">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🏆 Top customers</div>
+      <div id="repCustomers"><div class="muted" style="font-size:12px">No sales yet.</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">💎 Best-selling items</div>
+      <div id="repItems"><div class="muted" style="font-size:12px">No sales yet.</div></div>
     </div>
   </section>
 
@@ -991,6 +1024,62 @@
       } catch(err){ msg.className='msg err'; msg.textContent=err.message; }
       finally { btn.disabled=false; btn.textContent='Generate Invoice →'; }
     });
+
+    /* ════════════ REPORTS (Phase 4) ════════════ */
+    function openReports() {
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+      document.getElementById('scr-reports').classList.add('active');
+      window.scrollTo(0,0);
+      loadReports();
+    }
+    function goHome() {
+      document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      document.getElementById('scr-home').classList.add('active');
+      document.querySelector('.tab[data-scr="home"]').classList.add('active');
+      window.scrollTo(0,0);
+    }
+    window.openReports = openReports;
+    window.goHome = goHome;
+
+    async function loadReports() {
+      try {
+        const r = await fetch(`${API_BASE}/api/reports`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.status === 401) return logout();
+        const d = await r.json();
+
+        // ── Bar chart (last 30 days) ──
+        const max = Math.max(1, ...d.daily.map(x=>x.total));
+        const chart = document.getElementById('repChart');
+        chart.innerHTML = d.daily.map(x => {
+          const h = Math.round((x.total/max)*130);
+          const tip = `${x.day}: ${fmt(x.total)}`;
+          return `<div title="${tip}" style="flex:1;background:${x.total?'var(--acc)':'rgba(255,255,255,.06)'};height:${Math.max(2,h)}px;border-radius:2px 2px 0 0;min-width:0"></div>`;
+        }).join('');
+        const totalMonth = d.daily.reduce((s,x)=>s+x.total,0);
+        const cnt = d.daily.reduce((s,x)=>s+x.count,0);
+        document.getElementById('repChartSub').textContent = `${cnt} sale${cnt!==1?'s':''} · ${fmt(totalMonth)} in 30 days`;
+
+        // ── GST ──
+        document.getElementById('repTaxable').textContent = fmt(d.gst.taxable);
+        document.getElementById('repCgst').textContent = fmt(d.gst.cgst);
+        document.getElementById('repSgst').textContent = fmt(d.gst.sgst);
+        document.getElementById('repGst').textContent = fmt(d.gst.totalGst);
+        document.getElementById('repGross').textContent = fmt(d.gst.grossSales);
+
+        // ── Top customers ──
+        const cEl = document.getElementById('repCustomers');
+        cEl.innerHTML = d.topCustomers.length
+          ? d.topCustomers.map((c,i)=>`<div class="cb-row"><span>${i+1}. ${c.name} <span class="muted" style="font-size:10px">(${c.count})</span></span><span>${fmt(c.total)}</span></div>`).join('')
+          : '<div class="muted" style="font-size:12px">No sales yet.</div>';
+
+        // ── Top items ──
+        const iEl = document.getElementById('repItems');
+        iEl.innerHTML = d.topItems.length
+          ? d.topItems.map((it,i)=>`<div class="cb-row"><span>${i+1}. ${it.description}</span><span>${it.count} sold</span></div>`).join('')
+          : '<div class="muted" style="font-size:12px">No sales yet.</div>';
+      } catch(e){ console.warn('reports failed', e); }
+    }
 
     function logout(){ localStorage.removeItem('jwl_token'); localStorage.removeItem('jwl_user'); location.href='jeweller-login.html'; }
     document.getElementById('logoutBtn').addEventListener('click', logout);
