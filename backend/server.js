@@ -5,7 +5,19 @@ const path       = require('path');
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const crypto     = require('crypto');
 require('dotenv').config();
+
+// Short, URL-safe HMAC of a sale id — used to gate the public
+// /invoice-view.html?id=X&sig=Y page so anyone with the link can
+// see the invoice but nobody can enumerate sales by guessing ids.
+function signSaleId(id) {
+  const secret = process.env.JWT_SECRET || 'secret_key';
+  return crypto.createHmac('sha256', secret)
+               .update('invoice:' + id)
+               .digest('hex')
+               .slice(0, 16);
+}
 
 // ── Alert system ──────────────────────────────────────────────
 const { startAlertChecker }             = require('./alertChecker');
@@ -1011,16 +1023,51 @@ app.get('/api/reports', requireAuth, (req, res) => {
 });
 
 // GET /api/sales/:id — one sale (for invoice rendering).
+// Also returns `public_sig`, the HMAC the jeweller can append to a
+// /invoice-view.html link to share with the customer over WhatsApp.
 app.get('/api/sales/:id', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
   db.get(
     `SELECT * FROM sales WHERE id = ? AND jeweller_id = ?`,
-    [parseInt(req.params.id, 10), req.jeweller.id],
+    [id, req.jeweller.id],
     (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!row) return res.status(404).json({ error: 'Invoice not found' });
+      row.public_sig = signSaleId(id);
       res.json(row);
     }
   );
+});
+
+// GET /api/public/invoices/:id/:sig — UNAUTHENTICATED public view.
+// Returns the sale joined with the seller's display info so the
+// /invoice-view.html page can render a real GST invoice the customer
+// got linked over WhatsApp. The :sig HMAC prevents anyone from
+// enumerating other people's sales by guessing the id.
+app.get('/api/public/invoices/:id/:sig', (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (!id) return res.status(400).json({ error: 'Bad id' });
+  const expected = signSaleId(id);
+  // Constant-time compare to avoid timing oracles.
+  const given = String(req.params.sig || '');
+  if (given.length !== expected.length ||
+      !crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected))) {
+    return res.status(403).json({ error: 'Invalid link' });
+  }
+  db.get(`SELECT * FROM sales WHERE id = ?`, [id], (err, sale) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!sale) return res.status(404).json({ error: 'Invoice not found' });
+    db.get(
+      `SELECT name, phone, whatsapp, area, address_line,
+              gst_number, bis_license
+         FROM jewellers WHERE id = ?`,
+      [sale.jeweller_id],
+      (e2, seller) => {
+        if (e2) return res.status(500).json({ error: e2.message });
+        res.json({ sale, seller: seller || {} });
+      }
+    );
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

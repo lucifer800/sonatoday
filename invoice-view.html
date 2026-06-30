@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Tax Invoice — SonaToday</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#e9e9ee;color:#1a1a1a;padding:1rem}
+    .actions{max-width:780px;margin:0 auto .8rem;display:flex;gap:.5rem;flex-wrap:wrap}
+    .actions button{flex:1;min-width:140px;padding:.8rem;border:0;border-radius:10px;font-weight:700;font-size:14px;cursor:pointer}
+    .btn-print{background:#1a1a2e;color:#fff}
+    .btn-pdf{background:#5b4fc7;color:#fff}
+    .inv{max-width:780px;margin:0 auto;background:#fff;padding:2.2rem;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+    .inv-top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #D4AF37;padding-bottom:1rem;margin-bottom:1.2rem}
+    .brand{font-size:1.6rem;font-weight:800;color:#1a1a2e}
+    .brand span{color:#D4AF37}
+    .tax-tag{text-align:right;font-size:11px;color:#888}
+    .tax-tag h2{font-size:1.1rem;color:#1a1a2e;letter-spacing:2px}
+    .parties{display:flex;justify-content:space-between;gap:2rem;margin-bottom:1.4rem}
+    .party{flex:1}
+    .party h4{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#999;margin-bottom:.35rem}
+    .party .nm{font-weight:700;font-size:14px}
+    .party div{font-size:12.5px;color:#444;line-height:1.6}
+    .meta{text-align:right;font-size:12.5px;color:#444;line-height:1.7}
+    .meta b{color:#1a1a2e}
+    table{width:100%;border-collapse:collapse;margin-bottom:1.2rem}
+    th{background:#1a1a2e;color:#fff;font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:.6rem .7rem;text-align:left}
+    th.r,td.r{text-align:right}
+    td{padding:.7rem;font-size:13px;border-bottom:1px solid #eee}
+    .totals{margin-left:auto;width:280px}
+    .totals .tr{display:flex;justify-content:space-between;padding:.4rem 0;font-size:13px;color:#444}
+    .totals .tr.grand{border-top:2px solid #1a1a2e;margin-top:.4rem;padding-top:.7rem;font-size:1.15rem;font-weight:800;color:#1a1a2e}
+    .words{margin-top:1rem;font-size:12px;color:#555;font-style:italic;background:#faf7ed;padding:.7rem;border-radius:6px}
+    .foot{margin-top:1.6rem;padding-top:1rem;border-top:1px solid #eee;font-size:11px;color:#999;text-align:center;line-height:1.6}
+    .err{max-width:780px;margin:2rem auto;background:#fff;padding:2rem;text-align:center;color:#c00;border-radius:10px}
+    @media print{body{background:#fff;padding:0}.actions{display:none}.inv{box-shadow:none;max-width:100%;padding:1rem}}
+  </style>
+</head>
+<body>
+  <div class="actions">
+    <button class="btn-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+    <button class="btn-pdf" id="pdfBtn">📥 Download PDF</button>
+  </div>
+  <div id="root"><div class="err">Loading invoice…</div></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="/config.js?v=5"></script>
+  <script>
+    const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
+    const qs = new URLSearchParams(location.search);
+    const id  = qs.get('id');
+    const sig = qs.get('sig');
+    const fmt = n => '₹' + Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+    function inWords(num){
+      num = Math.round(num);
+      if (num === 0) return 'Zero Rupees';
+      const a=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+      const b=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+      const two=n=> n<20?a[n]:b[Math.floor(n/10)]+(n%10?' '+a[n%10]:'');
+      const three=n=>{const h=Math.floor(n/100),r=n%100;return (h?a[h]+' Hundred'+(r?' ':''):'')+(r?two(r):'');};
+      let out='', crore=Math.floor(num/1e7); num%=1e7;
+      let lakh=Math.floor(num/1e5); num%=1e5;
+      let thou=Math.floor(num/1e3); num%=1e3;
+      if(crore) out+=three(crore)+' Crore ';
+      if(lakh)  out+=three(lakh)+' Lakh ';
+      if(thou)  out+=three(thou)+' Thousand ';
+      if(num)   out+=three(num);
+      return out.trim()+' Rupees Only';
+    }
+
+    let sale=null;
+
+    async function load(){
+      if(!id || !sig){
+        document.getElementById('root').innerHTML='<div class="err">Invalid invoice link.</div>';
+        return;
+      }
+      try{
+        const r = await fetch(`${API_BASE}/api/public/invoices/${id}/${sig}`);
+        if(!r.ok){
+          const j = await r.json().catch(()=>({}));
+          throw new Error(j.error || 'This invoice link is invalid or has expired.');
+        }
+        const data = await r.json();
+        sale = data.sale;
+        render(data.sale, data.seller || {});
+      }catch(e){
+        document.getElementById('root').innerHTML=`<div class="err">${e.message}</div>`;
+      }
+    }
+
+    function render(s, j){
+      const date = new Date(s.sold_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+      const half = (s.gst_amount||0)/2;
+      document.getElementById('root').innerHTML = `
+      <div class="inv">
+        <div class="inv-top">
+          <div>
+            <div class="brand">Sona<span>Today</span></div>
+            <div style="font-size:13px;color:#555;margin-top:.2rem">${j.name||''}</div>
+          </div>
+          <div class="tax-tag"><h2>TAX INVOICE</h2></div>
+        </div>
+
+        <div class="parties">
+          <div class="party">
+            <h4>Seller</h4>
+            <div class="nm">${j.name||'—'}</div>
+            <div>${j.address_line||j.area||''}</div>
+            <div>${j.phone?('📞 '+j.phone):''}</div>
+            <div>${j.gst_number?('GSTIN: '+j.gst_number):''}</div>
+            <div>${j.bis_license?('BIS: '+j.bis_license):''}</div>
+          </div>
+          <div class="party" style="text-align:right">
+            <h4>Bill To</h4>
+            <div class="nm">${s.customer_name||'Walk-in'}</div>
+            <div>${s.customer_phone?('📞 '+s.customer_phone):''}</div>
+            <div>${s.customer_gstin?('GSTIN: '+s.customer_gstin):''}</div>
+            <div class="meta" style="margin-top:.6rem"><b>Invoice:</b> ${s.invoice_number}<br><b>Date:</b> ${date}</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr>
+            <th>Description</th><th>HSN</th><th class="r">Purity</th><th class="r">Wt (g)</th>
+            <th class="r">Rate/g</th><th class="r">Gold Value</th><th class="r">Making</th><th class="r">Taxable</th>
+          </tr></thead>
+          <tbody><tr>
+            <td>${s.description||'Gold jewellery'}</td>
+            <td>7113</td>
+            <td class="r">${s.purity}K</td>
+            <td class="r">${s.weight_g}</td>
+            <td class="r">${fmt(s.rate_per_g)}</td>
+            <td class="r">${fmt(s.gold_value)}</td>
+            <td class="r">${fmt(s.making_amount)}</td>
+            <td class="r">${fmt((s.gold_value||0)+(s.making_amount||0))}</td>
+          </tr></tbody>
+        </table>
+
+        <div class="totals">
+          <div class="tr"><span>Taxable value</span><span>${fmt((s.gold_value||0)+(s.making_amount||0))}</span></div>
+          <div class="tr"><span>CGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
+          <div class="tr"><span>SGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
+          <div class="tr grand"><span>Total</span><span>${fmt(s.total)}</span></div>
+        </div>
+
+        <div class="words">Amount in words: ${inWords(s.total)}</div>
+
+        <div class="foot">
+          This is a computer-generated tax invoice. Gold rate as quoted on date of sale.<br>
+          Shared via SonaToday · sonatoday.com
+        </div>
+      </div>`;
+
+      document.getElementById('pdfBtn').onclick = downloadPdf;
+    }
+
+    async function downloadPdf(){
+      const btn = document.getElementById('pdfBtn');
+      const orig = btn.textContent;
+      btn.textContent = '⏳ Generating…'; btn.disabled = true;
+      try{
+        const el = document.querySelector('.inv');
+        const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+        const img = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p','mm','a4');
+        const pageW = pdf.internal.pageSize.getWidth();
+        const imgH = canvas.height * pageW / canvas.width;
+        pdf.addImage(img,'PNG',0,0,pageW,imgH);
+        pdf.save(`${sale.invoice_number}.pdf`);
+      }catch(err){
+        console.warn(err);
+        alert('Could not generate PDF. Use the 🖨 Print button → "Save as PDF" instead.');
+      }finally{ btn.textContent = orig; btn.disabled = false; }
+    }
+
+    load();
+  </script>
+</body>
+</html>

@@ -166,15 +166,27 @@
       document.getElementById('pdfBtn').onclick = downloadPdfOnly;
     }
 
-    // The thank-you message that rides along with the PDF.
+    // Build the public, tokenised view-link the customer taps to see
+    // the GST invoice in their browser (no app, no download required).
+    function publicInvoiceUrl(){
+      // Prefer the production origin so the link works after the
+      // customer leaves the page — but fall back to whatever origin
+      // is currently serving the page (handy in local dev).
+      const isLocal = /^(localhost|127\.0\.0\.1)/.test(location.hostname);
+      const base = isLocal ? location.origin : 'https://sonatoday.com';
+      return `${base}/invoice-view.html?id=${sale.id}&sig=${encodeURIComponent(sale.public_sig||'')}`;
+    }
+
+    // Thank-you message that goes with the link.
     function shareMessage(){
       const s=sale, j=seller;
       const date = new Date(s.sold_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
       return `🙏 *Thank you for shopping with ${j.name}!*\n\n`+
-        `Please find your tax invoice attached.\n\n`+
+        `Your tax invoice is ready — tap the link below to view, save or print it.\n\n`+
         `🧾 ${s.invoice_number} · ${date}\n`+
         `${s.description||'Gold jewellery'} — ${s.weight_g}g ${s.purity}K\n`+
         `*Total: ₹${Math.round(s.total).toLocaleString('en-IN')}*\n\n`+
+        `📄 ${publicInvoiceUrl()}\n\n`+
         `We look forward to serving you again. ✨`;
     }
 
@@ -191,75 +203,36 @@
       return pdf.output('blob');
     }
 
-    // Detect device that supports the native share-sheet WITH files
-    // (basically: mobile Safari/Chrome). On desktop, navigator.share
-    // exists but can't attach files — and we use a different flow.
-    function canShareFiles(){
-      // Only use the native share-sheet on REAL mobile devices.
-      // Mac/Windows Chrome 118+ also advertises navigator.canShare({files})
-      // but the resulting share sheet doesn't route to WhatsApp — the click
-      // gets stuck on "Preparing PDF…" forever. Desktop must use the
-      // synchronous wa.me popup path instead.
-      const ua = navigator.userAgent || '';
-      const isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(ua);
-      if (!isMobile) return false;
-      try {
-        const dummy = new File([new Blob(['x'])], 'x.pdf', { type:'application/pdf' });
-        return !!(navigator.canShare && navigator.canShare({ files:[dummy] }));
-      } catch { return false; }
-    }
-
     /* ──────────────────────────────────────────────────────────
        shareInvoice — runs on the WhatsApp button click.
-       The critical rule: window.open() loses popup-blocker
-       permission after the FIRST `await`. So on desktop we open
-       WhatsApp immediately, synchronously, then prepare the PDF
-       in the background. That guarantees the WhatsApp window
-       always appears (the original behaviour you saw before).
-       On mobile we use the native share sheet, which is a system
-       UI (no popup blocker), so async/await is fine there.
+
+       The new model: we don't attach a PDF at all. Instead we
+       send a tap-to-view PUBLIC LINK (/invoice-view.html?id&sig)
+       which renders the same GST invoice in the customer's
+       browser and offers Print / Download PDF buttons of its own.
+
+       Benefits over the old PDF-attachment flow:
+       • Zero PDF generation on the jeweller side — no more
+         hourglass-forever bug, no popup-blocker race.
+       • Works on EVERY device (mobile + desktop) identically.
+       • Customer can re-open the invoice any time from chat
+         history; jeweller doesn't have to re-send the PDF.
     ──────────────────────────────────────────────────────────── */
     function shareInvoice(){
-      const btn  = document.getElementById('waBtn');
-      const ph   = (sale.customer_phone||'').replace(/[^0-9]/g,'');
-      const msg  = shareMessage();
-      const fname= `${sale.invoice_number}.pdf`;
-
-      // ── Mobile path: native share sheet (attaches the PDF directly) ──
-      if (canShareFiles()) {
-        const orig = btn.textContent;
-        btn.textContent = '⏳ Preparing PDF…'; btn.disabled = true;
-        buildPdfBlob().then(blob => {
-          const file = new File([blob], fname, { type:'application/pdf' });
-          return navigator.share({ files:[file], text: msg, title: 'Tax Invoice' });
-        }).catch(err => {
-          if (err && err.name !== 'AbortError') {
-            // fallback if share failed for any reason
-            window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
-          }
-        }).finally(() => { btn.textContent = orig; btn.disabled = false; });
+      if (!sale || !sale.public_sig) {
+        alert('Invoice not loaded yet — please wait a second and try again.');
         return;
       }
-
-      // ── Desktop path: open WhatsApp NOW (synchronously, while we still
-      // have the click's user-gesture), THEN download the PDF in parallel.
-      const waUrl = `https://wa.me/${ph}?text=${encodeURIComponent(msg + '\n\n📎 (Invoice PDF downloaded — drag it into this chat.)')}`;
-      const waWin = window.open(waUrl, '_blank');
-      if (!waWin) {
-        alert('Your browser blocked the WhatsApp popup. Please allow popups for sonatoday.com and try again.');
-        return;
+      const ph  = (sale.customer_phone||'').replace(/[^0-9]/g,'');
+      const msg = shareMessage();
+      // wa.me works without a phone too — opens WhatsApp's contact picker.
+      const waUrl = `https://wa.me/${ph}?text=${encodeURIComponent(msg)}`;
+      const win = window.open(waUrl, '_blank');
+      if (!win) {
+        // Popup blocked — fall back to a same-tab navigation so the
+        // click still gets the customer to WhatsApp.
+        location.href = waUrl;
       }
-      // PDF download runs in the background — non-blocking.
-      const orig = btn.textContent;
-      btn.textContent = '⏳ Preparing PDF…'; btn.disabled = true;
-      buildPdfBlob().then(blob => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download=fname; a.click();
-        URL.revokeObjectURL(url);
-      }).catch(err => {
-        console.warn('PDF generation failed:', err);
-        alert('Could not generate the PDF for download, but WhatsApp opened with the message.\nUse the 🖨 Print button to save it as PDF instead.');
-      }).finally(() => { btn.textContent = orig; btn.disabled = false; });
     }
 
     // Standalone "Download PDF" button — always works, no WhatsApp.

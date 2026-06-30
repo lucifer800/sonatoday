@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v9';   // flush cached invoice page after public-share-link rollout
+const VERSION     = 'v10';  // public invoice-view link replaces PDF attachment in WhatsApp share
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 
