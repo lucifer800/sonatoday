@@ -1273,6 +1273,122 @@ app.delete('/api/customers/:id', requireAuth, (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// LOYALTY  (Phase 8)
+// Returns four lists the jeweller acts on:
+//   • today      — birthdays + anniversaries today (MM-DD match)
+//   • thisWeek   — birthdays + anniversaries in the next 7 days
+//   • vip        — saved customers with 3+ bills, ordered by spend
+//   • inactive   — customers who bought at least once but not in 90+ days
+// We do NOT auto-send anything — wa.me links in the UI are tapped
+// by the jeweller, which keeps us out of WhatsApp Business API
+// territory and avoids spam risk.
+// ═══════════════════════════════════════════════════════════════
+app.get('/api/loyalty', requireAuth, (req, res) => {
+  const jid = req.jeweller.id;
+  const today = new Date(Date.now() + 5.5 * 3600 * 1000);   // IST
+  const todayIso = today.toISOString().slice(0, 10);
+  const todayMMDD = todayIso.slice(5);                       // 'MM-DD'
+
+  // Next 7 days as MM-DD set (handles Dec→Jan wraparound).
+  const weekMMDD = new Set();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(d.getDate() + i);
+    weekMMDD.add(d.toISOString().slice(5, 10));
+  }
+
+  db.all(
+    `SELECT id, name, phone, whatsapp, email, birthday, anniversary, notes
+       FROM customers WHERE jeweller_id = ?`,
+    [jid],
+    (err, custs) => {
+      if (err) return res.status(500).json({ error: err.message });
+      db.all(
+        `SELECT id, customer_id, customer_name, customer_phone, total, sold_at
+           FROM sales WHERE jeweller_id = ? AND customer_id IS NOT NULL
+           ORDER BY sold_at ASC`,
+        [jid],
+        (e2, sales) => {
+          if (e2) return res.status(500).json({ error: e2.message });
+
+          // Roll up per-customer purchase stats.
+          const byCust = {};
+          sales.forEach(s => {
+            const k = s.customer_id;
+            byCust[k] = byCust[k] || { count: 0, spend: 0, last: null };
+            byCust[k].count += 1;
+            byCust[k].spend += s.total || 0;
+            const d = (s.sold_at || '').slice(0, 10);
+            if (!byCust[k].last || d > byCust[k].last) byCust[k].last = d;
+          });
+          const daysSince = (iso) => iso
+            ? Math.max(0, Math.floor((Date.parse(todayIso) - Date.parse(iso)) / 86400000))
+            : null;
+
+          const enrich = (c) => {
+            const s = byCust[c.id] || { count: 0, spend: 0, last: null };
+            return {
+              id: c.id, name: c.name,
+              phone: c.whatsapp || c.phone || '',
+              billCount: s.count, totalSpend: s.spend,
+              lastPurchase: s.last, daysSinceLast: daysSince(s.last),
+            };
+          };
+
+          // ── Birthdays / anniversaries ──
+          const occToday = [], occWeek = [];
+          custs.forEach(c => {
+            const checks = [
+              { kind: 'birthday',    iso: c.birthday },
+              { kind: 'anniversary', iso: c.anniversary },
+            ];
+            checks.forEach(({ kind, iso }) => {
+              if (!iso || iso.length < 10) return;
+              const mmdd = iso.slice(5, 10);
+              const enriched = enrich(c);
+              const item = { ...enriched, kind, dateIso: iso };
+              if (mmdd === todayMMDD) occToday.push(item);
+              else if (weekMMDD.has(mmdd)) {
+                // tag the day-of-week distance for sort
+                item.daysAway = [...weekMMDD].indexOf(mmdd);
+                occWeek.push(item);
+              }
+            });
+          });
+          occWeek.sort((a, b) => (a.daysAway || 0) - (b.daysAway || 0));
+
+          // ── VIP (3+ bills, sorted by spend) ──
+          const vip = custs
+            .map(enrich)
+            .filter(c => c.billCount >= 3)
+            .sort((a, b) => b.totalSpend - a.totalSpend)
+            .slice(0, 20);
+
+          // ── Inactive (bought before, but not in 90+ days) ──
+          const inactive = custs
+            .map(enrich)
+            .filter(c => c.billCount >= 1 && c.daysSinceLast != null && c.daysSinceLast >= 90)
+            .sort((a, b) => b.totalSpend - a.totalSpend)
+            .slice(0, 20);
+
+          res.json({
+            today: occToday,
+            thisWeek: occWeek,
+            vip,
+            inactive,
+            summary: {
+              todayCount:    occToday.length,
+              thisWeekCount: occWeek.length,
+              vipCount:      vip.length,
+              inactiveCount: inactive.length,
+            },
+          });
+        }
+      );
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
 // DEMO SEED  (Phase 5 — first-run experience)
 // One call inserts 3 sample inventory items, 2 customers, and one
 // sample bill so a brand-new jeweller can immediately see what

@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v13';  // Phase 7: self-serve signup + in-app welcome tour
+const VERSION     = 'v14';  // Phase 8: loyalty (birthdays, VIPs, re-engage, broadcast)
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 

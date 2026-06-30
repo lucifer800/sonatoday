@@ -433,6 +433,15 @@
       <p class="muted" id="custBirthdays" style="margin:.3rem 0 0;font-size:11.5px">Your shop's little black book.</p>
     </div>
 
+    <!-- ═══ PHASE 8: LOYALTY ═══ -->
+    <div class="card" id="loyaltyCard" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+        <div class="card-title" style="margin:0">💝 Loyalty moments</div>
+        <button id="broadcastBtn" style="background:rgba(91,79,199,.18);border:1px solid rgba(91,79,199,.4);color:#c9c0ff;padding:.35rem .65rem;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer">📣 Broadcast</button>
+      </div>
+      <div id="loySections"></div>
+    </div>
+
     <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
       <input id="custSearch" placeholder="🔍 Search name or phone…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
       <button class="pub-btn" id="addCustBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
@@ -445,6 +454,49 @@
       <p>Tap here to save your first customer. Reach them on WhatsApp in one tap, never lose a contact again.</p>
     </div>
   </section>
+
+  <!-- ════════ BROADCAST SHEET (Phase 8) ════════ -->
+  <div id="bcastSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 style="margin:0;font-size:1.05rem;font-weight:700">📣 WhatsApp broadcast</h3>
+        <button class="sheet-x" onclick="closeBroadcastSheet()">×</button>
+      </div>
+
+      <div class="if">
+        <label>Send to</label>
+        <select id="bcastSeg" style="width:100%;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
+          <option value="all">All customers</option>
+          <option value="vip">VIP customers (3+ bills)</option>
+          <option value="inactive">Inactive (90+ days since last bill)</option>
+        </select>
+        <div class="muted" style="font-size:11px;margin-top:.3rem" id="bcastCount">Choose a segment to see the count.</div>
+      </div>
+
+      <div class="if">
+        <label>Template</label>
+        <select id="bcastTpl" style="width:100%;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
+          <option value="new_collection">📦 New collection</option>
+          <option value="festive">🎉 Festive offer</option>
+          <option value="rate_drop">💰 Rate drop alert</option>
+          <option value="custom">✍️ Custom message</option>
+        </select>
+      </div>
+
+      <div class="if">
+        <label>Message preview</label>
+        <textarea id="bcastMsg" rows="6" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px;font-family:inherit;line-height:1.5"></textarea>
+        <div class="muted" style="font-size:11px;margin-top:.3rem">Tip: <code>{name}</code> is replaced with each customer's name.</div>
+      </div>
+
+      <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fbbf24;padding:.6rem .8rem;border-radius:9px;font-size:11.5px;line-height:1.5;margin-bottom:.8rem">
+        ⚠️ WhatsApp opens once per customer — you tap <b>Send</b> in WhatsApp each time. This avoids spam-flagging and keeps you compliant with WhatsApp's rules.
+      </div>
+
+      <button id="bcastSend" class="pub-btn" style="margin-top:.4rem">Open WhatsApp for next customer →</button>
+      <div class="muted" id="bcastProgress" style="font-size:11px;margin-top:.5rem;text-align:center">—</div>
+    </div>
+  </div>
 
   <!-- ════════ ADD / EDIT CUSTOMER SHEET ════════ -->
   <div id="custSheet" class="sheet" style="display:none">
@@ -1610,7 +1662,193 @@
       else { tourStep--; showTourStep(); }   // later steps  = "Back"
     };
 
-    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(maybeStartTour);
+    /* ════════════ LOYALTY (Phase 8) ════════════
+       Birthdays / anniversaries, VIPs, and re-engagement of
+       sleeping customers. The jeweller taps a row to open
+       WhatsApp with a pre-written message. Nothing is sent
+       automatically — keeps us out of WA Business API land. */
+    let loyaltyData = null;
+
+    async function loadLoyalty(){
+      try {
+        const r = await fetch(`${API_BASE}/api/loyalty`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (!r.ok) return;
+        loyaltyData = await r.json();
+        renderLoyalty();
+      } catch { /* offline — skip */ }
+    }
+
+    function loyaltyWaMessage(kind, customerName){
+      const shop = (me && me.name) || 'our shop';
+      const nm = (customerName || '').replace(/^\[Demo\]\s*/, '').split(' ')[0] || 'there';
+      switch(kind){
+        case 'birthday':
+          return `🎂 *Happy Birthday, ${nm}!*\n\nWishing you a year full of light and shine. As a small thank-you from ${shop}, drop in this week — we'd love to show you our latest pieces.\n\n— ${shop}`;
+        case 'anniversary':
+          return `💍 *Happy Anniversary, ${nm}!*\n\nMay your bond keep growing brighter. ${shop} would love to be part of your celebrations — visit us this week for something special.\n\n— ${shop}`;
+        case 'vip':
+          return `🙏 *Thank you for choosing ${shop}, ${nm}*\n\nYou're one of our most loved customers. We've just received new designs we think you'll love — pop in any time this week for a private viewing.\n\n— ${shop}`;
+        case 'inactive':
+          return `Hello ${nm}, this is ${shop}. It's been a while! 💛\n\nWe miss seeing you in store. Come by this week — we've got fresh designs and today's best rates. We'd love to catch up.\n\n— ${shop}`;
+        default:
+          return `Hello ${nm}, this is ${shop}. Hope you're well!`;
+      }
+    }
+
+    function waLink(phone, msg){
+      const p = (phone||'').replace(/[^0-9]/g,'');
+      return `https://wa.me/${p}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function loyaltyRow(c, kind, badge){
+      const name = (c.name||'').replace(/^\[Demo\]\s*/, '');
+      const sub = kind === 'inactive'
+        ? `${c.billCount||0} bill${c.billCount!==1?'s':''} · ${fmt(c.totalSpend||0)} · last ${c.daysSinceLast}d ago`
+        : kind === 'vip'
+          ? `${c.billCount||0} bills · ${fmt(c.totalSpend||0)} lifetime`
+          : (c.dateIso ? `${c.dateIso.slice(8,10)}/${c.dateIso.slice(5,7)}` : '');
+      const wa = waLink(c.phone, loyaltyWaMessage(kind, c.name));
+      const canWa = !!(c.phone && c.phone.replace(/[^0-9]/g,''));
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--acc-border)">
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${badge||''} ${name}</div>
+          <div class="muted" style="font-size:11px;margin-top:1px">${sub}</div>
+        </div>
+        ${canWa
+          ? `<a href="${wa}" target="_blank" style="background:#25D366;color:#fff;padding:.4rem .65rem;border-radius:8px;font-size:11px;font-weight:700;text-decoration:none;margin-left:.5rem;white-space:nowrap">💬 Wish</a>`
+          : `<span class="muted" style="font-size:10px;margin-left:.5rem;white-space:nowrap">no phone</span>`}
+      </div>`;
+    }
+
+    function loyaltySection(title, items, kind, badge, emptyText){
+      if (!items || !items.length) return '';
+      return `<div style="margin-top:.7rem">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.2rem">${title} · ${items.length}</div>
+        ${items.slice(0,5).map(c => loyaltyRow(c, kind, badge)).join('')}
+      </div>`;
+    }
+
+    function renderLoyalty(){
+      const card = document.getElementById('loyaltyCard');
+      const host = document.getElementById('loySections');
+      if (!loyaltyData) { card.style.display='none'; return; }
+      const { today, thisWeek, vip, inactive, summary } = loyaltyData;
+      const anything = (summary.todayCount + summary.thisWeekCount + summary.vipCount + summary.inactiveCount) > 0;
+      card.style.display = anything ? 'block' : 'none';
+      if (!anything) return;
+      host.innerHTML = [
+        loyaltySection('🎉 Today',           today,    null, '🎂'),  // kind set per-item below
+        loyaltySection('📅 This week',       thisWeek, null, '📅'),
+        loyaltySection('👑 VIPs',            vip,      'vip', '👑'),
+        loyaltySection('💤 Re-engage',       inactive, 'inactive', '💤'),
+      ].join('');
+      // The two date-based sections mix birthday + anniversary, so each
+      // item carries its own kind. Replace the kind in the rendered
+      // template by re-rendering them with per-item kind:
+      const fixDateSection = (sectionItems, label, defaultBadge) => {
+        if (!sectionItems || !sectionItems.length) return '';
+        return `<div style="margin-top:.7rem">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.2rem">${label} · ${sectionItems.length}</div>
+          ${sectionItems.slice(0,5).map(c => loyaltyRow(c, c.kind, c.kind === 'birthday' ? '🎂' : '💍')).join('')}
+        </div>`;
+      };
+      host.innerHTML =
+        fixDateSection(today,    '🎉 Today') +
+        fixDateSection(thisWeek, '📅 This week') +
+        loyaltySection('👑 VIPs',       vip,      'vip',      '👑') +
+        loyaltySection('💤 Re-engage',  inactive, 'inactive', '💤');
+    }
+
+    // Refresh loyalty when the Customers tab is opened, AND once on
+    // boot so the home-tab badge logic (if we add one later) is fresh.
+    const _tabHandler = document.querySelector('.tabbar');
+    if (_tabHandler) {
+      _tabHandler.addEventListener('click', (e) => {
+        const btn = e.target.closest('.tab');
+        if (btn && btn.dataset.scr === 'cust') loadLoyalty();
+      });
+    }
+
+    /* ── Broadcast sheet ── */
+    const BCAST_TEMPLATES = {
+      new_collection: () => `Hi {name}, ${(me&&me.name)||'we'} have just received our newest collection. 💎\n\nDrop in this week to see it first — we'd love your eyes on these pieces before they go to the floor.\n\n— ${(me&&me.name)||''}`,
+      festive:        () => `Hi {name}, festive season is upon us! 🪔\n\n${(me&&me.name)||'Our shop'} is offering special making charges for the next 10 days. Come pick something beautiful for the family — or for yourself.\n\n— ${(me&&me.name)||''}`,
+      rate_drop:      () => `Hi {name}, gold rates have softened today. 📉\n\nIf you've been waiting to buy, this is a good window. ${(me&&me.name)||'Drop in'} for today's exact rate and our latest pieces.\n\n— ${(me&&me.name)||''}`,
+      custom:         () => `Hi {name},\n\n\n\n— ${(me&&me.name)||''}`,
+    };
+    let bcastQueue = [];
+    let bcastIdx = 0;
+
+    function audienceFor(seg){
+      if (!loyaltyData) return [];
+      if (seg === 'vip')      return loyaltyData.vip.slice();
+      if (seg === 'inactive') return loyaltyData.inactive.slice();
+      // 'all' — pull from customers list (already loaded by Customers tab)
+      return (typeof customers !== 'undefined' && customers && customers.length)
+        ? customers.filter(c => c.phone || c.whatsapp).map(c => ({ id: c.id, name: c.name, phone: c.whatsapp || c.phone }))
+        : [];
+    }
+
+    function openBroadcastSheet(){
+      const sheet = document.getElementById('bcastSheet');
+      sheet.style.display = 'flex';
+      // default template
+      document.getElementById('bcastTpl').value = 'new_collection';
+      document.getElementById('bcastMsg').value = BCAST_TEMPLATES.new_collection();
+      refreshBcastCount();
+      bcastQueue = []; bcastIdx = 0;
+      document.getElementById('bcastProgress').textContent = '—';
+    }
+    function closeBroadcastSheet(){
+      document.getElementById('bcastSheet').style.display = 'none';
+    }
+    window.closeBroadcastSheet = closeBroadcastSheet;
+
+    function refreshBcastCount(){
+      const seg = document.getElementById('bcastSeg').value;
+      // For 'all' we may not have loaded customers yet; load if needed.
+      if (seg === 'all' && (typeof customers === 'undefined' || !customers.length)) {
+        loadCustomers().then(refreshBcastCount);
+        return;
+      }
+      const aud = audienceFor(seg);
+      const reachable = aud.filter(c => c.phone);
+      document.getElementById('bcastCount').textContent =
+        `${reachable.length} customer${reachable.length!==1?'s':''} will be messaged (skipping those without a phone).`;
+    }
+
+    document.getElementById('broadcastBtn').onclick = openBroadcastSheet;
+    document.getElementById('bcastSeg').addEventListener('change', refreshBcastCount);
+    document.getElementById('bcastTpl').addEventListener('change', (e) => {
+      const tpl = BCAST_TEMPLATES[e.target.value] || BCAST_TEMPLATES.custom;
+      document.getElementById('bcastMsg').value = tpl();
+    });
+    document.getElementById('bcastSend').onclick = () => {
+      // First click: snapshot the audience and start the queue.
+      if (!bcastQueue.length) {
+        const seg = document.getElementById('bcastSeg').value;
+        bcastQueue = audienceFor(seg).filter(c => (c.phone||'').replace(/[^0-9]/g,''));
+        bcastIdx = 0;
+        if (!bcastQueue.length) { toast('No customers with a phone in this segment.', true); return; }
+      }
+      if (bcastIdx >= bcastQueue.length) {
+        toast('All done! Broadcast complete.');
+        closeBroadcastSheet();
+        return;
+      }
+      const c = bcastQueue[bcastIdx];
+      const tpl = document.getElementById('bcastMsg').value;
+      const name = (c.name||'').replace(/^\[Demo\]\s*/, '').split(' ')[0] || 'there';
+      const msg = tpl.replace(/\{name\}/g, name);
+      window.open(waLink(c.phone, msg), '_blank');
+      bcastIdx += 1;
+      document.getElementById('bcastProgress').textContent =
+        `${bcastIdx} of ${bcastQueue.length} opened.`;
+      document.getElementById('bcastSend').textContent =
+        bcastIdx >= bcastQueue.length ? '✅ Done' : `Open WhatsApp for next (${bcastIdx + 1} of ${bcastQueue.length}) →`;
+    };
+
+    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(loadLoyalty).then(maybeStartTour);
   </script>
 </body>
 </html>
