@@ -549,18 +549,25 @@
       }
     }
 
-    /* ── Live MCX hint (home + rates) ── */
+    /* ── Live MCX (home + rates + stock-value fallback) ──
+       Cached globally so the Stock tab can value items at the live
+       market rate when the jeweller hasn't published their own yet. */
+    let liveMcx = null;
     async function loadMcx() {
       try {
         const r = await fetch(`${API_BASE}/api/live-price`); const d = await r.json();
+        liveMcx = (d && d.price_gram_22k) ? { r22g: d.price_gram_22k, r24g: d.price_gram_24k, r18g: d.price_gram_18k } : null;
         const home = document.getElementById('homeMcx');
         const rate = document.getElementById('rateMcx');
-        if (!d.price_gram_22k) { home.textContent = rate.textContent = 'MCX rate unavailable right now.'; return; }
+        if (!d.price_gram_22k) { if(home) home.textContent='MCX rate unavailable right now.'; if(rate) rate.textContent='MCX rate unavailable right now.'; return; }
         const mine = parseFloat(document.getElementById('r22g').value) || me?.r22g;
         let cmp = '';
         if (mine) { const diff = mine - d.price_gram_22k; cmp = ` · You're <strong>${diff>=0?'+':'−'}₹${Math.abs(Math.round(diff))}</strong> vs MCX`; }
         const txt = `Today's MCX: <strong>22K ${fmt(d.price_gram_22k)}/g</strong>${cmp}`;
-        home.innerHTML = txt; rate.innerHTML = txt;
+        if (home) home.innerHTML = txt;
+        if (rate) rate.innerHTML = txt;
+        // If inventory is already loaded, re-render now that we have a fallback rate.
+        if (typeof renderInventory === 'function' && inventory.length) renderInventory();
       } catch(_){}
     }
 
@@ -591,12 +598,25 @@
     let inventory = [];
     let editingId = null;
 
-    // Per-gram rate for a purity, using the jeweller's own published rate.
-    // 18K derived from 24K (×0.75) when not separately tracked.
+    // Per-gram rate for a purity. Order: jeweller's own published rate,
+    // then today's live IBJA market rate as honest fallback so the
+    // stock value isn't blank just because they haven't posted yet.
+    // 18K is derived from 24K (×0.75) when not separately tracked.
     function rateFor(purity) {
-      if (purity === '24') return me?.r24g || null;
-      if (purity === '18') return me?.r24g ? me.r24g * 0.75 : null;
-      return me?.r22g || null; // default 22
+      if (purity === '24') return (me?.r24g) || (liveMcx?.r24g) || null;
+      if (purity === '18') {
+        if (me?.r24g)      return me.r24g * 0.75;
+        if (liveMcx?.r18g) return liveMcx.r18g;
+        if (liveMcx?.r24g) return liveMcx.r24g * 0.75;
+        return null;
+      }
+      return (me?.r22g) || (liveMcx?.r22g) || null;  // default 22
+    }
+    // Did this rate come from the jeweller's own published number, or from MCX fallback?
+    function rateIsFallback(purity) {
+      if (purity === '24') return !me?.r24g && !!liveMcx?.r24g;
+      if (purity === '18') return !me?.r24g && !!liveMcx;
+      return !me?.r22g && !!liveMcx?.r22g;
     }
     function itemValue(it) {
       const r = rateFor(it.purity);
@@ -622,13 +642,18 @@
         !q || it.name.toLowerCase().includes(q) || (it.category||'').toLowerCase().includes(q));
 
       // Live total value across ALL items (not just filtered).
-      let total = 0, valued = 0;
-      inventory.forEach(it => { const v = itemValue(it); if (v != null) { total += v; valued++; } });
+      let total = 0, valued = 0, anyFallback = false;
+      inventory.forEach(it => {
+        const v = itemValue(it);
+        if (v != null) { total += v; valued++; if (rateIsFallback(it.purity)) anyFallback = true; }
+      });
       document.getElementById('stockTotal').textContent = fmt(total);
       const totalQty = inventory.reduce((s,it)=>s+(it.in_stock||0),0);
+      const missing  = inventory.filter(it => !it.weight_g).length;
       document.getElementById('stockBreak').textContent = inventory.length
         ? `${inventory.length} item type${inventory.length>1?'s':''} · ${totalQty} piece${totalQty>1?'s':''} in stock` +
-          (valued < inventory.length ? ` · ${inventory.length-valued} need a rate/weight to value` : '')
+          (missing ? ` · ${missing} missing weight` : '') +
+          (anyFallback ? ' · valued at today\'s IBJA market rate (publish your own rate in 💰 Rates for exact value)' : '')
         : 'Add items to see your live stock value at today\'s rate.';
 
       if (!inventory.length) { list.innerHTML=''; empty.style.display='block'; return; }
@@ -914,10 +939,11 @@
     window.openInvoice = openInvoice;
 
     /* ── New Sale sheet ── */
+    // New-sale rate field: pre-fill with jeweller's own rate if set,
+    // otherwise today's live MCX so they don't have to look it up.
     function rateForSale(purity) {
-      if (purity === '24') return me?.r24g || '';
-      if (purity === '18') return me?.r24g ? Math.round(me.r24g*0.75) : '';
-      return me?.r22g || '';
+      const r = rateFor(purity);
+      return r ? Math.round(r) : '';
     }
 
     async function openNewSale() {
