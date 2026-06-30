@@ -195,6 +195,14 @@
     // (basically: mobile Safari/Chrome). On desktop, navigator.share
     // exists but can't attach files — and we use a different flow.
     function canShareFiles(){
+      // Only use the native share-sheet on REAL mobile devices.
+      // Mac/Windows Chrome 118+ also advertises navigator.canShare({files})
+      // but the resulting share sheet doesn't route to WhatsApp — the click
+      // gets stuck on "Preparing PDF…" forever. Desktop must use the
+      // synchronous wa.me popup path instead.
+      const ua = navigator.userAgent || '';
+      const isMobile = /Android|iPhone|iPad|iPod|Mobi/i.test(ua);
+      if (!isMobile) return false;
       try {
         const dummy = new File([new Blob(['x'])], 'x.pdf', { type:'application/pdf' });
         return !!(navigator.canShare && navigator.canShare({ files:[dummy] }));

@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v7';   // ← bumped to flush v5/v6 caches
+const VERSION     = 'v9';   // flush cached invoice page after public-share-link rollout
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 
