@@ -45,7 +45,8 @@
 <body>
   <div class="actions">
     <a class="btn-back" href="/app.html">← Back</a>
-    <button class="btn-print" onclick="window.print()">🖨 Print / Save PDF</button>
+    <button class="btn-print" onclick="window.print()">🖨 Print</button>
+    <button class="btn-print" id="pdfBtn" style="background:#5b4fc7">📥 Download PDF</button>
     <button class="btn-wa" id="waBtn">💬 Send on WhatsApp</button>
   </div>
   <div id="root"><div class="err">Loading invoice…</div></div>
@@ -162,6 +163,7 @@
 
       // ── WhatsApp share — sends the actual PDF, not just text ──
       document.getElementById('waBtn').onclick = shareInvoice;
+      document.getElementById('pdfBtn').onclick = downloadPdfOnly;
     }
 
     // The thank-you message that rides along with the PDF.
@@ -189,36 +191,83 @@
       return pdf.output('blob');
     }
 
-    async function shareInvoice(){
-      const btn = document.getElementById('waBtn');
+    // Detect device that supports the native share-sheet WITH files
+    // (basically: mobile Safari/Chrome). On desktop, navigator.share
+    // exists but can't attach files — and we use a different flow.
+    function canShareFiles(){
+      try {
+        const dummy = new File([new Blob(['x'])], 'x.pdf', { type:'application/pdf' });
+        return !!(navigator.canShare && navigator.canShare({ files:[dummy] }));
+      } catch { return false; }
+    }
+
+    /* ──────────────────────────────────────────────────────────
+       shareInvoice — runs on the WhatsApp button click.
+       The critical rule: window.open() loses popup-blocker
+       permission after the FIRST `await`. So on desktop we open
+       WhatsApp immediately, synchronously, then prepare the PDF
+       in the background. That guarantees the WhatsApp window
+       always appears (the original behaviour you saw before).
+       On mobile we use the native share sheet, which is a system
+       UI (no popup blocker), so async/await is fine there.
+    ──────────────────────────────────────────────────────────── */
+    function shareInvoice(){
+      const btn  = document.getElementById('waBtn');
+      const ph   = (sale.customer_phone||'').replace(/[^0-9]/g,'');
+      const msg  = shareMessage();
+      const fname= `${sale.invoice_number}.pdf`;
+
+      // ── Mobile path: native share sheet (attaches the PDF directly) ──
+      if (canShareFiles()) {
+        const orig = btn.textContent;
+        btn.textContent = '⏳ Preparing PDF…'; btn.disabled = true;
+        buildPdfBlob().then(blob => {
+          const file = new File([blob], fname, { type:'application/pdf' });
+          return navigator.share({ files:[file], text: msg, title: 'Tax Invoice' });
+        }).catch(err => {
+          if (err && err.name !== 'AbortError') {
+            // fallback if share failed for any reason
+            window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
+          }
+        }).finally(() => { btn.textContent = orig; btn.disabled = false; });
+        return;
+      }
+
+      // ── Desktop path: open WhatsApp NOW (synchronously, while we still
+      // have the click's user-gesture), THEN download the PDF in parallel.
+      const waUrl = `https://wa.me/${ph}?text=${encodeURIComponent(msg + '\n\n📎 (Invoice PDF downloaded — drag it into this chat.)')}`;
+      const waWin = window.open(waUrl, '_blank');
+      if (!waWin) {
+        alert('Your browser blocked the WhatsApp popup. Please allow popups for sonatoday.com and try again.');
+        return;
+      }
+      // PDF download runs in the background — non-blocking.
       const orig = btn.textContent;
       btn.textContent = '⏳ Preparing PDF…'; btn.disabled = true;
-      const ph = (sale.customer_phone||'').replace(/[^0-9]/g,'');
-      const msg = shareMessage();
-      const fname = `${sale.invoice_number}.pdf`;
+      buildPdfBlob().then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=fname; a.click();
+        URL.revokeObjectURL(url);
+      }).catch(err => {
+        console.warn('PDF generation failed:', err);
+        alert('Could not generate the PDF for download, but WhatsApp opened with the message.\nUse the 🖨 Print button to save it as PDF instead.');
+      }).finally(() => { btn.textContent = orig; btn.disabled = false; });
+    }
+
+    // Standalone "Download PDF" button — always works, no WhatsApp.
+    async function downloadPdfOnly(){
+      const btn = document.getElementById('pdfBtn');
+      const orig = btn.textContent;
+      btn.textContent = '⏳ Generating…'; btn.disabled = true;
       try {
         const blob = await buildPdfBlob();
-        const file = new File([blob], fname, { type:'application/pdf' });
-
-        // Best path (phones): native share sheet WITH the PDF attached + text.
-        if (navigator.canShare && navigator.canShare({ files:[file] })) {
-          await navigator.share({ files:[file], text: msg, title: 'Tax Invoice' });
-        } else {
-          // Desktop fallback: download the PDF, then open WhatsApp with the text.
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href=url; a.download=fname; a.click();
-          URL.revokeObjectURL(url);
-          window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg + '\n\n📎 (Invoice PDF downloaded to your device — attach it in the chat.)')}`,'_blank');
-        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=`${sale.invoice_number}.pdf`; a.click();
+        URL.revokeObjectURL(url);
       } catch(err){
-        if (err && err.name === 'AbortError') { /* user cancelled share — ignore */ }
-        else {
-          // Last-resort fallback: text-only WhatsApp.
-          window.open(`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`,'_blank');
-        }
-      } finally {
-        btn.textContent = orig; btn.disabled = false;
-      }
+        console.warn(err);
+        alert('PDF generation failed. Try the 🖨 Print button → "Save as PDF".');
+      } finally { btn.textContent = orig; btn.disabled = false; }
     }
 
     load();
