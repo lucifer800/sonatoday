@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v14';  // Phase 8: loyalty (birthdays, VIPs, re-engage, broadcast)
+const VERSION     = 'v15';  // Announcements split into its own always-visible card
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 
