@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v10';  // public invoice-view link replaces PDF attachment in WhatsApp share
+const VERSION     = 'v11';  // Phase 5 polish: offline banner + demo seed + skeleton loaders
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 

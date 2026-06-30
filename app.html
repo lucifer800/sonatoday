@@ -43,6 +43,44 @@
     .app-top .shop  { font-size: 11px; color: var(--muted); margin-top: 1px; }
     .app-top .logout { background: rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.4rem .7rem; border-radius:8px; font-size:11px; cursor:pointer; }
 
+    /* ── Offline banner — slides in below the top bar when the
+       device loses network. The app still works (SW serves cached
+       API responses) but writes will be rejected, so we tell the
+       jeweller plainly. */
+    .offline-banner {
+      display: none;
+      position: sticky; top: 0; z-index: 49;
+      background: linear-gradient(90deg,#7a3b00,#a55000);
+      color:#fff; font-size:12px; font-weight:600;
+      text-align:center; padding:.45rem .8rem;
+      border-bottom:1px solid rgba(0,0,0,.3);
+    }
+    .offline-banner.show { display:block; }
+    .offline-banner .dot { display:inline-block; width:7px; height:7px; border-radius:50%; background:#ffd166; margin-right:.4rem; animation:pulse 1.4s infinite; vertical-align:middle; }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    /* Toast (for transient errors like "can't save while offline") */
+    .toast {
+      position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
+      transform: translateX(-50%);
+      background: rgba(20,20,30,.96); color:#fff; padding:.7rem 1.1rem;
+      border-radius:10px; font-size:13px; font-weight:500;
+      border:1px solid var(--acc-border); box-shadow:0 8px 24px rgba(0,0,0,.4);
+      z-index:80; max-width:90%; text-align:center;
+      opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity:1; transform: translateX(-50%) translateY(-4px); }
+    .toast.err { background: rgba(120,30,30,.96); border-color:rgba(239,68,68,.5); }
+
+    /* Skeleton placeholder lines — replace the empty-blank flash
+       between a tab opening and its data arriving. */
+    .skel-row { display:flex; gap:.6rem; padding:.55rem 0; align-items:center; }
+    .skel { background:linear-gradient(90deg,rgba(255,255,255,.05) 0,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 100%);
+            background-size:200% 100%; border-radius:6px; animation:skel 1.2s linear infinite; }
+    .skel.line { height:12px; flex:1; }
+    .skel.box  { height:36px; width:36px; border-radius:8px; }
+    @keyframes skel { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
     /* ── Screen container ── */
     .screen { display: none; padding: 1rem; max-width: 640px; margin: 0 auto; animation: fade .2s ease; }
     .screen.active { display: block; }
@@ -181,6 +219,14 @@
     </div>
   </div>
 
+  <!-- Offline banner — toggled by the online/offline JS below -->
+  <div class="offline-banner" id="offlineBanner">
+    <span class="dot"></span>Offline — showing last synced data. New bills won't save until you reconnect.
+  </div>
+
+  <!-- Transient toast -->
+  <div class="toast" id="toast"></div>
+
   <!-- ════════ HOME ════════ -->
   <section class="screen active" id="scr-home">
     <!-- Install prompt (shown only when the browser says it's installable) -->
@@ -192,6 +238,24 @@
           <div class="muted" style="font-size:11.5px;margin-top:1px">Add to your device for one-tap access, fullscreen, works offline.</div>
         </div>
         <button id="installCardBtn" style="background:var(--acc);color:#000;border:0;padding:.55rem .9rem;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Install</button>
+      </div>
+    </div>
+
+    <!-- Demo seed card — only shown when the account is brand-new
+         (zero stock, customers, bills). One tap fills the app with
+         sample data so the jeweller can poke around before adding
+         their own. Hidden as soon as any real data exists. -->
+    <div class="card" id="demoCard" style="display:none;background:linear-gradient(135deg,rgba(91,79,199,.14),rgba(91,79,199,.05));border-color:rgba(91,79,199,.4)">
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <div style="font-size:1.8rem">✨</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px">New here? Try a sample shop</div>
+          <div class="muted" style="font-size:11.5px;margin-top:1px">Loads 3 sample items, 2 customers and 1 bill so you can explore. Edit or delete any time.</div>
+        </div>
+        <button id="demoLoadBtn" style="background:#5b4fc7;color:#fff;border:0;padding:.55rem .9rem;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Load demo</button>
+      </div>
+      <div id="demoClearWrap" style="display:none;margin-top:.6rem;text-align:right">
+        <button id="demoClearBtn" style="background:transparent;border:0;color:#9b9bbf;font-size:11px;cursor:pointer;text-decoration:underline">Clear demo data</button>
       </div>
     </div>
 
@@ -278,10 +342,10 @@
     </div>
 
     <div id="stockList"></div>
-    <div id="stockEmpty" class="soon" style="display:none;padding:2rem 1rem">
+    <div id="stockEmpty" class="soon" style="display:none;padding:2rem 1rem;cursor:pointer" onclick="document.getElementById('addItemBtn').click()">
       <div class="em">📦</div>
       <h2>No items yet</h2>
-      <p>Tap <strong>+ Add</strong> to add your first stock item. Total value updates live with today's rate.</p>
+      <p>Tap here to add your first stock item. Total value updates live with today's rate.</p>
     </div>
   </section>
 
@@ -333,10 +397,10 @@
     </div>
 
     <div id="custList"></div>
-    <div id="custEmpty" class="soon" style="display:none;padding:2rem 1rem">
+    <div id="custEmpty" class="soon" style="display:none;padding:2rem 1rem;cursor:pointer" onclick="document.getElementById('addCustBtn').click()">
       <div class="em">👥</div>
       <h2>No customers yet</h2>
-      <p>Tap <strong>+ Add</strong> to save your first customer. Reach them on WhatsApp in one tap, never lose a contact again.</p>
+      <p>Tap here to save your first customer. Reach them on WhatsApp in one tap, never lose a contact again.</p>
     </div>
   </section>
 
@@ -380,10 +444,10 @@
     <button class="pub-btn" id="newSaleBtn" style="margin-bottom:1rem">+ New Sale / Bill</button>
 
     <div id="billList"></div>
-    <div id="billEmpty" class="soon" style="display:none;padding:2rem 1rem">
+    <div id="billEmpty" class="soon" style="display:none;padding:2rem 1rem;cursor:pointer" onclick="document.getElementById('newSaleBtn').click()">
       <div class="em">🧾</div>
       <h2>No bills yet</h2>
-      <p>Tap <strong>+ New Sale</strong> to create your first GST invoice. Rate auto-fills, GST auto-calculates, send it on WhatsApp.</p>
+      <p>Tap here to create your first GST invoice. Rate auto-fills, GST auto-calculates, send it on WhatsApp.</p>
     </div>
   </section>
 
@@ -483,6 +547,51 @@
     if (!token) location.href = 'jeweller-login.html';
     let me = null;
     const fmt = n => '₹' + Math.round(n).toLocaleString('en-IN');
+
+    /* ── Offline awareness ──────────────────────────────────────
+       The service worker already serves cached /api/* responses
+       when the network is gone, so reads keep working. What we
+       add here is the *user signal*: a banner so the jeweller
+       knows the data may be stale, plus a friendlier toast when
+       a write (POST/PUT/DELETE) fails because they're offline. */
+    const offlineBanner = document.getElementById('offlineBanner');
+    function updateOfflineUi(){
+      const off = !navigator.onLine;
+      offlineBanner.classList.toggle('show', off);
+    }
+    window.addEventListener('online',  () => { updateOfflineUi(); toast('Back online — syncing latest data.'); });
+    window.addEventListener('offline', () => { updateOfflineUi(); toast('You\'re offline. Reads still work; new bills will save once you reconnect.', true); });
+    updateOfflineUi();
+
+    /* ── Toast ── */
+    let toastTimer = null;
+    function toast(msg, isErr){
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.toggle('err', !!isErr);
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+
+    /* Wrap fetch so writes that fail because of network give a
+       human message instead of an unstyled alert. Reads pass
+       through unchanged — the SW handles them. */
+    const _fetch = window.fetch.bind(window);
+    window.apiFetch = async function(url, opts){
+      try {
+        return await _fetch(url, opts);
+      } catch (err) {
+        const isWrite = opts && opts.method && opts.method !== 'GET';
+        if (!navigator.onLine || isWrite) {
+          toast(navigator.onLine
+            ? 'Couldn\'t reach the server. Please retry in a moment.'
+            : 'You\'re offline — this change couldn\'t be saved. Try again once you reconnect.',
+            true);
+        }
+        throw err;
+      }
+    };
 
     /* ── Tab switching ── */
     document.querySelector('.tabbar').addEventListener('click', e => {
@@ -624,7 +733,16 @@
       return r * it.weight_g * (it.in_stock || 0);
     }
 
+    function showSkeleton(elId, rows){
+      const el = document.getElementById(elId);
+      if (!el || el.innerHTML.trim() !== '') return;   // only on first paint
+      el.innerHTML = Array.from({length: rows||3}).map(() =>
+        `<div class="skel-row"><div class="skel box"></div><div style="flex:1"><div class="skel line" style="width:60%"></div><div class="skel line" style="width:35%;margin-top:6px"></div></div></div>`
+      ).join('');
+    }
+
     async function loadInventory() {
+      showSkeleton('stockList', 3);
       try {
         const r = await fetch(`${API_BASE}/api/inventory`, { headers:{ Authorization:`Bearer ${token}` } });
         if (r.status === 401) return logout();
@@ -783,6 +901,7 @@
     let editingCustId = null;
 
     async function loadCustomers() {
+      showSkeleton('custList', 3);
       try {
         const r = await fetch(`${API_BASE}/api/customers`, { headers:{ Authorization:`Bearer ${token}` } });
         if (r.status === 401) return logout();
@@ -904,6 +1023,7 @@
     let sales = [];
 
     async function loadSales() {
+      showSkeleton('billList', 3);
       try {
         const r = await fetch(`${API_BASE}/api/sales`, { headers:{ Authorization:`Bearer ${token}` } });
         if (r.status === 401) return logout();
@@ -1169,7 +1289,102 @@
     /* ── PWA service worker ── */
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
-    loadMe().then(loadMcx);
+    /* ── Demo seed card ──────────────────────────────────────────
+       Empty new accounts see the [Load demo] card. Once anything
+       real exists we hide it. If demo rows are detected ([Demo]…)
+       we expose a small [Clear demo data] link instead. */
+    async function checkDemoState(){
+      const demoCard      = document.getElementById('demoCard');
+      const demoClearWrap = document.getElementById('demoClearWrap');
+      if (!demoCard) return;
+      try {
+        const auth = { headers:{ Authorization:`Bearer ${token}` } };
+        const [invR, custR, salesR] = await Promise.all([
+          fetch(`${API_BASE}/api/inventory`, auth),
+          fetch(`${API_BASE}/api/customers`, auth),
+          fetch(`${API_BASE}/api/sales`,     auth),
+        ]);
+        const inv   = invR.ok   ? await invR.json()   : [];
+        const custs = custR.ok  ? await custR.json()  : [];
+        const sj    = salesR.ok ? await salesR.json() : { sales: [] };
+        const salesArr = Array.isArray(sj) ? sj : (sj.sales || []);
+        const total = (inv.length||0) + (custs.length||0) + (salesArr.length||0);
+        const hasDemo = [...inv, ...custs].some(r => (r.name||'').startsWith('[Demo]'))
+                     || salesArr.some(s => (s.description||'').startsWith('[Demo]') || (s.customer_name||'').startsWith('[Demo]'));
+        if (total === 0) {
+          demoCard.style.display = 'block';
+          demoClearWrap.style.display = 'none';
+        } else if (hasDemo) {
+          demoCard.style.display = 'block';
+          // Switch the card into "you already loaded demo data" mode.
+          demoCard.querySelector('[style*="font-weight:700"]').textContent = 'Demo data loaded';
+          demoCard.querySelector('.muted').textContent = 'You can edit or delete these like any other entry. Or clear them all in one tap below.';
+          document.getElementById('demoLoadBtn').style.display = 'none';
+          demoClearWrap.style.display = 'block';
+        } else {
+          demoCard.style.display = 'none';
+        }
+      } catch { /* network down — just leave the card hidden */ }
+    }
+    document.getElementById('demoLoadBtn').onclick = async () => {
+      const btn = document.getElementById('demoLoadBtn');
+      btn.disabled = true; btn.textContent = 'Loading…';
+      try {
+        const r = await fetch(`${API_BASE}/api/jewellers/me/seed-demo`, {
+          method:'POST', headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!r.ok) {
+          const j = await r.json().catch(()=>({}));
+          throw new Error(j.error || 'Could not load demo data');
+        }
+        toast('Demo data loaded — try the Stock, Customers and Bills tabs.');
+        await checkDemoState();
+        // Refresh whatever tabs the user opens next.
+        if (typeof loadSales === 'function') loadSales();
+      } catch (e) {
+        toast(e.message, true);
+      } finally { btn.disabled = false; btn.textContent = 'Load demo'; }
+    };
+    document.getElementById('demoClearBtn').onclick = async () => {
+      if (!confirm('Delete every [Demo] item, customer and bill? This cannot be undone.')) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/jewellers/me/seed-demo/clear`, {
+          method:'POST', headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!r.ok) throw new Error('Clear failed');
+        toast('Demo data cleared.');
+        await checkDemoState();
+        if (typeof loadSales === 'function') loadSales();
+      } catch (e) { toast(e.message, true); }
+    };
+
+    /* ── Home "Recent activity" feed — last 5 sales, newest first.
+       Re-uses the cached /api/sales response the demo check already
+       fetched, so it's free. */
+    async function loadActivityFeed(){
+      const el = document.getElementById('feed');
+      if (!el) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/sales`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (!r.ok) return;
+        const d = await r.json();
+        const recent = (d.sales || []).slice(0, 5);
+        if (!recent.length) return;   // keep the friendly default text
+        el.innerHTML = recent.map(s => {
+          const when = new Date(s.sold_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+          const name = (s.customer_name||'Walk-in').replace(/^\[Demo\]\s*/, '');
+          return `<div onclick="openInvoice(${s.id})" style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--acc-border);cursor:pointer">
+            <div>
+              <div style="font-size:13px;font-weight:600">🧾 ${s.invoice_number} · ${name}</div>
+              <div class="muted" style="font-size:11px;margin-top:1px">${when} · ${s.weight_g}g ${s.purity}K</div>
+            </div>
+            <div style="font-weight:700;color:var(--acc);font-size:13px">${fmt(s.total)}</div>
+          </div>`;
+        }).join('');
+      } catch { /* offline / fetch error — leave default text */ }
+    }
+
+    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed);
   </script>
 </body>
 </html>

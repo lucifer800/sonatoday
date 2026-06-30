@@ -1140,6 +1140,109 @@ app.delete('/api/customers/:id', requireAuth, (req, res) => {
   );
 });
 
+// ═══════════════════════════════════════════════════════════════
+// DEMO SEED  (Phase 5 — first-run experience)
+// One call inserts 3 sample inventory items, 2 customers, and one
+// sample bill so a brand-new jeweller can immediately see what
+// the app looks like with data in it. Rows are normal — they can
+// be edited or deleted via the regular UI. Refuses to run if the
+// account already has any inventory/customers/sales (prevents
+// accidental duplication on repeat clicks).
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/jewellers/me/seed-demo', requireAuth, async (req, res) => {
+  const jid = req.jeweller.id;
+  const countOne = (sql) => new Promise((resolve, reject) => {
+    db.get(sql, [jid], (err, row) => err ? reject(err) : resolve(row ? row.n : 0));
+  });
+  try {
+    const [invN, custN, salesN] = await Promise.all([
+      countOne(`SELECT COUNT(*) AS n FROM inventory_items WHERE jeweller_id = ?`),
+      countOne(`SELECT COUNT(*) AS n FROM customers       WHERE jeweller_id = ?`),
+      countOne(`SELECT COUNT(*) AS n FROM sales           WHERE jeweller_id = ?`),
+    ]);
+    if (invN + custN + salesN > 0) {
+      return res.status(409).json({ error: 'Account already has data — demo seed only runs on empty accounts.' });
+    }
+
+    const run = (sql, params) => new Promise((resolve, reject) => {
+      db.run(sql, params, function (err) { err ? reject(err) : resolve(this.lastID); });
+    });
+
+    // 3 inventory items
+    const items = [
+      { name: '[Demo] Gold Chain 22K',      category: 'chain', purity: '22', weight_g: 12.5, cost_price: 70000, in_stock: 2 },
+      { name: '[Demo] Ladies Ring 18K',     category: 'ring',  purity: '18', weight_g:  4.2, cost_price: 24000, in_stock: 5 },
+      { name: '[Demo] 1g Gold Coin 24K',    category: 'coin',  purity: '24', weight_g:  1.0, cost_price:  6800, in_stock: 10 },
+    ];
+    const itemIds = [];
+    for (const it of items) {
+      const id = await run(
+        `INSERT INTO inventory_items
+           (jeweller_id, name, category, purity, weight_g, cost_price, in_stock)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [jid, it.name, it.category, it.purity, it.weight_g, it.cost_price, it.in_stock]
+      );
+      itemIds.push(id);
+    }
+
+    // 2 customers
+    const cust1 = await run(
+      `INSERT INTO customers (jeweller_id, name, phone, whatsapp, notes)
+       VALUES (?, ?, ?, ?, ?)`,
+      [jid, '[Demo] Priya Shah', '9876543210', '9876543210', 'Walk-in customer · prefers traditional designs']
+    );
+    await run(
+      `INSERT INTO customers (jeweller_id, name, phone, whatsapp, notes)
+       VALUES (?, ?, ?, ?, ?)`,
+      [jid, '[Demo] Rohit Patel', '9123456789', '9123456789', 'Bought wedding set in 2024 · birthday Feb 14']
+    );
+
+    // 1 sample bill — uses the first inventory item & first customer.
+    const it = items[0];
+    const ratePerG = 7200;   // sensible round number for demo
+    const goldVal  = it.weight_g * ratePerG;
+    const makingPct = 12;
+    const makingAmt = goldVal * makingPct / 100;
+    const taxable   = goldVal + makingAmt;
+    const gstPct    = 3;
+    const gstAmt    = taxable * gstPct / 100;
+    const total     = taxable + gstAmt;
+    const r2 = (n) => Math.round(n * 100) / 100;
+    const invoiceNumber = await new Promise((resolve) => nextInvoiceNumber(jid, resolve));
+    await run(
+      `INSERT INTO sales
+         (jeweller_id, invoice_number, customer_id, customer_name, customer_phone,
+          item_id, description, purity, weight_g, rate_per_g, gold_value,
+          making_pct, making_amount, gst_pct, gst_amount, total)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [jid, invoiceNumber, cust1, '[Demo] Priya Shah', '9876543210',
+       itemIds[0], it.name, it.purity, r2(it.weight_g), r2(ratePerG), r2(goldVal),
+       makingPct, r2(makingAmt), gstPct, r2(gstAmt), r2(total)]
+    );
+
+    res.json({ success: true, inserted: { items: items.length, customers: 2, sales: 1 } });
+  } catch (err) {
+    console.error('seed-demo failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/jewellers/me/seed-demo/clear — bulk-delete every row
+// whose name/description starts with "[Demo]" for this jeweller.
+// Cheap escape hatch so the jeweller can wipe the sample data once
+// they've seen the app and want a clean slate.
+app.post('/api/jewellers/me/seed-demo/clear', requireAuth, (req, res) => {
+  const jid = req.jeweller.id;
+  db.serialize(() => {
+    db.run(`DELETE FROM sales           WHERE jeweller_id = ? AND (description LIKE '[Demo]%' OR customer_name LIKE '[Demo]%')`, [jid]);
+    db.run(`DELETE FROM inventory_items WHERE jeweller_id = ? AND name LIKE '[Demo]%'`, [jid]);
+    db.run(`DELETE FROM customers       WHERE jeweller_id = ? AND name LIKE '[Demo]%'`, [jid], function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    });
+  });
+});
+
 // GET /api/mcx-history — daily IBJA reference rates for chart overlay.
 // Same range params as the jeweller history endpoint.
 // Returns one row per calendar day (IST) for the requested range.
