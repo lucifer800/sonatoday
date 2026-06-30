@@ -590,14 +590,39 @@ app.get('/api/jewellers/verified', (req, res) => {
 
 // 5. JEWELLER LOGIN & REGISTRATION
 app.post('/api/auth/register', (req, res) => {
-  const { name, symbol, email, password, phone, area } = req.body;
-  const hash = bcrypt.hashSync(password, 10);
+  const { name, email, password, phone, area } = req.body || {};
+  let { symbol } = req.body || {};
 
+  // Bare-minimum validation — the signup form covers more on the
+  // client side, but we don't trust it.
+  if (!name || !String(name).trim())     return res.status(400).json({ error: 'Shop name is required' });
+  if (!email || !/.+@.+\..+/.test(email)) return res.status(400).json({ error: 'A valid email is required' });
+  if (!password || password.length < 6)   return res.status(400).json({ error: 'Password must be at least 6 characters' });
+
+  // Auto-derive the URL slug from the shop name if not provided
+  // (the public site uses /jeweller.html?id=N anyway, but `symbol`
+  // is UNIQUE in the table so we make it safe + collision-resistant).
+  if (!symbol || !String(symbol).trim()) {
+    const slug = String(name).toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 24) || 'shop';
+    symbol = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  }
+
+  const hash = bcrypt.hashSync(password, 10);
   db.run(
     `INSERT INTO jewellers (name, symbol, email, password, phone, area) VALUES (?, ?, ?, ?, ?, ?)`,
-    [name, symbol, email, hash, phone, area],
+    [String(name).trim(), symbol, String(email).toLowerCase().trim(), hash, phone || null, area || null],
     function(err) {
-      if (err) return res.status(400).json({ error: 'Email already registered' });
+      if (err) {
+        const msg = /UNIQUE.*email/i.test(err.message)
+          ? 'That email is already registered — try logging in instead.'
+          : /UNIQUE.*name|UNIQUE.*symbol/i.test(err.message)
+            ? 'A shop with that name already exists — try a slightly different name.'
+            : 'Could not create account';
+        return res.status(400).json({ error: msg });
+      }
       const token = jwt.sign({ id: this.lastID, email }, process.env.JWT_SECRET || 'secret_key');
       res.json({ id: this.lastID, token, message: 'Registered successfully' });
     }

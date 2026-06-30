@@ -72,6 +72,34 @@
     .toast.show { opacity:1; transform: translateX(-50%) translateY(-4px); }
     .toast.err { background: rgba(120,30,30,.96); border-color:rgba(239,68,68,.5); }
 
+    /* ── Welcome tour (Phase 7) — full-screen overlay shown once,
+       on first login. Uses a stack of 5 cards. Dismissed sets
+       localStorage.jwl_tour_done so it never returns. */
+    .tour-bg {
+      display:none; position:fixed; inset:0; z-index:200;
+      background: rgba(8,8,16,.85); backdrop-filter: blur(6px);
+      align-items:center; justify-content:center; padding:1rem;
+    }
+    .tour-bg.show { display:flex; }
+    .tour-card {
+      max-width: 380px; width:100%;
+      background: var(--card); border:1px solid var(--acc-border);
+      border-radius:18px; padding:1.8rem 1.5rem 1.5rem;
+      box-shadow: 0 24px 60px -10px rgba(0,0,0,.6);
+      animation: tourIn .25s ease;
+    }
+    @keyframes tourIn { from { opacity:0; transform: translateY(12px) scale(.98);} to { opacity:1; transform:none; } }
+    .tour-card .emoji { font-size:2.6rem; text-align:center; margin-bottom:.6rem; }
+    .tour-card h3 { margin:0 0 .5rem; font-size:1.2rem; font-weight:700; text-align:center; }
+    .tour-card p  { margin:0; color: var(--muted); font-size:13.5px; text-align:center; line-height:1.55; }
+    .tour-dots { display:flex; justify-content:center; gap:.35rem; margin:1.2rem 0 1rem; }
+    .tour-dots span { width:7px; height:7px; border-radius:50%; background: rgba(255,255,255,.15); }
+    .tour-dots span.on { background: var(--acc); width:22px; border-radius:4px; }
+    .tour-btns { display:flex; gap:.6rem; }
+    .tour-btns button { flex:1; padding:.75rem; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; border:0; }
+    .tour-btns .tour-skip { background: transparent; color: var(--muted); border:1px solid var(--acc-border); }
+    .tour-btns .tour-next { background: var(--acc); color:#000; }
+
     /* Skeleton placeholder lines — replace the empty-blank flash
        between a tab opening and its data arriving. */
     .skel-row { display:flex; gap:.6rem; padding:.55rem 0; align-items:center; }
@@ -226,6 +254,20 @@
 
   <!-- Transient toast -->
   <div class="toast" id="toast"></div>
+
+  <!-- Welcome tour — populated and toggled by JS on first login -->
+  <div class="tour-bg" id="tourBg">
+    <div class="tour-card">
+      <div class="emoji" id="tourEmoji">👋</div>
+      <h3 id="tourTitle">Welcome to SonaToday</h3>
+      <p  id="tourBody">Loading…</p>
+      <div class="tour-dots" id="tourDots"></div>
+      <div class="tour-btns">
+        <button class="tour-skip" id="tourSkip">Skip</button>
+        <button class="tour-next" id="tourNext">Next</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ════════ HOME ════════ -->
   <section class="screen active" id="scr-home">
@@ -1510,7 +1552,65 @@
       } catch { /* offline / fetch error — leave default text */ }
     }
 
-    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed);
+    /* ── Welcome tour ───────────────────────────────────────────
+       Five short cards explaining what each tab is for. Runs once,
+       on first login. Triggered by:
+         • localStorage.jwl_tour_pending === '1'   (set by signup page)
+         • OR no jwl_tour_done flag yet AND the account is empty
+           (covers users who signed up via /api/auth/register before
+           this tour shipped — they get it the first time they open
+           the app after the deploy).
+       Skip / finish both set jwl_tour_done so the tour never
+       resurfaces. */
+    const TOUR_STEPS = [
+      { emoji:'👋', title:'Welcome to SonaToday', body:'Five quick screens — under 30 seconds — so you know where everything is. Tap Next to start.' },
+      { emoji:'💰', title:'Publish today\'s rate',  body:'The 💰 Rates tab is where you post your 22K / 24K rate each morning. Buyers see it instantly on the comparison page.' },
+      { emoji:'📦', title:'Track your stock',      body:'Add items in the 📦 Stock tab. Each item\'s value updates live with today\'s gold rate, so you always know your total inventory worth.' },
+      { emoji:'🧾', title:'Bill in 30 seconds',    body:'Use the 🧾 Bills tab to create GST invoices. Rate auto-fills, GST is calculated for you, and one tap sends a payment link to the customer on WhatsApp.' },
+      { emoji:'✨', title:'You\'re ready',          body:'Tip: on the Home tab tap "Load demo" to fill the app with sample data and explore — clear it anytime. Let\'s go!' },
+    ];
+    let tourStep = 0;
+    function showTourStep(){
+      const s = TOUR_STEPS[tourStep];
+      document.getElementById('tourEmoji').textContent = s.emoji;
+      document.getElementById('tourTitle').textContent = s.title;
+      document.getElementById('tourBody').textContent  = s.body;
+      document.getElementById('tourDots').innerHTML =
+        TOUR_STEPS.map((_,i) => `<span class="${i===tourStep?'on':''}"></span>`).join('');
+      document.getElementById('tourNext').textContent =
+        tourStep === TOUR_STEPS.length - 1 ? 'Get started' : 'Next';
+      document.getElementById('tourSkip').textContent =
+        tourStep === 0 ? 'Skip' : 'Back';
+    }
+    function endTour(){
+      document.getElementById('tourBg').classList.remove('show');
+      localStorage.setItem('jwl_tour_done', '1');
+      localStorage.removeItem('jwl_tour_pending');
+    }
+    function maybeStartTour(){
+      if (localStorage.getItem('jwl_tour_done')) return;
+      const pending = localStorage.getItem('jwl_tour_pending') === '1';
+      // For non-signup users, only auto-open if the account looks
+      // empty (no stock yet). Otherwise we'd spam existing jewellers.
+      if (!pending) {
+        const emptyAccount = document.getElementById('demoCard') &&
+                             document.getElementById('demoCard').style.display === 'block';
+        if (!emptyAccount) return;
+      }
+      tourStep = 0;
+      showTourStep();
+      document.getElementById('tourBg').classList.add('show');
+    }
+    document.getElementById('tourNext').onclick = () => {
+      if (tourStep < TOUR_STEPS.length - 1) { tourStep++; showTourStep(); }
+      else endTour();
+    };
+    document.getElementById('tourSkip').onclick = () => {
+      if (tourStep === 0) endTour();         // first step = "Skip"
+      else { tourStep--; showTourStep(); }   // later steps  = "Back"
+    };
+
+    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(maybeStartTour);
   </script>
 </body>
 </html>
