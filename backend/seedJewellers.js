@@ -15,10 +15,9 @@
   the earlier demo seed) to keep the DB consistent with data.js.
 */
 
-const sqlite3 = require('sqlite3').verbose();
 const bcrypt  = require('bcryptjs');
 
-const db = new sqlite3.Database(require('./dbPath'));
+const db = require('./db');
 
 const jewellers = [
   { id:1,  name:'Malabar Gold & Diamonds', sym:'MGL', email:'malabar@ahm.com',    pass:'pass123', area:'Prahlad Nagar', phone:'+91 79 4000 0001', r22g:14380, r24g:15690, making:10 },

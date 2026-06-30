@@ -20,11 +20,10 @@
 */
 
 const cron      = require('node-cron');
-const sqlite3   = require('sqlite3').verbose();
 const path      = require('path');
 const { getPrices } = require('./goldPriceApi');
 
-const db = new sqlite3.Database(require('./dbPath'));
+const db = require('./db');
 
 // Polite, browser-like UA so basic anti-bot pages don't 403 us
 const USER_AGENT =

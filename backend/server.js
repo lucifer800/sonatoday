@@ -2,7 +2,6 @@ const express    = require('express');
 const cors       = require('cors');
 const multer     = require('multer');
 const path       = require('path');
-const sqlite3    = require('sqlite3').verbose();
 const bcrypt     = require('bcryptjs');
 const jwt        = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -137,11 +136,9 @@ if (MAINTENANCE_MODE) {
 }
 
 // ============ DATABASE SETUP ============
-const DB_PATH = require('./dbPath');
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) console.error(err);
-  else console.log(`✓ Connected to SQLite database at ${DB_PATH}`);
-});
+// Shared libSQL handle (Turso in prod, local file in dev). Same
+// callback API as node-sqlite3, so all queries below are unchanged.
+const db = require('./db');
 
 // Initialize tables
 const initDb = () => {

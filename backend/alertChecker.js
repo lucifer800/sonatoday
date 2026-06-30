@@ -18,11 +18,10 @@
 */
 
 const cron                                    = require('node-cron');
-const sqlite3                                 = require('sqlite3').verbose();
 const { sendPriceAlert, sendConfirmationEmail } = require('./mailer');
 const { getGold22KPrice, getGold24KPrice }    = require('./goldPriceApi');
 
-const db = new sqlite3.Database(require('./dbPath'));
+const db = require('./db');
 
 // ── The main checker function ─────────────────────────────────
 async function checkAlerts() {

@@ -16,11 +16,10 @@
 */
 
 const { spawn }     = require('child_process');
-const sqlite3       = require('sqlite3').verbose();
 const path          = require('path');
 const { getPrices } = require('./goldPriceApi');
 
-const db = new sqlite3.Database(require('./dbPath'));
+const db = require('./db');
 
 const CACHE_MS = 15 * 60 * 1000;
 const cache    = new Map(); // key → { png, ts }

@@ -21,8 +21,7 @@
 */
 
 const cron    = require('node-cron');
-const sqlite3 = require('sqlite3').verbose();
-const db      = new sqlite3.Database(require('./dbPath'));
+const db = require('./db');
 
 const IBJA_URL = 'https://ibjarates.com/';
 const USER_AGENT =
