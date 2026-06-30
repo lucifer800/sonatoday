@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Redirecting… — SonaToday</title>
-  <!-- This page is retired. The jeweller experience now lives in the
-       6-tab app at /app.html. Anyone reaching this old URL (bookmark,
-       browser history, installed PWA, old link) is sent there. Both a
-       meta refresh and a JS redirect, so it works even if JS is off. -->
+  <!-- This page is retired. The jeweller experience now lives in
+       the 6-tab app at /app.html. Anyone reaching this URL is
+       sent there immediately, even through a stale service worker. -->
   <meta http-equiv="refresh" content="0; url=/app.html" />
-  <script>window.location.replace('/app.html');</script>
+  <meta http-equiv="cache-control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
   <style>
     body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
            background:#0f0f1e; color:#a0a0b0; display:flex; align-items:center;
@@ -17,6 +18,36 @@
   </style>
 </head>
 <body>
-  Opening the SonaToday app… <a href="/app.html" style="color:#D4AF37;margin-left:.4rem">tap here if it doesn't</a>
+  <div>Opening the SonaToday app… <a href="/app.html" style="color:#D4AF37;margin-left:.4rem">tap here if it doesn't</a></div>
+
+  <script>
+    /* ── KILL any old service worker that might be intercepting this page
+       and serving the old full dashboard from cache. Then hard-reload
+       so the user lands on the real /app.html via the meta refresh. ── */
+    (async () => {
+      try {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          // If any SW is intercepting, unregister + purge caches once,
+          // then bounce. We use sessionStorage to avoid an infinite loop.
+          const alreadyPurged = sessionStorage.getItem('sona_sw_purged_v7');
+          if (regs.length && !alreadyPurged) {
+            sessionStorage.setItem('sona_sw_purged_v7', '1');
+            for (const r of regs) { try { await r.unregister(); } catch {} }
+            if (window.caches) {
+              const keys = await caches.keys();
+              for (const k of keys) { try { await caches.delete(k); } catch {} }
+            }
+            // Force a fresh network load — meta refresh will then take us
+            // to /app.html via the SERVER, not the SW.
+            location.replace('/app.html');
+            return;
+          }
+        }
+      } catch {}
+      // Normal path: just go to the app.
+      location.replace('/app.html');
+    })();
+  </script>
 </body>
 </html>

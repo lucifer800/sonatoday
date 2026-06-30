@@ -1,60 +1,78 @@
 /*
-  sw.js — Service worker for Ahmedabad Gold Rates PWA
-
-  Strategy:
-  - Pre-cache the app shell (HTML, CSS, JS) on install.
-  - Network-first for /api/* — always try the live backend (live prices,
-    jeweller updates, alerts). Fall back to cached response only when offline.
-  - Cache-first for everything else (HTML, CSS, JS, fonts, images) — fast loads.
+  sw.js — Service worker for SonaToday
+  ────────────────────────────────────────────────────────────
+  Strategy (after the great "stale cache" disasters):
+  • Pre-cache ONLY hard, immutable assets (icons, manifest).
+  • All HTML pages: NETWORK-FIRST (try live, only fall back to
+    cache if completely offline). This prevents the SW from
+    serving a stale old page after we deploy a new one.
+  • /config.js: NEVER cached (controls the API base URL).
+  • /jeweller-dashboard.html: explicitly bypassed AND any old
+    cached copy is purged on activate. The page is retired and
+    must always come from the network (which serves the new
+    redirect to /app.html).
+  • Bump VERSION every time we change behaviour — the activate
+    handler deletes every cache that doesn't end in the current
+    VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v5';
-const SHELL_CACHE = `goldrates-shell-${VERSION}`;
-const API_CACHE   = `goldrates-api-${VERSION}`;
+const VERSION     = 'v7';   // ← bumped to flush v5/v6 caches
+const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
+const API_CACHE   = `sonatoday-api-${VERSION}`;
 
-const SHELL_URLS = [
-  '/',
-  '/index.html',
-  '/jeweller.html',
-  '/jeweller-login.html',
-  '/jeweller-dashboard.html',
-  '/my-alerts.html',
-  '/style.css',
-  '/app.js',
-  '/data.js',
-  '/jeweller.js',
+// Only pre-cache things that genuinely never change in shape.
+// HTML pages are intentionally NOT pre-cached — they're network-first now.
+const PRECACHE_URLS = [
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
-  '/screenshot-wide.png',
-  '/screenshot-mobile.png',
   '/manifest.json',
 ];
+
+// HTML paths we must NEVER serve from cache, even on cold start.
+const NO_CACHE_PATHS = new Set([
+  '/config.js',
+  '/jeweller-dashboard.html',   // retired page — always hit network for the redirect
+]);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE)
-      .then((cache) => cache.addAll(SHELL_URLS).catch(() => {}))
+      .then((cache) => cache.addAll(PRECACHE_URLS).catch(() => {}))
       .then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => !k.endsWith(VERSION)).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    // Delete every cache that isn't this version's.
+    await Promise.all(keys.filter((k) => !k.endsWith(VERSION)).map((k) => caches.delete(k)));
+    // Belt-and-braces: even if for some reason a current-version cache
+    // still holds the retired pages, delete those individual entries.
+    for (const name of [SHELL_CACHE]) {
+      const c = await caches.open(name);
+      for (const path of NO_CACHE_PATHS) {
+        await c.delete(path).catch(() => {});
+        await c.delete(self.location.origin + path).catch(() => {});
+      }
+    }
+    await self.clients.claim();
+  })());
+});
+
+// Allow the page to ask the SW to step aside (used by retired pages
+// that want a guaranteed fresh load).
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
 
-  // ── config.js: NEVER cache — it controls the API base URL, so a
-  // stale copy can pin the whole app to a wrong backend host. Always
-  // hit the network, no fallback.
-  if (url.pathname === '/config.js') {
+  // ── Hard bypass list: never cached, always network ──
+  if (NO_CACHE_PATHS.has(url.pathname)) {
     event.respondWith(fetch(event.request));
     return;
   }
@@ -73,7 +91,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── Static: cache-first, network fallback ───────────────────
+  // ── HTML pages: NETWORK-FIRST so new deploys are visible
+  //    immediately. Only fall back to cache when offline. This is
+  //    the single most important rule that prevents the "old page
+  //    keeps showing" disease.
+  const accept = event.request.headers.get('accept') || '';
+  if (url.pathname.endsWith('.html') || url.pathname === '/' || accept.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok && url.origin === self.location.origin) {
+            const copy = res.clone();
+            caches.open(SHELL_CACHE).then((c) => c.put(event.request, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((m) => m || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // ── Static assets (css/js/img/font): cache-first, network fallback ──
   event.respondWith(
     caches.match(event.request).then((cached) =>
       cached || fetch(event.request).then((res) => {
@@ -83,6 +121,6 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       })
-    ).catch(() => caches.match('/index.html'))
+    )
   );
 });
