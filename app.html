@@ -482,6 +482,61 @@
       <div class="card-title">💎 Best-selling items</div>
       <div id="repItems"><div class="muted" style="font-size:12px">No sales yet.</div></div>
     </div>
+
+    <!-- ─────────── PHASE 6: ADVANCED ANALYTICS ─────────── -->
+    <div style="display:flex;align-items:center;gap:.5rem;margin:1.5rem 0 .6rem">
+      <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--acc)">📈 Advanced analytics</h3>
+      <div style="flex:1;height:1px;background:var(--acc-border)"></div>
+    </div>
+
+    <!-- This-month vs last-month comparison -->
+    <div class="card">
+      <div class="card-title">📅 This month vs last</div>
+      <div class="stat-row">
+        <div class="stat">
+          <div class="v" id="anaCurRev">—</div>
+          <div class="l">This month revenue</div>
+          <div class="muted" id="anaRevChg" style="font-size:10px;margin-top:2px">—</div>
+        </div>
+        <div class="stat">
+          <div class="v" id="anaCurCnt">—</div>
+          <div class="l">Bills this month</div>
+          <div class="muted" id="anaCntChg" style="font-size:10px;margin-top:2px">—</div>
+        </div>
+        <div class="stat">
+          <div class="v" id="anaCurProf">—</div>
+          <div class="l">Profit this month</div>
+          <div class="muted" id="anaProfChg" style="font-size:10px;margin-top:2px">—</div>
+        </div>
+      </div>
+      <div class="muted" id="anaMonthSub" style="font-size:11px;margin-top:.6rem;text-align:center">—</div>
+    </div>
+
+    <!-- Gross profit / margin -->
+    <div class="card">
+      <div class="card-title">💰 Gross profit & margin <span class="muted" style="font-size:11px;font-weight:400">(all-time)</span></div>
+      <div class="cb-row"><span>Total revenue</span><span id="anaRev">—</span></div>
+      <div class="cb-row"><span>Cost of items sold</span><span id="anaCost">—</span></div>
+      <div class="cb-row cb-total" style="border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;padding-top:.55rem">
+        <span>Gross profit</span><span id="anaProf">—</span>
+      </div>
+      <div class="cb-row" style="margin-top:.4rem">
+        <span>Profit margin</span><span id="anaMargin" style="color:var(--acc);font-weight:700">—</span>
+      </div>
+      <div class="muted" id="anaProfNote" style="font-size:11px;margin-top:.6rem;line-height:1.5">—</div>
+    </div>
+
+    <!-- Fast-movers (last 30 days) -->
+    <div class="card">
+      <div class="card-title">⚡ Fastest-moving items <span class="muted" style="font-size:11px;font-weight:400">(last 30 days)</span></div>
+      <div id="anaFastMovers"><div class="muted" style="font-size:12px">Sell linked stock items to see what's moving.</div></div>
+    </div>
+
+    <!-- Customer lifetime value -->
+    <div class="card">
+      <div class="card-title">👑 Customer lifetime value <span class="muted" style="font-size:11px;font-weight:400">(saved customers)</span></div>
+      <div id="anaLtv"><div class="muted" style="font-size:12px">Save customers when billing to see lifetime spend here.</div></div>
+    </div>
   </section>
 
   <!-- ════════ NEW SALE SHEET ════════ -->
@@ -1230,7 +1285,78 @@
         iEl.innerHTML = d.topItems.length
           ? d.topItems.map((it,i)=>`<div class="cb-row"><span>${i+1}. ${it.description}</span><span>${it.count} sold</span></div>`).join('')
           : '<div class="muted" style="font-size:12px">No sales yet.</div>';
+
+        // ── Phase 6: advanced analytics ──
+        renderAnalytics(d.analytics || {});
       } catch(e){ console.warn('reports failed', e); }
+    }
+
+    function renderAnalytics(a){
+      // Pretty arrow + colour for a percentage delta. null = "no prior data".
+      const delta = (pct) => {
+        if (pct == null || !isFinite(pct)) return '<span class="muted">no prior month</span>';
+        const up = pct >= 0;
+        const sign = up ? '▲' : '▼';
+        const color = up ? '#4ade80' : '#f87171';
+        return `<span style="color:${color}">${sign} ${Math.abs(pct).toFixed(0)}%</span> vs last month`;
+      };
+
+      // ── Month comparison ──
+      const m = a.monthly || { current:{}, previous:{}, changePct:{} };
+      document.getElementById('anaCurRev').textContent  = fmt(m.current.revenue || 0);
+      document.getElementById('anaCurCnt').textContent  = (m.current.count || 0);
+      document.getElementById('anaCurProf').textContent = fmt(m.current.profit || 0);
+      document.getElementById('anaRevChg').innerHTML  = delta(m.changePct?.revenue);
+      document.getElementById('anaCntChg').innerHTML  = delta(m.changePct?.count);
+      document.getElementById('anaProfChg').innerHTML = delta(m.changePct?.profit);
+      const prevLabel = m.previous?.ym
+        ? `Last month: ${fmt(m.previous.revenue||0)} from ${m.previous.count||0} bills`
+        : '—';
+      document.getElementById('anaMonthSub').textContent = prevLabel;
+
+      // ── Profit / margin ──
+      const p = a.profit || {};
+      document.getElementById('anaRev').textContent    = fmt(p.totalRevenue || 0);
+      document.getElementById('anaCost').textContent   = fmt(p.totalCost || 0);
+      document.getElementById('anaProf').textContent   = fmt(p.grossProfit || 0);
+      const m1 = document.getElementById('anaMargin');
+      const margin = p.marginPct || 0;
+      m1.textContent = (margin >= 0 ? '+' : '') + margin.toFixed(1) + '%';
+      m1.style.color = margin >= 0 ? 'var(--acc)' : '#f87171';
+      const note = p.uncoveredSales > 0
+        ? `Profit only counted for the ${p.coveredSales} sale${p.coveredSales!==1?'s':''} linked to a stock item with a cost price. Add cost prices to your stock items to see profit on the remaining ${p.uncoveredSales}.`
+        : (p.coveredSales > 0 ? 'Profit calculated from cost prices on linked stock items.' : 'Link bills to stock items (with cost prices set) to see profit and margin.');
+      document.getElementById('anaProfNote').textContent = note;
+
+      // ── Fast movers ──
+      const fm = a.fastMovers || [];
+      const fmEl = document.getElementById('anaFastMovers');
+      fmEl.innerHTML = fm.length
+        ? fm.map((it,i)=>`<div class="cb-row"><span>${i+1}. ${it.name} <span class="muted" style="font-size:10px">(${fmt(it.revenue)})</span></span><span>${it.count} sold</span></div>`).join('')
+        : '<div class="muted" style="font-size:12px">No item-linked sales in the last 30 days.</div>';
+
+      // ── Customer LTV ──
+      const ltv = a.customerLtv || [];
+      const ltvEl = document.getElementById('anaLtv');
+      ltvEl.innerHTML = ltv.length
+        ? ltv.map((c,i)=>{
+            const since = c.daysSinceLast == null ? '' :
+              (c.daysSinceLast === 0 ? 'today' :
+               c.daysSinceLast === 1 ? '1 day ago' :
+               c.daysSinceLast < 30 ? `${c.daysSinceLast} days ago` :
+               c.daysSinceLast < 365 ? `${Math.floor(c.daysSinceLast/30)} mo ago` :
+               `${Math.floor(c.daysSinceLast/365)} yr ago`);
+            return `<div style="padding:.55rem 0;border-bottom:1px solid var(--acc-border)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:13px;font-weight:600">${i+1}. ${c.name}</span>
+                <span style="font-weight:700;color:var(--acc);font-size:13px">${fmt(c.totalSpend)}</span>
+              </div>
+              <div class="muted" style="font-size:11px;margin-top:2px">
+                ${c.billCount} bill${c.billCount!==1?'s':''} · avg ${fmt(c.avgOrder)} · last ${since}
+              </div>
+            </div>`;
+          }).join('')
+        : '<div class="muted" style="font-size:12px">Save customers when billing to see lifetime spend here.</div>';
     }
 
     function logout(){ localStorage.removeItem('jwl_token'); localStorage.removeItem('jwl_user'); location.href='jeweller-login.html'; }

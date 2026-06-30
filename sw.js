@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v11';  // Phase 5 polish: offline banner + demo seed + skeleton loaders
+const VERSION     = 'v12';  // Phase 6: advanced analytics (profit, fast-movers, LTV, MoM)
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 

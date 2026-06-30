@@ -1013,11 +1013,118 @@ app.get('/api/reports', requireAuth, (req, res) => {
       const grossSales = rows.reduce((s, r) => s + (r.total || 0), 0);
       const totalWeight = rows.reduce((s, r) => s + (r.weight_g || 0), 0);
 
-      res.json({
-        daily, topCustomers, topItems,
-        gst: { taxable, cgst: totalGst / 2, sgst: totalGst / 2, totalGst, grossSales },
-        totals: { sales: rows.length, weight: totalWeight, gross: grossSales },
-      });
+      // ═══════════════════════════════════════════════════════════
+      // ADVANCED ANALYTICS (Phase 6)
+      // Builds the deeper metrics the basic report doesn't cover:
+      //   • Gross profit & margin (joins sale.item_id → inventory cost)
+      //   • Fast-movers (units shifted per item, last 30 days)
+      //   • Customer LTV (lifetime spend per saved customer)
+      //   • Month-over-month comparison
+      // All derived in JS from the same rows we already loaded above,
+      // so we avoid extra round-trips. The inventory join needs one
+      // extra query but stays cheap (single SELECT per jeweller).
+      // ═══════════════════════════════════════════════════════════
+      db.all(
+        `SELECT id, name, cost_price FROM inventory_items WHERE jeweller_id = ?`,
+        [req.jeweller.id],
+        (e2, items) => {
+          if (e2) items = [];
+          const costById = {};
+          items.forEach(it => { if (it.cost_price != null) costById[it.id] = it.cost_price; });
+
+          // ── Profit margin ──
+          let totalRevenue = 0, totalCost = 0, coveredSales = 0;
+          rows.forEach(s => {
+            const rev = (s.gold_value || 0) + (s.making_amount || 0);
+            totalRevenue += rev;
+            const c = costById[s.item_id];
+            if (c != null) { totalCost += c; coveredSales += 1; }
+          });
+          const grossProfit = totalRevenue - totalCost;
+          const marginPct   = totalRevenue ? (grossProfit / totalRevenue) * 100 : 0;
+
+          // ── Fast movers: units sold per item_id in last 30 days ──
+          const cutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+          const moverMap = {};
+          rows.forEach(s => {
+            if (!s.item_id || (s.sold_at || '').slice(0,10) < cutoff) return;
+            const it = items.find(i => i.id === s.item_id);
+            const k = s.item_id;
+            moverMap[k] = moverMap[k] || { id: s.item_id, name: (it && it.name) || s.description || 'Item', count: 0, revenue: 0 };
+            moverMap[k].count += 1;
+            moverMap[k].revenue += s.total || 0;
+          });
+          const fastMovers = Object.values(moverMap).sort((a, b) => b.count - a.count).slice(0, 10);
+
+          // ── Customer LTV: per saved customer (customer_id != null) ──
+          const ltvMap = {};
+          rows.forEach(s => {
+            if (!s.customer_id) return;   // walk-ins excluded — no persistent identity
+            const k = s.customer_id;
+            ltvMap[k] = ltvMap[k] || { id: k, name: s.customer_name || 'Customer', totalSpend: 0, billCount: 0, lastPurchase: null };
+            ltvMap[k].totalSpend += s.total || 0;
+            ltvMap[k].billCount  += 1;
+            const t = s.sold_at || '';
+            if (!ltvMap[k].lastPurchase || t > ltvMap[k].lastPurchase) ltvMap[k].lastPurchase = t;
+          });
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const customerLtv = Object.values(ltvMap)
+            .map(c => ({
+              ...c,
+              avgOrder: c.billCount ? c.totalSpend / c.billCount : 0,
+              daysSinceLast: c.lastPurchase
+                ? Math.max(0, Math.floor((Date.parse(todayIso) - Date.parse(c.lastPurchase.slice(0,10))) / 86400000))
+                : null,
+            }))
+            .sort((a, b) => b.totalSpend - a.totalSpend)
+            .slice(0, 10);
+
+          // ── Month-over-month comparison (current vs previous IST month) ──
+          const nowI   = new Date(Date.now() + 5.5 * 3600 * 1000);
+          const curYM  = nowI.toISOString().slice(0, 7);
+          const prevD  = new Date(nowI); prevD.setMonth(prevD.getMonth() - 1);
+          const prevYM = prevD.toISOString().slice(0, 7);
+          const bucket = (ym) => {
+            const b = { revenue: 0, count: 0, gst: 0, profit: 0 };
+            rows.forEach(s => {
+              if ((s.sold_at || '').slice(0, 7) !== ym) return;
+              b.revenue += s.total || 0;
+              b.count   += 1;
+              b.gst     += s.gst_amount || 0;
+              const c = costById[s.item_id];
+              if (c != null) b.profit += ((s.gold_value || 0) + (s.making_amount || 0)) - c;
+            });
+            return b;
+          };
+          const cur  = bucket(curYM);
+          const prev = bucket(prevYM);
+          const pctChange = (a, b) => b === 0 ? null : ((a - b) / b) * 100;
+          const monthly = {
+            current:  { ...cur,  ym: curYM  },
+            previous: { ...prev, ym: prevYM },
+            changePct: {
+              revenue: pctChange(cur.revenue, prev.revenue),
+              count:   pctChange(cur.count,   prev.count),
+              profit:  pctChange(cur.profit,  prev.profit),
+            },
+          };
+
+          res.json({
+            daily, topCustomers, topItems,
+            gst: { taxable, cgst: totalGst / 2, sgst: totalGst / 2, totalGst, grossSales },
+            totals: { sales: rows.length, weight: totalWeight, gross: grossSales },
+            analytics: {
+              profit: {
+                totalRevenue, totalCost, grossProfit, marginPct,
+                coveredSales, uncoveredSales: rows.length - coveredSales,
+              },
+              fastMovers,
+              customerLtv,
+              monthly,
+            },
+          });
+        }
+      );
     }
   );
 });
