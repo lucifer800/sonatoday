@@ -47,6 +47,7 @@
     <a class="btn-back" href="/app.html">← Back</a>
     <button class="btn-print" onclick="window.print()">🖨 Print</button>
     <button class="btn-print" id="pdfBtn" style="background:#5b4fc7">📥 Download PDF</button>
+    <button class="btn-print" id="copyBtn" style="background:#0ea5e9">🔗 Copy link</button>
     <button class="btn-wa" id="waBtn">💬 Send on WhatsApp</button>
   </div>
   <div id="root"><div class="err">Loading invoice…</div></div>
@@ -162,8 +163,42 @@
       </div>`;
 
       // ── WhatsApp share — sends the actual PDF, not just text ──
-      document.getElementById('waBtn').onclick = shareInvoice;
-      document.getElementById('pdfBtn').onclick = downloadPdfOnly;
+      document.getElementById('waBtn').onclick   = shareInvoice;
+      document.getElementById('pdfBtn').onclick  = downloadPdfOnly;
+      document.getElementById('copyBtn').onclick = copyPublicLink;
+    }
+
+    // Copies the public /invoice-view.html link to the clipboard so
+    // the jeweller can paste it into SMS, email, or a chat other than
+    // WhatsApp. Falls back to a legacy execCommand path on browsers
+    // that gate navigator.clipboard.writeText behind HTTPS in prod
+    // but not in some embedded webviews.
+    async function copyPublicLink(){
+      if (!sale || !sale.public_sig) {
+        alert('Invoice not loaded yet — please wait a second and try again.');
+        return;
+      }
+      const url = publicInvoiceUrl();
+      const btn = document.getElementById('copyBtn');
+      const orig = btn.textContent;
+      const ok = () => {
+        btn.textContent = '✅ Link copied';
+        setTimeout(() => { btn.textContent = orig; }, 1600);
+      };
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(url);
+          ok();
+          return;
+        }
+      } catch { /* fall through to legacy path */ }
+      // Legacy fallback — briefly render a hidden textarea and copy.
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); ok(); }
+      catch { prompt('Copy this link:', url); }
+      finally { ta.remove(); }
     }
 
     // Build the public, tokenised view-link the customer taps to see

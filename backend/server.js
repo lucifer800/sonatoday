@@ -1433,42 +1433,71 @@ app.post('/api/jewellers/me/seed-demo', requireAuth, async (req, res) => {
       itemIds.push(id);
     }
 
-    // 2 customers
+    // 3 customers, each engineered to light up one loyalty section:
+    //   cust1 (Priya)  — birthday TODAY → 🎉 Today
+    //   cust2 (Rohit)  — 3 bills → 👑 VIP
+    //   cust3 (Aisha)  — one bill from ~120 days ago → 💤 Re-engage
+    const nowIST   = new Date(Date.now() + 5.5 * 3600 * 1000);
+    const todayMD  = nowIST.toISOString().slice(5, 10);              // 'MM-DD'
+    const birthday = `1990-${todayMD}`;                              // arbitrary year, today's MM-DD
     const cust1 = await run(
-      `INSERT INTO customers (jeweller_id, name, phone, whatsapp, notes)
-       VALUES (?, ?, ?, ?, ?)`,
-      [jid, '[Demo] Priya Shah', '9876543210', '9876543210', 'Walk-in customer · prefers traditional designs']
+      `INSERT INTO customers (jeweller_id, name, phone, whatsapp, birthday, notes)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [jid, '[Demo] Priya Shah', '9876543210', '9876543210', birthday,
+       'Loves traditional designs · birthday demo entry']
     );
-    await run(
+    const cust2 = await run(
       `INSERT INTO customers (jeweller_id, name, phone, whatsapp, notes)
        VALUES (?, ?, ?, ?, ?)`,
-      [jid, '[Demo] Rohit Patel', '9123456789', '9123456789', 'Bought wedding set in 2024 · birthday Feb 14']
+      [jid, '[Demo] Rohit Patel', '9123456789', '9123456789',
+       'Regular customer · 3 purchases (demo)']
+    );
+    const cust3 = await run(
+      `INSERT INTO customers (jeweller_id, name, phone, whatsapp, notes)
+       VALUES (?, ?, ?, ?, ?)`,
+      [jid, '[Demo] Aisha Mehta', '9988776655', '9988776655',
+       'Bought once, no visits in months (demo re-engage entry)']
     );
 
-    // 1 sample bill — uses the first inventory item & first customer.
-    const it = items[0];
-    const ratePerG = 7200;   // sensible round number for demo
-    const goldVal  = it.weight_g * ratePerG;
-    const makingPct = 12;
-    const makingAmt = goldVal * makingPct / 100;
-    const taxable   = goldVal + makingAmt;
-    const gstPct    = 3;
-    const gstAmt    = taxable * gstPct / 100;
-    const total     = taxable + gstAmt;
+    // Money helper reused by every synthetic bill below.
     const r2 = (n) => Math.round(n * 100) / 100;
-    const invoiceNumber = await new Promise((resolve) => nextInvoiceNumber(jid, resolve));
-    await run(
-      `INSERT INTO sales
-         (jeweller_id, invoice_number, customer_id, customer_name, customer_phone,
-          item_id, description, purity, weight_g, rate_per_g, gold_value,
-          making_pct, making_amount, gst_pct, gst_amount, total)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [jid, invoiceNumber, cust1, '[Demo] Priya Shah', '9876543210',
-       itemIds[0], it.name, it.purity, r2(it.weight_g), r2(ratePerG), r2(goldVal),
-       makingPct, r2(makingAmt), gstPct, r2(gstAmt), r2(total)]
-    );
+    const makeSale = async (cid, custName, phone, itemIdx, ratePerG, daysAgo) => {
+      const it        = items[itemIdx];
+      const goldVal   = it.weight_g * ratePerG;
+      const makingPct = 12;
+      const makingAmt = goldVal * makingPct / 100;
+      const taxable   = goldVal + makingAmt;
+      const gstPct    = 3;
+      const gstAmt    = taxable * gstPct / 100;
+      const total     = taxable + gstAmt;
+      const invoiceNumber = await new Promise((resolve) => nextInvoiceNumber(jid, resolve));
+      // Sales.sold_at defaults to CURRENT_TIMESTAMP, but for the
+      // backdated bills we want to override it — otherwise the
+      // "Re-engage" section (needs 90+ days gap) never lights up
+      // for a fresh demo account.
+      const soldAt = new Date(Date.now() - daysAgo * 86400000).toISOString();
+      await run(
+        `INSERT INTO sales
+           (jeweller_id, invoice_number, customer_id, customer_name, customer_phone,
+            item_id, description, purity, weight_g, rate_per_g, gold_value,
+            making_pct, making_amount, gst_pct, gst_amount, total, sold_at)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [jid, invoiceNumber, cid, custName, phone,
+         itemIds[itemIdx], it.name, it.purity, r2(it.weight_g), r2(ratePerG), r2(goldVal),
+         makingPct, r2(makingAmt), gstPct, r2(gstAmt), r2(total), soldAt]
+      );
+    };
 
-    res.json({ success: true, inserted: { items: items.length, customers: 2, sales: 1 } });
+    // Priya — 1 recent bill (also feeds Home's Recent activity)
+    await makeSale(cust1, '[Demo] Priya Shah',  '9876543210', 0, 7200, 0);
+    // Rohit — 3 bills across this month → VIP (3+ bills)
+    await makeSale(cust2, '[Demo] Rohit Patel', '9123456789', 1, 7180, 2);
+    await makeSale(cust2, '[Demo] Rohit Patel', '9123456789', 2, 7220, 8);
+    await makeSale(cust2, '[Demo] Rohit Patel', '9123456789', 0, 7250, 20);
+    // Aisha — 1 bill from 120 days ago → Re-engage (last purchase > 90 days)
+    await makeSale(cust3, '[Demo] Aisha Mehta', '9988776655', 1, 6900, 120);
+
+    res.json({ success: true, inserted: { items: items.length, customers: 3, sales: 5 } });
   } catch (err) {
     console.error('seed-demo failed:', err);
     res.status(500).json({ error: err.message });

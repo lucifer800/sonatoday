@@ -1737,6 +1737,16 @@
       </div>`;
     }
 
+    // Renders a section where every item carries its own `kind`
+    // (birthday vs anniversary) — used for the date-based sections.
+    function loyaltyDateSection(label, items){
+      if (!items || !items.length) return '';
+      return `<div style="margin-top:.7rem">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.2rem">${label} · ${items.length}</div>
+        ${items.slice(0,5).map(c => loyaltyRow(c, c.kind, c.kind === 'birthday' ? '🎂' : '💍')).join('')}
+      </div>`;
+    }
+
     function renderLoyalty(){
       const card = document.getElementById('loyaltyCard');
       const host = document.getElementById('loySections');
@@ -1745,27 +1755,11 @@
       const anything = (summary.todayCount + summary.thisWeekCount + summary.vipCount + summary.inactiveCount) > 0;
       card.style.display = anything ? 'block' : 'none';
       if (!anything) return;
-      host.innerHTML = [
-        loyaltySection('🎉 Today',           today,    null, '🎂'),  // kind set per-item below
-        loyaltySection('📅 This week',       thisWeek, null, '📅'),
-        loyaltySection('👑 VIPs',            vip,      'vip', '👑'),
-        loyaltySection('💤 Re-engage',       inactive, 'inactive', '💤'),
-      ].join('');
-      // The two date-based sections mix birthday + anniversary, so each
-      // item carries its own kind. Replace the kind in the rendered
-      // template by re-rendering them with per-item kind:
-      const fixDateSection = (sectionItems, label, defaultBadge) => {
-        if (!sectionItems || !sectionItems.length) return '';
-        return `<div style="margin-top:.7rem">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:.2rem">${label} · ${sectionItems.length}</div>
-          ${sectionItems.slice(0,5).map(c => loyaltyRow(c, c.kind, c.kind === 'birthday' ? '🎂' : '💍')).join('')}
-        </div>`;
-      };
       host.innerHTML =
-        fixDateSection(today,    '🎉 Today') +
-        fixDateSection(thisWeek, '📅 This week') +
-        loyaltySection('👑 VIPs',       vip,      'vip',      '👑') +
-        loyaltySection('💤 Re-engage',  inactive, 'inactive', '💤');
+        loyaltyDateSection('🎉 Today',      today) +
+        loyaltyDateSection('📅 This week',  thisWeek) +
+        loyaltySection('👑 VIPs',           vip,      'vip',      '👑') +
+        loyaltySection('💤 Re-engage',      inactive, 'inactive', '💤');
     }
 
     // Refresh loyalty when the Customers tab is opened, AND once on

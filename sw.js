@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v15';  // Announcements split into its own always-visible card
+const VERSION     = 'v16';  // demo seed lights up loyalty + Copy link button on invoice
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 
