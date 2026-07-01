@@ -4,51 +4,162 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Invoice — SonaToday</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" />
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#e9e9ee; color:#1a1a1a; padding:1rem; }
-    .actions { max-width:780px; margin:0 auto .8rem; display:flex; gap:.5rem; }
-    .actions button { flex:1; padding:.8rem; border:0; border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; }
-    .btn-print { background:#1a1a2e; color:#fff; }
-    .btn-wa { background:#25D366; color:#fff; }
-    .btn-back { background:#fff; color:#1a1a2e; border:1px solid #ccc !important; flex:0 0 auto !important; padding:.8rem 1rem !important; text-decoration:none; display:flex; align-items:center; }
-    .inv { max-width:780px; margin:0 auto; background:#fff; padding:2.2rem; box-shadow:0 4px 24px rgba(0,0,0,.1); }
-    .inv-top { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #D4AF37; padding-bottom:1rem; margin-bottom:1.2rem; }
-    .brand { font-size:1.6rem; font-weight:800; color:#1a1a2e; }
-    .brand span { color:#D4AF37; }
-    .tax-tag { text-align:right; font-size:11px; color:#888; }
-    .tax-tag h2 { font-size:1.1rem; color:#1a1a2e; letter-spacing:2px; }
-    .parties { display:flex; justify-content:space-between; gap:2rem; margin-bottom:1.4rem; }
-    .party { flex:1; }
-    .party h4 { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:#999; margin-bottom:.35rem; }
-    .party .nm { font-weight:700; font-size:14px; }
-    .party div { font-size:12.5px; color:#444; line-height:1.6; }
-    .meta { text-align:right; font-size:12.5px; color:#444; line-height:1.7; }
-    .meta b { color:#1a1a2e; }
-    table { width:100%; border-collapse:collapse; margin-bottom:1.2rem; }
-    th { background:#1a1a2e; color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.5px; padding:.6rem .7rem; text-align:left; }
-    th.r, td.r { text-align:right; }
-    td { padding:.7rem; font-size:13px; border-bottom:1px solid #eee; }
-    .totals { margin-left:auto; width:280px; }
-    .totals .tr { display:flex; justify-content:space-between; padding:.4rem 0; font-size:13px; color:#444; }
-    .totals .tr.grand { border-top:2px solid #1a1a2e; margin-top:.4rem; padding-top:.7rem; font-size:1.15rem; font-weight:800; color:#1a1a2e; }
-    .words { margin-top:1rem; font-size:12px; color:#555; font-style:italic; background:#faf7ed; padding:.7rem; border-radius:6px; }
-    .foot { margin-top:1.6rem; padding-top:1rem; border-top:1px solid #eee; font-size:11px; color:#999; text-align:center; line-height:1.6; }
-    .err { max-width:780px; margin:2rem auto; background:#fff; padding:2rem; text-align:center; color:#c00; border-radius:10px; }
+    :root {
+      --ink: #1B1A17;
+      --paper: #FAF7F0;
+      --ochre: #A87833;
+      --ochre-soft: #C39A57;
+      --rule: #E4DFD3;
+      --rule-strong: #C8C1B1;
+      --mute: #6E6A61;
+      --f-serif: 'Fraunces', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+      --f-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    body { font-family: var(--f-sans); background: #EBE7DD; color: var(--ink); padding: 1.25rem; -webkit-font-smoothing: antialiased; }
+
+    /* Action toolbar sits above the paper — restrained, no gradients */
+    .actions { max-width: 780px; margin: 0 auto 1rem; display: flex; gap: .5rem; flex-wrap: wrap; }
+    .actions button, .actions a {
+      flex: 1; padding: .75rem 1rem; border: 0; border-radius: 3px;
+      font-family: var(--f-sans); font-weight: 500; font-size: 13px;
+      letter-spacing: .01em; cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+      text-decoration: none;
+    }
+    .btn-back  { flex: 0 0 auto; background: #fff; color: var(--ink); border: 1px solid var(--rule-strong) !important; padding: .75rem 1rem !important; }
+    .btn-print { background: var(--ink); color: var(--paper); }
+    .btn-print:hover { background: #000; }
+    .btn-wa    { background: #128C4B; color: #fff; }
+    .btn-wa:hover { background: #0F7A41; }
+
+    /* The invoice paper */
+    .inv {
+      max-width: 780px; margin: 0 auto;
+      background: var(--paper);
+      padding: 3rem 2.5rem 2.5rem;
+      box-shadow: 0 20px 60px -20px rgba(0,0,0,.25), 0 1px 3px rgba(0,0,0,.05);
+      border: 1px solid var(--rule);
+    }
+
+    /* Editorial nameplate — centered serif wordmark, thin ochre rule,
+       small-caps INVOICE label. Replaces the gradient-gold header. */
+    .inv-top {
+      text-align: center;
+      padding-bottom: 1.8rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--rule);
+      position: relative;
+    }
+    .inv-top::after {
+      content: ""; display: block;
+      width: 42px; height: 1px; background: var(--ochre);
+      margin: 1.2rem auto 0;
+    }
+    .brand {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 34px; letter-spacing: -0.01em; color: var(--ink);
+      line-height: 1;
+    }
+    .brand .today { font-style: italic; font-weight: 300; color: var(--ochre); margin-left: 1px; }
+    .shop-line {
+      margin-top: .55rem;
+      font-size: 12.5px; color: var(--mute);
+    }
+    .tax-tag {
+      margin-top: 1.4rem;
+      font-family: var(--f-sans); font-weight: 500;
+      font-size: 10.5px; letter-spacing: .32em; text-transform: uppercase;
+      color: var(--mute);
+    }
+
+    /* Parties block — two columns, small-caps labels, tabular numbers */
+    .parties { display: flex; justify-content: space-between; gap: 2.5rem; margin-bottom: 2rem; }
+    .party { flex: 1; }
+    .party h4 {
+      font-size: 9.5px; text-transform: uppercase; letter-spacing: .22em;
+      color: var(--mute); margin-bottom: .5rem; font-weight: 500;
+    }
+    .party .nm {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 17px; color: var(--ink); margin-bottom: .3rem;
+      letter-spacing: -0.005em;
+    }
+    .party div { font-size: 12.5px; color: #4A473F; line-height: 1.65; }
+    .meta { text-align: right; font-size: 12.5px; color: #4A473F; line-height: 1.75; margin-top: .4rem; }
+    .meta b { color: var(--ink); font-weight: 500; }
+
+    /* Line-items table */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-variant-numeric: tabular-nums lining-nums; }
+    th {
+      background: transparent; color: var(--mute);
+      font-size: 10px; text-transform: uppercase; letter-spacing: .22em;
+      font-weight: 500;
+      padding: .8rem .5rem;
+      border-bottom: 1px solid var(--rule-strong);
+      text-align: left;
+    }
+    th.r, td.r { text-align: right; }
+    td {
+      padding: 1rem .5rem;
+      font-size: 13px;
+      border-bottom: 1px solid var(--rule);
+      color: var(--ink);
+    }
+    td:first-child { font-family: var(--f-serif); font-weight: 400; font-size: 15px; letter-spacing: -0.005em; }
+
+    /* Totals */
+    .totals { margin-left: auto; width: 320px; font-variant-numeric: tabular-nums lining-nums; }
+    .totals .tr {
+      display: flex; justify-content: space-between;
+      padding: .5rem 0; font-size: 13px; color: #4A473F;
+    }
+    .totals .tr.grand {
+      border-top: 1px solid var(--ink); margin-top: .5rem; padding-top: .9rem;
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 22px; color: var(--ink);
+      letter-spacing: -0.005em;
+    }
+    .totals .tr.grand span:first-child {
+      font-family: var(--f-sans); font-weight: 500; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .22em;
+      color: var(--mute); align-self: center;
+    }
+    /* Amount-in-words — italic serif, no colored panel */
+    .words {
+      margin-top: 1.5rem;
+      font-family: var(--f-serif); font-style: italic; font-weight: 300;
+      font-size: 13.5px; color: #4A473F;
+      padding-top: 1rem; border-top: 1px solid var(--rule);
+      letter-spacing: 0;
+    }
+    .words::before { content: "In words: "; font-style: normal; font-family: var(--f-sans); text-transform: uppercase; font-size: 9.5px; letter-spacing: .22em; color: var(--mute); margin-right: .5rem; }
+    .foot {
+      margin-top: 2rem; padding-top: 1rem;
+      border-top: 1px solid var(--rule);
+      font-size: 10.5px; color: var(--mute);
+      text-align: center; line-height: 1.7;
+      letter-spacing: .04em;
+    }
+    .err { max-width: 780px; margin: 2rem auto; background: var(--paper); padding: 2rem; text-align: center; color: #A94438; border: 1px solid var(--rule); border-radius: 3px; }
     @media print {
-      body { background:#fff; padding:0; }
-      .actions { display:none; }
-      .inv { box-shadow:none; max-width:100%; padding:1rem; }
+      body { background: #fff; padding: 0; }
+      .actions { display: none; }
+      .inv { box-shadow: none; border: 0; max-width: 100%; padding: 1.5rem; }
     }
   </style>
 </head>
 <body>
   <div class="actions">
     <a class="btn-back" href="/app.html">← Back</a>
-    <button class="btn-print" onclick="window.print()">🖨 Print</button>
-    <button class="btn-print" id="pdfBtn" style="background:#5b4fc7">📥 Download PDF</button>
-    <button class="btn-print" id="copyBtn" style="background:#0ea5e9">🔗 Copy link</button>
-    <button class="btn-wa" id="waBtn">💬 Send on WhatsApp</button>
+    <button class="btn-print" onclick="window.print()">Print</button>
+    <button class="btn-print" id="pdfBtn">Download PDF</button>
+    <button class="btn-print" id="copyBtn" style="background:#4A473F">Copy link</button>
+    <button class="btn-wa" id="waBtn">Send on WhatsApp</button>
   </div>
   <div id="root"><div class="err">Loading invoice…</div></div>
 
@@ -105,11 +216,9 @@
       document.getElementById('root').innerHTML = `
       <div class="inv">
         <div class="inv-top">
-          <div>
-            <div class="brand">Sona<span>Today</span></div>
-            <div style="font-size:13px;color:#555;margin-top:.2rem">${j.name||''}</div>
-          </div>
-          <div class="tax-tag"><h2>TAX INVOICE</h2></div>
+          <div class="brand">Sona<span class="today">today</span></div>
+          <div class="shop-line">${j.name||''}${j.area?(' &middot; '+j.area):''}</div>
+          <div class="tax-tag">Tax Invoice</div>
         </div>
 
         <div class="parties">
@@ -117,16 +226,16 @@
             <h4>Seller</h4>
             <div class="nm">${j.name||'—'}</div>
             <div>${j.address_line||j.area||''}</div>
-            <div>${j.phone?('📞 '+j.phone):''}</div>
-            <div>${j.gst_number?('GSTIN: '+j.gst_number):'<i style="color:#bbb">GSTIN not set</i>'}</div>
-            <div>${j.bis_license?('BIS: '+j.bis_license):''}</div>
+            <div>${j.phone?j.phone:''}</div>
+            <div>${j.gst_number?('GSTIN &nbsp;'+j.gst_number):'<i style="color:#bbb">GSTIN not set</i>'}</div>
+            <div>${j.bis_license?('BIS &nbsp;'+j.bis_license):''}</div>
           </div>
           <div class="party" style="text-align:right">
-            <h4>Bill To</h4>
+            <h4>Billed to</h4>
             <div class="nm">${s.customer_name||'Walk-in'}</div>
-            <div>${s.customer_phone?('📞 '+s.customer_phone):''}</div>
-            <div>${s.customer_gstin?('GSTIN: '+s.customer_gstin):''}</div>
-            <div class="meta" style="margin-top:.6rem"><b>Invoice:</b> ${s.invoice_number}<br><b>Date:</b> ${date}</div>
+            <div>${s.customer_phone?s.customer_phone:''}</div>
+            <div>${s.customer_gstin?('GSTIN &nbsp;'+s.customer_gstin):''}</div>
+            <div class="meta"><b>Invoice</b> &nbsp;${s.invoice_number}<br><b>Date</b> &nbsp;${date}</div>
           </div>
         </div>
 
@@ -154,7 +263,7 @@
           <div class="tr grand"><span>Total</span><span>${fmt(s.total)}</span></div>
         </div>
 
-        <div class="words">Amount in words: ${inWords(s.total)}</div>
+        <div class="words">${inWords(s.total)}</div>
 
         <div class="foot">
           This is a computer-generated tax invoice. Gold rate as quoted on date of sale.<br>

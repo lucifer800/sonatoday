@@ -18,9 +18,82 @@
 
   <title>SonaToday — Jeweller App</title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap" />
   <style>
-    /* ════════════════ APP SHELL ════════════════ */
-    :root { --nav-h: 64px; }
+    /* ══════════════════════════════════════════════════════════
+       DESIGN SYSTEM  (a proper one — no gradients, no emoji chrome)
+       Fraunces (variable serif) for wordmark + display.
+       Inter for UI. Muted ochre gold used sparingly. Warm ink
+       backgrounds instead of navy-neon. Hairlines instead of
+       glowing borders. Small-caps eyebrows replace emoji-card-title.
+       ══════════════════════════════════════════════════════════ */
+    :root {
+      --nav-h: 68px;
+      --f-serif: 'Fraunces', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+      --f-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Segoe UI, sans-serif;
+      --f-mono:  ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+      /* Warm-ink palette (dark) — no navy, no neon */
+      --ink:        #0D0C0B;
+      --ink-elev:   #171612;
+      --ink-elev-2: #201E19;
+      --paper:      #F1EBDD;
+      --paper-mute: #97918A;
+      --paper-soft: #B8B2A5;
+      --ochre:      #B08633;
+      --ochre-soft: #C89F55;
+      --ochre-line: rgba(176, 134, 51, 0.32);
+      --rule:       rgba(241, 235, 221, 0.09);
+      --rule-strong:rgba(241, 235, 221, 0.18);
+      --sage:       #7A9070;   /* verified / paid */
+      --sanguine:   #A74A34;   /* danger / low stock */
+
+      /* Legacy variable names kept for components not yet migrated */
+      --bg: var(--ink);
+      --card: var(--ink-elev);
+      --acc: var(--ochre);
+      --acc-border: var(--ochre-line);
+      --text: var(--paper);
+      --muted: var(--paper-mute);
+    }
+
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; overscroll-behavior: none; }
+    body {
+      font-family: var(--f-sans);
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--paper);
+      background: var(--ink);
+      padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+      font-feature-settings: "ss01","cv11";       /* Inter refinements */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Typography primitives — the "voice" of the redesign. */
+    .serif { font-family: var(--f-serif); font-weight: 300; letter-spacing: -0.01em; }
+    .eyebrow {
+      font-family: var(--f-sans);
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.16em;
+      font-weight: 600;
+      color: var(--paper-mute);
+    }
+    .num-tab { font-variant-numeric: tabular-nums lining-nums; }
+    .rule    { height: 1px; background: var(--ochre-line); border: 0; margin: 1rem 0; }
+
+    /* Inline SVG icon primitive.
+       Usage:  <svg class="ic"><use href="#i-home"/></svg>
+       Colour follows currentColor; size defaults to 1em. */
+    .ic { width: 1em; height: 1em; stroke: currentColor; fill: none;
+          stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+          flex-shrink: 0; display: inline-block; vertical-align: -0.15em; }
+    .ic-lg { width: 20px; height: 20px; }
+    .ic-xl { width: 28px; height: 28px; }
     * { -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; height: 100%; overscroll-behavior: none; }
     body {
@@ -29,19 +102,53 @@
       padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
     }
 
-    /* ── Top bar (sticky, frosted) ── */
+    /* ── Top bar — serif wordmark, thin ochre rule, no gradients. ── */
     .app-top {
       position: sticky; top: 0; z-index: 50;
-      padding: calc(env(safe-area-inset-top) + .6rem) 1rem .6rem;
-      background: color-mix(in srgb, var(--card) 88%, transparent);
-      backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--acc-border);
+      padding: calc(env(safe-area-inset-top) + .75rem) 1.15rem .7rem;
+      background: rgba(13, 12, 11, 0.82);
+      backdrop-filter: saturate(140%) blur(14px);
+      -webkit-backdrop-filter: saturate(140%) blur(14px);
+      border-bottom: 1px solid var(--ochre-line);
       display: flex; align-items: center; justify-content: space-between;
     }
-    .app-top .brand { font-weight: 800; font-size: 1.05rem; letter-spacing:-.01em;
-      background: linear-gradient(135deg,#ffd700,#ff9500); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-    .app-top .shop  { font-size: 11px; color: var(--muted); margin-top: 1px; }
-    .app-top .logout { background: rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.4rem .7rem; border-radius:8px; font-size:11px; cursor:pointer; }
+    .app-top .brand {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 22px; line-height: 1; letter-spacing: -0.005em;
+      color: var(--paper);
+    }
+    .app-top .brand .sona  { font-weight: 400; }
+    .app-top .brand .today { font-style: italic; font-weight: 300; color: var(--ochre-soft); margin-left: 1px; }
+
+    /* Small chip buttons used in the top bar and elsewhere.
+       Restrained, pill-shaped, currentColor icon + short label. */
+    .chip-btn {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: transparent; color: var(--paper);
+      border: 1px solid var(--rule-strong);
+      padding: .38rem .7rem; border-radius: 999px;
+      font-family: var(--f-sans); font-size: 11px; font-weight: 500;
+      letter-spacing: 0.02em; cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .chip-btn .ic { width: 13px; height: 13px; stroke-width: 1.7; }
+    .chip-btn:hover { border-color: var(--paper-soft); }
+    .chip-btn--ochre {
+      color: var(--ochre-soft); border-color: var(--ochre-line);
+    }
+    .chip-btn--ochre:hover { border-color: var(--ochre); background: rgba(176, 134, 51, 0.06); }
+    .app-top .shop {
+      font-size: 10.5px; color: var(--paper-mute); margin-top: 3px;
+      text-transform: uppercase; letter-spacing: 0.14em; font-weight: 500;
+    }
+    .app-top .logout {
+      background: transparent; color: var(--paper-mute);
+      border: 1px solid var(--rule-strong);
+      padding: .38rem .7rem; border-radius: 999px;
+      font-size: 11px; font-weight: 500; cursor: pointer;
+      transition: color .15s ease, border-color .15s ease;
+    }
+    .app-top .logout:hover { color: var(--sanguine); border-color: rgba(167, 74, 52, .5); }
 
     /* ── Offline banner — slides in below the top bar when the
        device loses network. The app still works (SW serves cached
@@ -114,36 +221,132 @@
     .screen.active { display: block; }
     @keyframes fade { from { opacity:0; transform: translateY(6px);} to {opacity:1; transform:none;} }
 
-    /* ── Bottom tab bar ── */
+    /* ── Bottom tab bar — SVG line icons, thin ochre indicator. ── */
     .tabbar {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
       height: calc(var(--nav-h) + env(safe-area-inset-bottom));
       padding-bottom: env(safe-area-inset-bottom);
       display: grid; grid-template-columns: repeat(6, 1fr);
-      background: color-mix(in srgb, var(--card) 92%, transparent);
-      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-      border-top: 1px solid var(--acc-border);
+      background: rgba(13, 12, 11, 0.92);
+      backdrop-filter: saturate(150%) blur(20px);
+      -webkit-backdrop-filter: saturate(150%) blur(20px);
+      border-top: 1px solid var(--ochre-line);
     }
-    .tab { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
-      border:0; background:none; color:var(--muted); font-size:10px; font-weight:600; cursor:pointer; padding-top:.5rem; }
-    .tab .ic { font-size: 20px; line-height:1; }
-    .tab.active { color: var(--acc); }
-    .tab .badge { position:absolute; transform: translate(14px,-8px); background:#f87171; color:#fff; font-size:8px; font-weight:700; min-width:14px; height:14px; border-radius:7px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+    .tab {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 5px; padding-top: .55rem;
+      border: 0; background: none; cursor: pointer;
+      color: var(--paper-mute); font-size: 10px; font-weight: 500;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      transition: color .18s ease;
+    }
+    .tab .ic { width: 20px; height: 20px; stroke-width: 1.5; }
+    .tab.active { color: var(--paper); }
+    /* Hairline indicator on the active tab — no gradient bloom */
+    .tab.active::before {
+      content: "";
+      position: absolute; top: 0; left: 26%; right: 26%; height: 1.5px;
+      background: var(--ochre); border-radius: 0 0 2px 2px;
+    }
+    .tab .badge { position: absolute; top: 6px; right: 22%; background: var(--sanguine);
+      color: #fff; font-size: 8.5px; font-weight: 600; min-width: 14px; height: 14px;
+      border-radius: 7px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 
-    /* ── Cards / common ── */
-    .card { background: var(--card); border:1px solid var(--acc-border); border-radius:16px; padding:1.1rem; margin-bottom:1rem; }
-    .card.hero { background: linear-gradient(135deg, rgba(212,175,55,.08), rgba(212,175,55,.03)); border-color: rgba(212,175,55,.3); }
-    .card-title { font-size:1rem; font-weight:700; margin:0 0 .8rem; display:flex; align-items:center; gap:.45rem; }
-    .muted { color: var(--muted); font-size:13px; }
+    /* ── Cards — flat surface, hairline border, no glow. ── */
+    .card {
+      background: var(--ink-elev);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      padding: 1.2rem 1.15rem;
+      margin-bottom: 1rem;
+    }
+    /* Hero card — subtle ochre wash, no gradient, editorial nameplate feel */
+    .card.hero {
+      background: var(--ink-elev);
+      border: 1px solid var(--ochre-line);
+      position: relative;
+      padding: 1.4rem 1.2rem 1.2rem;
+    }
+    .card.hero::before {
+      content: ""; position: absolute; top: 0; left: 1.15rem; right: 1.15rem;
+      height: 1px; background: linear-gradient(90deg, transparent, var(--ochre) 30%, var(--ochre) 70%, transparent);
+      opacity: 0.55;
+    }
+    /* Card title = small-caps eyebrow, NOT a bold+emoji headline */
+    .card-title {
+      font-family: var(--f-sans);
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      font-weight: 600;
+      color: var(--paper-mute);
+      margin: 0 0 .9rem;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .muted { color: var(--paper-mute); font-size: 13px; }
 
-    .stat-row { display:grid; grid-template-columns: repeat(3,1fr); gap:.6rem; }
-    .stat { background: rgba(255,255,255,.03); border:1px solid var(--acc-border); border-radius:12px; padding:.7rem; text-align:center; }
-    .stat .v { font-size:1.05rem; font-weight:700; color:var(--acc); }
-    .stat .l { font-size:9.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-top:2px; }
+    /* Stat row — serif figures, tabular, ochre for the number itself only */
+    .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+                background: var(--rule); border: 1px solid var(--rule);
+                border-radius: 4px; overflow: hidden; }
+    .stat { background: var(--ink-elev); padding: .85rem .7rem; text-align: center; }
+    .stat .v {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 22px; line-height: 1.05; color: var(--paper);
+      font-variant-numeric: tabular-nums lining-nums;
+      letter-spacing: -0.01em;
+    }
+    .stat .l {
+      font-size: 9.5px; color: var(--paper-mute);
+      text-transform: uppercase; letter-spacing: 0.12em; margin-top: 6px;
+    }
 
-    .status-pill { display:inline-flex; align-items:center; gap:.4rem; padding:.45rem .8rem; border-radius:999px; font-size:12px; font-weight:600; }
-    .status-pill.ok  { background: rgba(74,222,128,.12); color:#4ade80; border:1px solid rgba(74,222,128,.3); }
-    .status-pill.warn{ background: rgba(251,191,36,.12); color:#fbbf24; border:1px solid rgba(251,191,36,.3); }
+    /* Status pill — hairline outline, no gradient bloom. */
+    .status-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .3rem .65rem; border-radius: 999px;
+      font-size: 10.5px; font-weight: 500; letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    .status-pill.ok   { background: transparent; color: var(--sage);      border: 1px solid rgba(122,144,112,.45); }
+    .status-pill.warn { background: transparent; color: var(--ochre-soft); border: 1px solid var(--ochre-line); }
+    .status-pill.err  { background: transparent; color: var(--sanguine);   border: 1px solid rgba(167,74,52,.45); }
+
+    /* Ghost / secondary button — the "View reports" style link */
+    .ghost-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
+      background: transparent; color: var(--paper);
+      border: 1px solid var(--rule-strong);
+      padding: .7rem 1rem; border-radius: 4px;
+      font-family: var(--f-sans); font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: border-color .15s ease, color .15s ease;
+    }
+    .ghost-btn:hover { border-color: var(--ochre); color: var(--ochre-soft); }
+    .ghost-btn .ic { width: 14px; height: 14px; }
+
+    /* Notice card — thin left ochre keyline, editorial copy layout.
+       Used for Install / Demo / Announcement callouts. Replaces the
+       gradient-and-emoji boxes that read as AI-generated. */
+    .notice-card {
+      display: flex; gap: 1rem; align-items: center;
+      background: var(--ink-elev);
+      border: 1px solid var(--rule);
+      border-left: 2px solid var(--ochre);
+      border-radius: 4px;
+      padding: 1rem 1.15rem;
+      margin-bottom: 1rem;
+    }
+    .notice-body { flex: 1; min-width: 0; }
+    .notice-lede {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 17px; line-height: 1.3; color: var(--paper);
+      margin-top: 4px; letter-spacing: -0.01em;
+    }
+    .notice-sub {
+      color: var(--paper-mute); font-size: 12.5px; line-height: 1.5;
+      margin-top: 2px;
+    }
 
     /* ── Rate inputs (ported) ── */
     .rate-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin-bottom:.9rem; }
@@ -159,11 +362,27 @@
     .making { display:flex; align-items:center; gap:.6rem; margin-top:.2rem; }
     .making label { font-size:12px; color:var(--muted); flex:1; }
     .making input { width:84px; background:rgba(0,0,0,.25); border:1px solid var(--acc-border); color:var(--text); padding:.45rem .6rem; border-radius:6px; font-size:14px; text-align:right; }
-    .pub-btn { width:100%; background:var(--acc); color:#000; border:0; padding:1.05rem; border-radius:12px; font-weight:700; font-size:1.02rem; cursor:pointer; box-shadow:0 8px 24px -8px rgba(212,175,55,.5); margin-top:.9rem; }
-    .pub-btn:active { transform: scale(.985); }
-    .pub-btn:disabled { opacity:.55; box-shadow:none; }
-    .mcx-hint { margin-top:.75rem; padding:.55rem .75rem; background:rgba(255,255,255,.03); border-radius:8px; font-size:12px; color:var(--muted); line-height:1.5; }
-    .mcx-hint strong { color: var(--acc); }
+    /* Primary CTA — solid ochre, no glow, no bold. Restrained. */
+    .pub-btn {
+      width: 100%;
+      background: var(--ochre); color: #FFFCF3;
+      border: 0; padding: .95rem 1.2rem; border-radius: 4px;
+      font-family: var(--f-sans); font-weight: 500; font-size: 14px;
+      letter-spacing: 0.02em;
+      cursor: pointer; margin-top: .9rem;
+      transition: background .15s ease;
+    }
+    .pub-btn:hover  { background: var(--ochre-soft); }
+    .pub-btn:active { background: var(--ochre); transform: scale(.995); }
+    .pub-btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .mcx-hint {
+      margin-top: .8rem;
+      padding-top: .7rem;
+      border-top: 1px solid var(--rule);
+      font-size: 12px; color: var(--paper-mute); line-height: 1.55;
+    }
+    .mcx-hint strong { color: var(--paper); font-weight: 500; }
     .msg { margin-top:.8rem; padding:.6rem .8rem; border-radius:8px; font-size:13px; display:none; }
     .msg.err { background:rgba(239,68,68,.1); color:#f87171; display:block; }
     .msg.ok  { background:rgba(34,197,94,.1); color:#4ade80; display:block; }
@@ -235,15 +454,66 @@
 </head>
 <body>
 
+  <!-- ═══════════════════════════════════════════════════════════
+       SVG icon sprite — defined once, referenced everywhere with
+       <svg class="ic"><use href="#i-name"/></svg>. Stroke icons
+       drawn on a 24-viewBox at ~1.5 stroke; they replace every
+       piece of emoji chrome the design used to lean on.
+       ═══════════════════════════════════════════════════════════ -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-home" viewBox="0 0 24 24">
+        <path d="M3 11 12 4l9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/>
+      </symbol>
+      <symbol id="i-coin" viewBox="0 0 24 24">
+        <ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>
+      </symbol>
+      <symbol id="i-box" viewBox="0 0 24 24">
+        <path d="M3 7.5 12 3l9 4.5v9L12 21 3 16.5v-9Z"/><path d="M3 7.5 12 12l9-4.5"/><path d="M12 12v9"/>
+      </symbol>
+      <symbol id="i-users" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M16 15c3 0 5 2.2 5 5"/>
+      </symbol>
+      <symbol id="i-scroll" viewBox="0 0 24 24">
+        <path d="M6 3h11l3 3v13a2 2 0 0 1-2 2H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"/><path d="M17 3v3h3"/><path d="M8 10h8M8 14h8M8 18h5"/>
+      </symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24">
+        <path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/>
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></symbol>
+      <symbol id="i-arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+      <symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="M19 12H5M11 5l-7 7 7 7"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M6 12l6 6 6-6M4 20h16"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+      <symbol id="i-wa" viewBox="0 0 24 24">
+        <path d="M20 12a8 8 0 1 1-4-6.9L20 4l-1 4a8 8 0 0 1 1 4Z"/><path d="M8.5 9c.2 2 1.2 4 3 5.5 1.8 1.5 3.7 2 5 1.7l1-1c-.3-.3-1.5-.9-2.2-1a3.5 3.5 0 0 0-2.5 1c-.7-.4-1.6-1.3-2-2a3.5 3.5 0 0 0 1-2.5c-.1-.7-.7-1.9-1-2.2l-1 1c-.3 1.3.2 3.2 1.7 5"/>
+      </symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3 18h18l-1.5-9-4 4-3.5-6-3.5 6-4-4L3 18Z"/><path d="M3 20h18"/></symbol>
+      <symbol id="i-gift" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M2 8h20v3H2z"/><path d="M12 8V22"/><path d="M12 8c-1.5-4-6-3-6 0M12 8c1.5-4 6-3 6 0"/></symbol>
+      <symbol id="i-megaphone" viewBox="0 0 24 24"><path d="M4 9v6l10 4V5L4 9Z"/><path d="M14 6a4 4 0 0 1 0 12"/><path d="M6 15v2a2 2 0 0 0 4 0v-1"/></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v13M6 9l6-6 6 6"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+      <symbol id="i-diamond" viewBox="0 0 24 24"><path d="M6 3h12l4 6-10 12L2 9l4-6Z"/><path d="M2 9h20M9 3l-1 6M15 3l1 6M12 21 8 9M12 21l4-12"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+      <symbol id="i-install" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M12 8v7M9 12l3 3 3-3"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 8l-4 4 4 4M6 12h10"/></symbol>
+    </defs>
+  </svg>
+
   <!-- ════════ TOP BAR ════════ -->
   <div class="app-top">
     <div>
-      <div class="brand">SonaToday</div>
+      <div class="brand"><span class="sona">Sona</span><span class="today">today</span></div>
       <div class="shop" id="topShop">Loading…</div>
     </div>
-    <div style="display:flex;gap:.45rem;align-items:center">
-      <button id="installBtn" style="display:none;background:var(--acc);color:#000;border:0;padding:.4rem .7rem;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">📲 Install</button>
-      <button class="logout" id="logoutBtn">Logout</button>
+    <div style="display:flex;gap:.55rem;align-items:center">
+      <button id="installBtn" class="chip-btn chip-btn--ochre" style="display:none">
+        <svg class="ic"><use href="#i-install"/></svg><span>Install</span>
+      </button>
+      <button class="logout" id="logoutBtn">Sign out</button>
     </div>
   </div>
 
@@ -271,50 +541,48 @@
 
   <!-- ════════ HOME ════════ -->
   <section class="screen active" id="scr-home">
-    <!-- Install prompt (shown only when the browser says it's installable) -->
-    <div class="card" id="installCard" style="display:none;background:linear-gradient(135deg,rgba(212,175,55,.14),rgba(212,175,55,.05));border-color:rgba(212,175,55,.4)">
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="font-size:1.8rem">📲</div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px">Install SonaToday</div>
-          <div class="muted" style="font-size:11.5px;margin-top:1px">Add to your device for one-tap access, fullscreen, works offline.</div>
-        </div>
-        <button id="installCardBtn" style="background:var(--acc);color:#000;border:0;padding:.55rem .9rem;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Install</button>
+    <!-- Install prompt — shown only when the browser says it's installable -->
+    <div class="notice-card" id="installCard" style="display:none">
+      <div class="notice-body">
+        <div class="eyebrow" style="color:var(--ochre-soft)">Install</div>
+        <div class="notice-lede">Keep SonaToday on your home screen</div>
+        <div class="notice-sub">One-tap access, fullscreen, and it works offline once installed.</div>
       </div>
+      <button id="installCardBtn" class="pub-btn" style="margin:0;width:auto;padding:.7rem 1rem;font-size:12.5px">Install</button>
     </div>
 
-    <!-- Demo seed card — only shown when the account is brand-new
-         (zero stock, customers, bills). One tap fills the app with
-         sample data so the jeweller can poke around before adding
-         their own. Hidden as soon as any real data exists. -->
-    <div class="card" id="demoCard" style="display:none;background:linear-gradient(135deg,rgba(91,79,199,.14),rgba(91,79,199,.05));border-color:rgba(91,79,199,.4)">
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="font-size:1.8rem">✨</div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px">New here? Try a sample shop</div>
-          <div class="muted" style="font-size:11.5px;margin-top:1px">Loads 3 sample items, 2 customers and 1 bill so you can explore. Edit or delete any time.</div>
-        </div>
-        <button id="demoLoadBtn" style="background:#5b4fc7;color:#fff;border:0;padding:.55rem .9rem;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Load demo</button>
+    <!-- Demo seed card — only shown when the account is brand-new -->
+    <div class="notice-card" id="demoCard" style="display:none">
+      <div class="notice-body">
+        <div class="eyebrow" style="color:var(--ochre-soft)">Getting started</div>
+        <div class="notice-lede">Try a sample shop</div>
+        <div class="notice-sub">Loads 3 items, 3 clients and a few bills so you can look around. Edit or delete anything, any time.</div>
       </div>
-      <div id="demoClearWrap" style="display:none;margin-top:.6rem;text-align:right">
-        <button id="demoClearBtn" style="background:transparent;border:0;color:#9b9bbf;font-size:11px;cursor:pointer;text-decoration:underline">Clear demo data</button>
+      <div style="display:flex;flex-direction:column;gap:.35rem;align-items:flex-end;flex-shrink:0">
+        <button id="demoLoadBtn" class="pub-btn" style="margin:0;width:auto;padding:.7rem 1rem;font-size:12.5px">Load demo</button>
+        <span id="demoClearWrap" style="display:none">
+          <button id="demoClearBtn" style="background:transparent;border:0;color:var(--paper-mute);font-size:10.5px;cursor:pointer;text-decoration:underline;padding:0">Clear demo data</button>
+        </span>
       </div>
     </div>
 
     <div class="card hero">
-      <div class="card-title">☀️ Good morning</div>
-      <div id="rateStatus"><span class="status-pill warn">⚠️ Checking…</span></div>
+      <div class="card-title">Today</div>
+      <div class="serif" style="font-size:26px;font-weight:400;letter-spacing:-.015em;line-height:1.2;margin-bottom:.35rem" id="rateStatusLede">Publishing rates</div>
+      <div id="rateStatus"><span class="status-pill warn">Checking…</span></div>
       <div class="mcx-hint" id="homeMcx" style="margin-top:.85rem">Loading live market rate…</div>
     </div>
 
     <div class="card">
-      <div class="card-title">Today at a glance</div>
+      <div class="card-title">The numbers</div>
       <div class="stat-row">
-        <div class="stat"><div class="v" id="stToday">₹0</div><div class="l">Today's sales</div></div>
-        <div class="stat"><div class="v" id="stMonth">₹0</div><div class="l">This month</div></div>
-        <div class="stat"><div class="v" id="stStock">₹0</div><div class="l">Stock value</div></div>
+        <div class="stat"><div class="v num-tab" id="stToday">₹0</div><div class="l">Today</div></div>
+        <div class="stat"><div class="v num-tab" id="stMonth">₹0</div><div class="l">This month</div></div>
+        <div class="stat"><div class="v num-tab" id="stStock">₹0</div><div class="l">Stock value</div></div>
       </div>
-      <button onclick="openReports()" style="width:100%;margin-top:.8rem;background:rgba(255,255,255,.04);border:1px solid var(--acc-border);color:var(--acc);padding:.6rem;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer">📊 View full reports →</button>
+      <button onclick="openReports()" class="ghost-btn" style="width:100%;margin-top:.9rem">
+        View full reports <svg class="ic"><use href="#i-arrow-r"/></svg>
+      </button>
     </div>
 
     <div class="card">
@@ -344,7 +612,7 @@
   <!-- ════════ RATES ════════ -->
   <section class="screen" id="scr-rates">
     <div class="card hero">
-      <div class="card-title">💰 Today's rates <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
+      <div class="card-title">Today's rates <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
       <p class="muted" id="rateSub" style="margin:-.4rem 0 .9rem">Publish once — buyers see it instantly.</p>
       <form id="rateForm">
         <div class="rate-grid">
@@ -364,7 +632,7 @@
       </form>
     </div>
     <div class="card">
-      <div class="card-title">📈 Your price trend</div>
+      <div class="card-title">Your price trend</div>
       <p class="muted" style="margin:-.4rem 0 .6rem">Full chart with history &amp; ranges, as buyers see it.</p>
       <a id="trendLink" href="#" target="_blank" style="color:var(--acc);text-decoration:none;font-size:13px">→ Open full trend chart</a>
     </div>
@@ -373,7 +641,7 @@
   <!-- ════════ STOCK (Phase 1 — live) ════════ -->
   <section class="screen" id="scr-stock">
     <div class="card hero">
-      <div class="card-title">📦 Stock value <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
+      <div class="card-title">Stock value <span class="status-pill ok" style="font-size:9px;padding:.15rem .5rem">LIVE</span></div>
       <div style="font-size:1.8rem;font-weight:800;color:var(--acc)" id="stockTotal">₹0</div>
       <p class="muted" id="stockBreak" style="margin:.3rem 0 0;font-size:11.5px">Add items to see your live stock value at today's rate.</p>
     </div>
@@ -428,26 +696,25 @@
   <!-- ════════ CUSTOMERS (Phase 2 — live) ════════ -->
   <section class="screen" id="scr-cust">
     <div class="card hero">
-      <div class="card-title">👥 Customers</div>
+      <div class="card-title">Clients</div>
       <div style="font-size:1.8rem;font-weight:800;color:var(--acc)" id="custCount">0</div>
       <p class="muted" id="custBirthdays" style="margin:.3rem 0 0;font-size:11.5px">Your shop's little black book.</p>
     </div>
 
-    <!-- ═══ PHASE 8: ANNOUNCEMENTS (always visible) ═══ -->
-    <div class="card" style="background:linear-gradient(135deg,rgba(91,79,199,.14),rgba(91,79,199,.04));border-color:rgba(91,79,199,.4)">
-      <div style="display:flex;align-items:center;gap:.8rem">
-        <div style="font-size:1.6rem">📣</div>
-        <div style="flex:1">
-          <div style="font-weight:700;font-size:14px">Send an announcement</div>
-          <div class="muted" style="font-size:11.5px;margin-top:1px">New collection, festive offer, rate drop — message all your customers on WhatsApp.</div>
-        </div>
-        <button id="broadcastBtn" style="background:#5b4fc7;color:#fff;border:0;padding:.55rem .9rem;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">Compose</button>
+    <!-- Announcements — always visible; the compose button opens the
+         WhatsApp broadcast sheet with segment + template pickers. -->
+    <div class="notice-card">
+      <div class="notice-body">
+        <div class="eyebrow" style="color:var(--ochre-soft)">Announce</div>
+        <div class="notice-lede">Send a message to your clients</div>
+        <div class="notice-sub">A new collection, a festive offer, a rate drop — sent as a personalised WhatsApp message, one client at a time.</div>
       </div>
+      <button id="broadcastBtn" class="pub-btn" style="margin:0;width:auto;padding:.7rem 1rem;font-size:12.5px">Compose</button>
     </div>
 
     <!-- ═══ PHASE 8: LOYALTY (only when something is actionable) ═══ -->
     <div class="card" id="loyaltyCard" style="display:none">
-      <div class="card-title">💝 Loyalty moments</div>
+      <div class="card-title">Loyalty moments</div>
       <div id="loySections"></div>
     </div>
 
@@ -536,7 +803,7 @@
   <!-- ════════ BILLS (Phase 3 — live) ════════ -->
   <section class="screen" id="scr-bills">
     <div class="card hero">
-      <div class="card-title">🧾 Sales</div>
+      <div class="card-title">Sales</div>
       <div class="stat-row">
         <div class="stat"><div class="v" id="billToday">₹0</div><div class="l">Today</div></div>
         <div class="stat"><div class="v" id="billMonth">₹0</div><div class="l">This month</div></div>
@@ -558,7 +825,7 @@
   <section class="screen" id="scr-reports">
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">
       <button onclick="goHome()" style="background:rgba(255,255,255,.06);border:1px solid var(--acc-border);color:var(--text);width:34px;height:34px;border-radius:9px;font-size:16px;cursor:pointer">←</button>
-      <h2 style="margin:0;font-size:1.15rem;font-weight:700">📊 Reports</h2>
+      <h2 class="serif" style="margin:0;font-size:1.7rem;font-weight:400;letter-spacing:-.015em">Reports</h2>
     </div>
 
     <div class="card">
@@ -577,24 +844,24 @@
     </div>
 
     <div class="card">
-      <div class="card-title">🏆 Top customers</div>
+      <div class="card-title">Top customers</div>
       <div id="repCustomers"><div class="muted" style="font-size:12px">No sales yet.</div></div>
     </div>
 
     <div class="card">
-      <div class="card-title">💎 Best-selling items</div>
+      <div class="card-title">Best sellers</div>
       <div id="repItems"><div class="muted" style="font-size:12px">No sales yet.</div></div>
     </div>
 
     <!-- ─────────── PHASE 6: ADVANCED ANALYTICS ─────────── -->
     <div style="display:flex;align-items:center;gap:.5rem;margin:1.5rem 0 .6rem">
-      <h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--acc)">📈 Advanced analytics</h3>
+      <h3 class="eyebrow" style="margin:0">Advanced analytics</h3>
       <div style="flex:1;height:1px;background:var(--acc-border)"></div>
     </div>
 
     <!-- This-month vs last-month comparison -->
     <div class="card">
-      <div class="card-title">📅 This month vs last</div>
+      <div class="card-title">Month over month</div>
       <div class="stat-row">
         <div class="stat">
           <div class="v" id="anaCurRev">—</div>
@@ -617,7 +884,7 @@
 
     <!-- Gross profit / margin -->
     <div class="card">
-      <div class="card-title">💰 Gross profit & margin <span class="muted" style="font-size:11px;font-weight:400">(all-time)</span></div>
+      <div class="card-title">Gross profit &amp; margin <span class="muted" style="font-size:11px;font-weight:400">(all-time)</span></div>
       <div class="cb-row"><span>Total revenue</span><span id="anaRev">—</span></div>
       <div class="cb-row"><span>Cost of items sold</span><span id="anaCost">—</span></div>
       <div class="cb-row cb-total" style="border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;padding-top:.55rem">
@@ -631,13 +898,13 @@
 
     <!-- Fast-movers (last 30 days) -->
     <div class="card">
-      <div class="card-title">⚡ Fastest-moving items <span class="muted" style="font-size:11px;font-weight:400">(last 30 days)</span></div>
+      <div class="card-title">Fastest movers <span class="muted" style="font-size:11px;font-weight:400">(last 30 days)</span></div>
       <div id="anaFastMovers"><div class="muted" style="font-size:12px">Sell linked stock items to see what's moving.</div></div>
     </div>
 
     <!-- Customer lifetime value -->
     <div class="card">
-      <div class="card-title">👑 Customer lifetime value <span class="muted" style="font-size:11px;font-weight:400">(saved customers)</span></div>
+      <div class="card-title">Client lifetime value <span class="muted" style="font-size:11px;font-weight:400">(saved clients)</span></div>
       <div id="anaLtv"><div class="muted" style="font-size:12px">Save customers when billing to see lifetime spend here.</div></div>
     </div>
   </section>
@@ -690,12 +957,12 @@
 
   <!-- ════════ BOTTOM NAV ════════ -->
   <nav class="tabbar">
-    <button class="tab active" data-scr="home"><span class="ic">🏠</span>Home</button>
-    <button class="tab" data-scr="rates"><span class="ic">💰</span>Rates</button>
-    <button class="tab" data-scr="stock"><span class="ic">📦</span>Stock</button>
-    <button class="tab" data-scr="cust"><span class="ic">👥</span>Customers</button>
-    <button class="tab" data-scr="bills"><span class="ic">🧾</span>Bills</button>
-    <button class="tab" data-scr="reports"><span class="ic">📊</span>Reports</button>
+    <button class="tab active" data-scr="home"><svg class="ic"><use href="#i-home"/></svg>Home</button>
+    <button class="tab" data-scr="rates"><svg class="ic"><use href="#i-coin"/></svg>Rates</button>
+    <button class="tab" data-scr="stock"><svg class="ic"><use href="#i-box"/></svg>Stock</button>
+    <button class="tab" data-scr="cust"><svg class="ic"><use href="#i-users"/></svg>Clients</button>
+    <button class="tab" data-scr="bills"><svg class="ic"><use href="#i-scroll"/></svg>Bills</button>
+    <button class="tab" data-scr="reports"><svg class="ic"><use href="#i-chart"/></svg>Reports</button>
   </nav>
 
   <script src="/config.js?v=5"></script>
@@ -1481,7 +1748,7 @@
       e.preventDefault();
       deferredPrompt = e;
       installBtn.style.display  = 'inline-block';
-      installCard.style.display = 'block';
+      installCard.style.display = 'flex';
     });
 
     async function doInstall() {
@@ -1541,15 +1808,15 @@
         const hasDemo = [...inv, ...custs].some(r => (r.name||'').startsWith('[Demo]'))
                      || salesArr.some(s => (s.description||'').startsWith('[Demo]') || (s.customer_name||'').startsWith('[Demo]'));
         if (total === 0) {
-          demoCard.style.display = 'block';
+          demoCard.style.display = 'flex';
           demoClearWrap.style.display = 'none';
         } else if (hasDemo) {
-          demoCard.style.display = 'block';
+          demoCard.style.display = 'flex';
           // Switch the card into "you already loaded demo data" mode.
-          demoCard.querySelector('[style*="font-weight:700"]').textContent = 'Demo data loaded';
-          demoCard.querySelector('.muted').textContent = 'You can edit or delete these like any other entry. Or clear them all in one tap below.';
+          demoCard.querySelector('.notice-lede').textContent = 'Sample data loaded';
+          demoCard.querySelector('.notice-sub').textContent  = 'Edit or delete these like any other entry — or clear them all in one tap below.';
           document.getElementById('demoLoadBtn').style.display = 'none';
-          demoClearWrap.style.display = 'block';
+          demoClearWrap.style.display = 'inline';
         } else {
           demoCard.style.display = 'none';
         }
