@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&display=swap" />
   <style>
     /* ══════════════════════════════════════════════════════════
        DESIGN SYSTEM  (a proper one — no gradients, no emoji chrome)
@@ -31,26 +31,31 @@
        ══════════════════════════════════════════════════════════ */
     :root {
       --nav-h: 68px;
-      --f-serif: 'Fraunces', 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-      --f-sans:  'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', Segoe UI, sans-serif;
-      --f-mono:  ui-monospace, 'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace;
+      /* Fraunces stays as the display / hero serif; DM Sans is the
+         workhorse for UI + numbers, matching the public site's
+         editorial-paper vocabulary. */
+      --f-serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+      --f-sans:  'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      --f-mono:  'DM Mono', ui-monospace, Menlo, Consolas, monospace;
 
-      /* Warm-ink palette (dark) — no navy, no neon */
-      --ink:        #0D0C0B;
-      --ink-elev:   #171612;
-      --ink-elev-2: #201E19;
-      --paper:      #F1EBDD;
-      --paper-mute: #97918A;
-      --paper-soft: #B8B2A5;
-      --ochre:      #B08633;
-      --ochre-soft: #C89F55;
-      --ochre-line: rgba(176, 134, 51, 0.32);
-      --rule:       rgba(241, 235, 221, 0.09);
-      --rule-strong:rgba(241, 235, 221, 0.18);
-      --sage:       #7A9070;   /* verified / paid */
-      --sanguine:   #A74A34;   /* danger / low stock */
+      /* Editorial-paper palette (light). Ivory page, white cards,
+         near-black text, muted bronze accent — the same tokens the
+         public pages already use (from style.css). */
+      --ink:        #F5F2EA;   /* PAGE background — warm ivory */
+      --ink-elev:   #FFFFFF;   /* card surface */
+      --ink-elev-2: #FBF7EE;   /* subtle hover / secondary panel */
+      --paper:      #1A1815;   /* primary text — near-black */
+      --paper-mute: #6B6864;   /* secondary text */
+      --paper-soft: #4A4740;
+      --ochre:      #A07C3B;   /* quiet bronze-gold */
+      --ochre-soft: #B6923F;
+      --ochre-line: rgba(160, 124, 59, 0.28);
+      --rule:       rgba(26, 24, 21, 0.09);
+      --rule-strong:rgba(26, 24, 21, 0.18);
+      --sage:       #4A7A3B;   /* verified / paid */
+      --sanguine:   #A44A3A;   /* danger / low stock */
 
-      /* Legacy variable names kept for components not yet migrated */
+      /* Legacy variable aliases so pre-Phase-13 components keep working */
       --bg: var(--ink);
       --card: var(--ink-elev);
       --acc: var(--ochre);
@@ -106,7 +111,7 @@
     .app-top {
       position: sticky; top: 0; z-index: 50;
       padding: calc(env(safe-area-inset-top) + .75rem) 1.15rem .7rem;
-      background: rgba(13, 12, 11, 0.82);
+      background: rgba(245, 242, 234, 0.86);
       backdrop-filter: saturate(140%) blur(14px);
       -webkit-backdrop-filter: saturate(140%) blur(14px);
       border-bottom: 1px solid var(--ochre-line);
@@ -170,14 +175,14 @@
     .toast {
       position: fixed; left: 50%; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 12px);
       transform: translateX(-50%);
-      background: rgba(20,20,30,.96); color:#fff; padding:.7rem 1.1rem;
-      border-radius:10px; font-size:13px; font-weight:500;
-      border:1px solid var(--acc-border); box-shadow:0 8px 24px rgba(0,0,0,.4);
+      background: var(--paper); color: var(--ink); padding:.7rem 1.1rem;
+      border-radius:6px; font-size:13px; font-weight:500;
+      border:1px solid var(--rule-strong); box-shadow:0 12px 32px -10px rgba(26,24,21,.28);
       z-index:80; max-width:90%; text-align:center;
       opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease;
     }
     .toast.show { opacity:1; transform: translateX(-50%) translateY(-4px); }
-    .toast.err { background: rgba(120,30,30,.96); border-color:rgba(239,68,68,.5); }
+    .toast.err  { background: var(--sanguine); color: #FFF; border-color: var(--sanguine); }
 
     /* ── Welcome tour (Phase 7) — full-screen overlay shown once,
        on first login. Uses a stack of 5 cards. Dismissed sets
@@ -200,7 +205,7 @@
     .tour-card h3 { margin:0 0 .5rem; font-size:1.2rem; font-weight:700; text-align:center; }
     .tour-card p  { margin:0; color: var(--muted); font-size:13.5px; text-align:center; line-height:1.55; }
     .tour-dots { display:flex; justify-content:center; gap:.35rem; margin:1.2rem 0 1rem; }
-    .tour-dots span { width:7px; height:7px; border-radius:50%; background: rgba(255,255,255,.15); }
+    .tour-dots span { width:7px; height:7px; border-radius:50%; background: var(--rule-strong); }
     .tour-dots span.on { background: var(--acc); width:22px; border-radius:4px; }
     .tour-btns { display:flex; gap:.6rem; }
     .tour-btns button { flex:1; padding:.75rem; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer; border:0; }
@@ -210,7 +215,7 @@
     /* Skeleton placeholder lines — replace the empty-blank flash
        between a tab opening and its data arriving. */
     .skel-row { display:flex; gap:.6rem; padding:.55rem 0; align-items:center; }
-    .skel { background:linear-gradient(90deg,rgba(255,255,255,.05) 0,rgba(255,255,255,.12) 50%,rgba(255,255,255,.05) 100%);
+    .skel { background:linear-gradient(90deg,rgba(26,24,21,.05) 0,rgba(26,24,21,.11) 50%,rgba(26,24,21,.05) 100%);
             background-size:200% 100%; border-radius:6px; animation:skel 1.2s linear infinite; }
     .skel.line { height:12px; flex:1; }
     .skel.box  { height:36px; width:36px; border-radius:8px; }
@@ -270,7 +275,7 @@
       height: calc(var(--nav-h) + env(safe-area-inset-bottom));
       padding-bottom: env(safe-area-inset-bottom);
       display: grid; grid-template-columns: repeat(6, 1fr);
-      background: rgba(13, 12, 11, 0.92);
+      background: rgba(245, 242, 234, 0.94);
       backdrop-filter: saturate(150%) blur(20px);
       -webkit-backdrop-filter: saturate(150%) blur(20px);
       border-top: 1px solid var(--ochre-line);
@@ -393,18 +398,18 @@
 
     /* ── Rate inputs (ported) ── */
     .rate-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin-bottom:.9rem; }
-    .rate-field { background: rgba(0,0,0,.25); border:1px solid var(--acc-border); border-radius:12px; padding:.8rem .9rem; }
+    .rate-field { background: var(--ink-elev-2); border:1px solid var(--acc-border); border-radius:12px; padding:.8rem .9rem; }
     .rate-field.focused { border-color: var(--acc); }
     .rate-field .kl { font-size:10.5px; font-weight:700; color:var(--acc); letter-spacing:.5px; text-transform:uppercase; }
     .rate-field .ks { font-size:9.5px; color:var(--muted); margin-top:1px; }
     .rate-field .ir { display:flex; align-items:baseline; gap:.15rem; margin-top:.35rem; }
     .rate-field .rs { font-size:1.4rem; color:var(--muted); }
     .rate-field input { width:100%; background:transparent; border:0; color:var(--text); font-size:1.6rem; font-weight:700; padding:0; outline:none; }
-    .rate-field input::placeholder { color: rgba(255,255,255,.15); }
+    .rate-field input::placeholder { color: var(--rule-strong); }
     .rate-field .gl { font-size:11px; color:var(--muted); }
     .making { display:flex; align-items:center; gap:.6rem; margin-top:.2rem; }
     .making label { font-size:12px; color:var(--muted); flex:1; }
-    .making input { width:84px; background:rgba(0,0,0,.25); border:1px solid var(--acc-border); color:var(--text); padding:.45rem .6rem; border-radius:6px; font-size:14px; text-align:right; }
+    .making input { width:84px; background:var(--ink-elev-2); border:1px solid var(--acc-border); color:var(--text); padding:.45rem .6rem; border-radius:6px; font-size:14px; text-align:right; }
     /* Primary CTA — solid ochre, no glow, no bold. Restrained. */
     .pub-btn {
       width: 100%;
@@ -431,7 +436,7 @@
     .msg.ok  { background:rgba(34,197,94,.1); color:#4ade80; display:block; }
 
     /* ── Feed ── */
-    .feed-item { display:flex; gap:.7rem; padding:.6rem 0; border-bottom:1px solid rgba(255,255,255,.05); font-size:13px; }
+    .feed-item { display:flex; gap:.7rem; padding:.6rem 0; border-bottom:1px solid var(--rule); font-size:13px; }
     .feed-item:last-child { border-bottom:0; }
     .feed-item .fic { font-size:18px; }
     .feed-item .ft  { color:var(--muted); font-size:11px; }
@@ -447,7 +452,7 @@
     /* ── Inventory item cards ── */
     .item { display:flex; gap:.8rem; align-items:center; background:var(--card); border:1px solid var(--acc-border); border-radius:14px; padding:.7rem; margin-bottom:.6rem; cursor:pointer; }
     .item:active { transform: scale(.99); }
-    .item-photo { width:54px; height:54px; border-radius:10px; background:rgba(255,255,255,.05) center/cover; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
+    .item-photo { width:54px; height:54px; border-radius:10px; background:var(--rule) center/cover; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0; }
     .item-info { flex:1; min-width:0; }
     .item-name { font-weight:600; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .item-meta { color:var(--muted); font-size:11.5px; margin-top:2px; }
@@ -466,16 +471,16 @@
     .sheet-x { background:none; border:0; color:var(--muted); font-size:1.7rem; line-height:1; cursor:pointer; padding:0 .3rem; }
     .if { margin-bottom:.8rem; }
     .if label { display:block; font-size:11px; color:var(--muted); margin-bottom:.25rem; text-transform:uppercase; letter-spacing:.4px; }
-    .if input, .if select { width:100%; box-sizing:border-box; background:rgba(0,0,0,.25); border:1px solid var(--acc-border); color:var(--text); padding:.7rem .8rem; border-radius:9px; font-size:15px; }
+    .if input, .if select { width:100%; box-sizing:border-box; background:var(--ink-elev-2); border:1px solid var(--acc-border); color:var(--text); padding:.7rem .8rem; border-radius:9px; font-size:15px; }
     .if input:focus, .if select:focus { outline:none; border-color:var(--acc); }
     .if-row { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
     .del-btn { width:100%; background:rgba(239,68,68,.1); color:#f87171; border:1px solid rgba(239,68,68,.3); padding:.8rem; border-radius:10px; font-weight:600; font-size:14px; cursor:pointer; margin-top:.6rem; }
 
     /* ── Sale breakdown box ── */
-    .calc-box { background:rgba(0,0,0,.25); border:1px solid var(--acc-border); border-radius:10px; padding:.7rem .9rem; margin-top:.6rem; }
+    .calc-box { background:var(--ink-elev-2); border:1px solid var(--acc-border); border-radius:10px; padding:.7rem .9rem; margin-top:.6rem; }
     .cb-row { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); padding:.22rem 0; }
     .cb-row span:last-child { color:var(--text); font-weight:600; }
-    .cb-row.cb-total { border-top:1px solid rgba(255,255,255,.08); margin-top:.3rem; padding-top:.55rem; font-size:1.05rem; }
+    .cb-row.cb-total { border-top:1px solid var(--rule-strong); margin-top:.3rem; padding-top:.55rem; font-size:1.05rem; }
     .cb-row.cb-total span { color:var(--acc); font-weight:800; }
     .cb-row.cb-total span:first-child { color:var(--text); }
 
@@ -633,7 +638,7 @@
       <div class="ring-wrap">
         <div class="ring">
           <svg width="56" height="56" viewBox="0 0 56 56">
-            <circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.08)" stroke-width="5" fill="none"/>
+            <circle cx="28" cy="28" r="23" stroke="var(--rule-strong)" stroke-width="5" fill="none"/>
             <circle id="ringArc" cx="28" cy="28" r="23" stroke="#D4AF37" stroke-width="5" fill="none"
                     stroke-dasharray="144.5" stroke-dashoffset="144.5" stroke-linecap="round"/>
           </svg>
@@ -709,7 +714,7 @@
     </div>
 
     <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
-      <input id="stockSearch" placeholder="🔍 Search items…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
+      <input id="stockSearch" placeholder="🔍 Search items…" style="flex:1;background:var(--ink-elev-2);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
       <button id="openPurchasesBtn" class="chip-btn chip-btn--ochre" style="padding:.55rem .9rem">Purchases</button>
       <button class="pub-btn" id="addItemBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
     </div>
@@ -782,7 +787,7 @@
     </div>
 
     <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
-      <input id="custSearch" placeholder="🔍 Search name or phone…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
+      <input id="custSearch" placeholder="🔍 Search name or phone…" style="flex:1;background:var(--ink-elev-2);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
       <button class="pub-btn" id="addCustBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
     </div>
 
@@ -804,7 +809,7 @@
 
       <div class="if">
         <label>Send to</label>
-        <select id="bcastSeg" style="width:100%;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
+        <select id="bcastSeg" style="width:100%;background:var(--ink-elev-2);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
           <option value="all">All customers</option>
           <option value="vip">VIP customers (3+ bills)</option>
           <option value="inactive">Inactive (90+ days since last bill)</option>
@@ -814,7 +819,7 @@
 
       <div class="if">
         <label>Template</label>
-        <select id="bcastTpl" style="width:100%;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
+        <select id="bcastTpl" style="width:100%;background:var(--ink-elev-2);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px">
           <option value="new_collection">📦 New collection</option>
           <option value="festive">🎉 Festive offer</option>
           <option value="rate_drop">💰 Rate drop alert</option>
@@ -824,7 +829,7 @@
 
       <div class="if">
         <label>Message preview</label>
-        <textarea id="bcastMsg" rows="6" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px;font-family:inherit;line-height:1.5"></textarea>
+        <textarea id="bcastMsg" rows="6" style="width:100%;box-sizing:border-box;background:var(--ink-elev-2);border:1px solid var(--acc-border);color:var(--text);padding:.7rem .8rem;border-radius:10px;font-size:14px;font-family:inherit;line-height:1.5"></textarea>
         <div class="muted" style="font-size:11px;margin-top:.3rem">Tip: <code>{name}</code> is replaced with each customer's name.</div>
       </div>
 
@@ -887,7 +892,7 @@
   <!-- ════════ REPORTS (Phase 4) — reached from Home ════════ -->
   <section class="screen" id="scr-reports">
     <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">
-      <button onclick="goHome()" style="background:rgba(255,255,255,.06);border:1px solid var(--acc-border);color:var(--text);width:34px;height:34px;border-radius:9px;font-size:16px;cursor:pointer">←</button>
+      <button onclick="goHome()" style="background:var(--rule);border:1px solid var(--acc-border);color:var(--text);width:34px;height:34px;border-radius:9px;font-size:16px;cursor:pointer">←</button>
       <h2 class="serif" style="margin:0;font-size:1.7rem;font-weight:400;letter-spacing:-.015em">Reports</h2>
     </div>
 
@@ -902,7 +907,7 @@
       <div class="cb-row"><span>Taxable value</span><span id="repTaxable">—</span></div>
       <div class="cb-row"><span>CGST collected</span><span id="repCgst">—</span></div>
       <div class="cb-row"><span>SGST collected</span><span id="repSgst">—</span></div>
-      <div class="cb-row cb-total" style="border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;padding-top:.55rem"><span>Total GST</span><span id="repGst">—</span></div>
+      <div class="cb-row cb-total" style="border-top:1px solid var(--rule-strong);margin-top:.3rem;padding-top:.55rem"><span>Total GST</span><span id="repGst">—</span></div>
       <div class="cb-row" style="margin-top:.4rem"><span>Gross sales</span><span id="repGross">—</span></div>
     </div>
 
@@ -950,7 +955,7 @@
       <div class="card-title">Gross profit &amp; margin <span class="muted" style="font-size:11px;font-weight:400">(all-time)</span></div>
       <div class="cb-row"><span>Total revenue</span><span id="anaRev">—</span></div>
       <div class="cb-row"><span>Cost of items sold</span><span id="anaCost">—</span></div>
-      <div class="cb-row cb-total" style="border-top:1px solid rgba(255,255,255,.08);margin-top:.3rem;padding-top:.55rem">
+      <div class="cb-row cb-total" style="border-top:1px solid var(--rule-strong);margin-top:.3rem;padding-top:.55rem">
         <span>Gross profit</span><span id="anaProf">—</span>
       </div>
       <div class="cb-row" style="margin-top:.4rem">
@@ -1846,7 +1851,7 @@
         chart.innerHTML = d.daily.map(x => {
           const h = Math.round((x.total/max)*130);
           const tip = `${x.day}: ${fmt(x.total)}`;
-          return `<div title="${tip}" style="flex:1;background:${x.total?'var(--acc)':'rgba(255,255,255,.06)'};height:${Math.max(2,h)}px;border-radius:2px 2px 0 0;min-width:0"></div>`;
+          return `<div title="${tip}" style="flex:1;background:${x.total?'var(--acc)':'var(--rule)'};height:${Math.max(2,h)}px;border-radius:2px 2px 0 0;min-width:0"></div>`;
         }).join('');
         const totalMonth = d.daily.reduce((s,x)=>s+x.total,0);
         const cnt = d.daily.reduce((s,x)=>s+x.count,0);
