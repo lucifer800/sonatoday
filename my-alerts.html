@@ -1,70 +1,198 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <meta http-equiv="Cache-Control" content="no-store" />
-  <title>Manage My Price Alerts — Ahmedabad Gold & Silver Rates</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta name="theme-color" content="#f5f2ea">
+  <title>Manage your price alerts — Ahmedabad Gold</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <style>
-    .ma-wrap   { max-width: 720px; margin: 2.5rem auto; padding: 0 1rem; }
-    .ma-back   { color: var(--acc); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 1rem; }
-    .ma-card   { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.25rem; }
-    .ma-title  { font-size: 1.4rem; font-weight: 700; margin: 0 0 .35rem; }
-    .ma-sub    { color: var(--muted); font-size: 13px; margin: 0 0 1.25rem; }
-    .ma-form   { display: flex; gap: .5rem; flex-wrap: wrap; }
-    .ma-form input { flex: 1; min-width: 200px; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .75rem .85rem; border-radius: 8px; font-size: 14px; }
-    .ma-form input:focus { outline: none; border-color: var(--acc); }
-    .ma-form button { background: var(--acc); color: #000; border: 0; padding: .75rem 1.4rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .ma-form button:hover { filter: brightness(1.1); }
-    .ma-form button:disabled { opacity: .5; cursor: not-allowed; }
-    .ma-msg    { margin-top: 1rem; padding: .65rem .85rem; border-radius: 8px; font-size: 13px; display: none; }
-    .ma-msg.err { background: rgba(239,68,68,0.1); color: #f87171; display: block; }
-    .ma-msg.ok  { background: rgba(34,197,94,0.1); color: #4ade80; display: block; }
-    .ma-alert  { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; border: 1px solid var(--acc-border); border-radius: 12px; margin-bottom: .75rem; background: rgba(255,255,255,0.02); flex-wrap: wrap; }
-    .ma-alert.inactive { opacity: .5; }
-    .ma-alert-info { flex: 1; min-width: 220px; }
-    .ma-alert-jeweller { font-weight: 600; font-size: 14px; margin-bottom: .25rem; }
-    .ma-alert-detail { font-size: 12px; color: var(--muted); }
-    .ma-tag-on  { background: rgba(34,197,94,0.15); color: #4ade80;  font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
-    .ma-tag-off { background: rgba(160,168,184,0.15); color: var(--muted); font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 600; }
-    .ma-cancel { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.3); padding: .5rem 1rem; border-radius: 8px; font-size: 12px; cursor: pointer; font-weight: 600; }
-    .ma-cancel:hover { background: rgba(239,68,68,0.2); }
+    .ma-wrap { max-width: 900px; margin: 0 auto; padding: 0 3.5% 4rem; }
+    .ma-crumb { padding: 24px 0 12px; font-size: 12px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; font-weight: 500; }
+    .ma-crumb a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+    .ma-crumb a:hover { color: var(--acc); border-color: var(--acc); }
+
+    .ma-hero { padding: 20px 0 44px; border-bottom: 1px solid var(--acc-border); }
+    .ma-hero .eyebrow { font-size: 11px; letter-spacing: .34em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 14px; }
+    .ma-title { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 52px; line-height: 1.04; letter-spacing: -.03em; color: var(--white); }
+    .ma-title em { font-style: italic; color: var(--acc); font-weight: 400; }
+    .ma-sub { color: var(--muted); font-size: 15px; line-height: 1.65; margin: 24px 0 0; max-width: 520px; }
+
+    .ma-section {
+      padding: 44px 0 24px;
+      display: grid; grid-template-columns: 1fr 2fr; gap: 3rem; align-items: start;
+      border-bottom: 1px solid var(--acc-border);
+    }
+    @media (max-width: 720px) { .ma-section { grid-template-columns: 1fr; gap: 1.25rem; } .ma-title { font-size: 36px; } }
+    .ma-section-hd .num { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 10px; }
+    .ma-section-hd h2 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 28px; letter-spacing: -.02em; color: var(--white); line-height: 1.1; }
+    .ma-section-hd p { margin: 14px 0 0; font-size: 13.5px; line-height: 1.65; color: var(--muted); max-width: 320px; }
+
+    .ma-form { display: flex; gap: 8px; flex-wrap: wrap; }
+    .ma-form input {
+      flex: 1; min-width: 200px;
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: 12px 16px; border-radius: 3px; font-size: 14px; font-family: inherit;
+    }
+    .ma-form input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(160,124,59,.12); }
+    .ma-form button {
+      background: var(--white); color: var(--navy2); border: 0; padding: 12px 26px;
+      border-radius: 3px; font-weight: 500; font-size: 13.5px; letter-spacing: .04em; cursor: pointer; transition: background .15s;
+    }
+    .ma-form button:hover { background: #000; }
+    .ma-form button:disabled { opacity: .5; cursor: not-allowed; background: var(--muted); }
+
+    .ma-msg { margin-top: 14px; padding: 10px 14px; border-radius: 3px; font-size: 13px; display: none; }
+    .ma-msg.err { background: rgba(164,74,58,.08); color: var(--red); border: 1px solid rgba(164,74,58,.24); display: block; }
+    .ma-msg.ok { background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24); display: block; }
+
+    .ma-list-hd { padding: 44px 0 20px; display: flex; justify-content: space-between; align-items: baseline; }
+    .ma-list-hd h3 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 26px; letter-spacing: -.02em; color: var(--white); }
+    .ma-list-hd .count { font-size: 12.5px; color: var(--muted); letter-spacing: .04em; }
+
+    .ma-alert {
+      display: flex; justify-content: space-between; align-items: center; gap: 20px;
+      padding: 22px 26px; margin-bottom: 0;
+      background: var(--navy2); border: 1px solid var(--acc-border); border-bottom: none;
+      flex-wrap: wrap;
+    }
+    .ma-alert:first-of-type { border-top: 1px solid var(--white); }
+    .ma-alert:last-of-type { border-bottom: 1px solid var(--acc-border); }
+    .ma-alert.inactive { opacity: .55; background: transparent; }
+    .ma-alert.triggered { background: linear-gradient(90deg, rgba(74,122,59,.06), transparent 50%); border-left: 2px solid var(--green); }
+    .ma-alert-info { flex: 1; min-width: 240px; }
+    .ma-alert-jeweller {
+      font-weight: 600; font-size: 15px; margin-bottom: 6px; color: var(--white);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .ma-alert-detail { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+    .ma-alert-detail strong { color: var(--white); font-weight: 500; }
+    .ma-tag-on {
+      background: rgba(160,124,59,.08); color: var(--acc); border: 1px solid rgba(160,124,59,.28);
+      font-size: 9.5px; padding: 2px 8px; border-radius: 3px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    }
+    .ma-tag-off {
+      background: transparent; color: var(--muted); border: 1px solid var(--acc-border);
+      font-size: 9.5px; padding: 2px 8px; border-radius: 3px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    }
+    .ma-cancel {
+      background: transparent; color: var(--red); border: 1px solid rgba(164,74,58,.28);
+      padding: 8px 16px; border-radius: 3px; font-size: 12px; cursor: pointer; font-weight: 500;
+      transition: background .15s, border-color .15s;
+    }
+    .ma-cancel:hover { background: rgba(164,74,58,.08); border-color: var(--red); }
     .ma-cancel:disabled { opacity: .5; cursor: not-allowed; }
-    .ma-empty { color: var(--muted); font-size: 13px; font-style: italic; text-align: center; padding: 1.5rem; }
+
+    .ma-empty {
+      color: var(--muted); font-size: 14px; text-align: center; padding: 3rem 1rem;
+      border: 1px dashed var(--acc-border); border-radius: 4px; background: var(--navy2);
+    }
+    .ma-empty a { color: var(--acc); border-bottom: 1px solid var(--acc); padding-bottom: 1px; text-decoration: none; }
+
+    /* Trust promise */
+    .ma-trust {
+      padding: 56px 0 0;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+      border-top: 1px solid var(--acc-border);
+    }
+    @media (max-width: 720px) { .ma-trust { grid-template-columns: 1fr; } }
+    .ma-trust-col { padding: 0 2rem; border-left: 1px solid var(--acc-border); }
+    .ma-trust-col:first-child { padding-left: 0; border-left: none; }
+    .ma-trust-col:last-child { padding-right: 0; }
+    @media (max-width: 720px) { .ma-trust-col { padding: 1.5rem 0; border-left: none; border-top: 1px solid var(--acc-border); } .ma-trust-col:first-child { border-top: none; padding-top: 0; } }
+    .ma-trust-num { font-family: var(--fh); font-size: 36px; font-weight: 400; color: var(--acc); line-height: 1; letter-spacing: -.02em; }
+    .ma-trust-h { margin: 16px 0 8px; font-size: 15.5px; font-weight: 600; color: var(--white); }
+    .ma-trust-p { margin: 0; font-size: 13px; line-height: 1.65; color: var(--muted); }
   </style>
 </head>
 <body>
+  <header class="ed-header">
+    <div class="ed-header-inner">
+      <a href="index.html" class="ed-brand" style="text-decoration:none;color:inherit">
+        <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+        <div class="ed-brand-sub">The honest table · Live MCX</div>
+      </a>
+      <nav class="ed-nav">
+        <a href="index.html" class="ed-nav-link">Rates</a>
+        <a href="compare.html" class="ed-nav-link">Compare</a>
+        <a href="index.html#trust" class="ed-nav-link">Jewellers</a>
+        <a href="my-alerts.html" class="ed-nav-link ed-nav-active">Alerts</a>
+      </nav>
+      <div class="ed-header-r">
+        <span class="ed-live"><span class="live-dot"></span><span class="live-lbl">Live</span></span>
+        <a class="btn btn-sm" href="jeweller-login.html">Jeweller sign in</a>
+      </div>
+    </div>
+  </header>
+
   <div class="ma-wrap">
-    <a class="ma-back" href="index.html">← Back to dashboard</a>
+    <div class="ma-crumb"><a href="index.html">RATES</a> &nbsp;→&nbsp; <span style="color:var(--white)">MY ALERTS</span></div>
 
-    <div class="ma-card">
-      <h1 class="ma-title">🔔 Manage your price alerts</h1>
-      <p class="ma-sub">Enter the email you used when subscribing to see and cancel your alerts.</p>
-
-      <form id="lookupForm" class="ma-form">
-        <input id="email" type="email" placeholder="you@example.com" required />
-        <button type="submit" id="lookupBtn">Show my alerts</button>
-      </form>
-
-      <div id="msg" class="ma-msg"></div>
+    <div class="ma-hero">
+      <div class="eyebrow">A QUIET WAY TO WAIT</div>
+      <h1 class="ma-title">Tell us the number.<br>We'll tell you the <em>day.</em></h1>
+      <p class="ma-sub">Set a rate that feels fair. We'll send one quiet email — never more — the day the market meets your target. No account required, unsubscribe with a click.</p>
     </div>
 
-    <div id="alertsCard" class="ma-card" style="display:none">
-      <h3 style="margin:0 0 1rem;font-size:1.1rem;font-weight:600">Your alerts</h3>
+    <div class="ma-section">
+      <div class="ma-section-hd">
+        <div class="num">SECTION 02 · LOOK UP</div>
+        <h2>Enter the email you used.</h2>
+        <p>We'll show every active alert on your address, so you can adjust or cancel them.</p>
+      </div>
+      <div>
+        <form id="lookupForm" class="ma-form">
+          <input id="email" type="email" placeholder="you@email.com" required>
+          <button type="submit" id="lookupBtn">Show my alerts →</button>
+        </form>
+        <div id="msg" class="ma-msg"></div>
+      </div>
+    </div>
+
+    <div id="alertsCard" style="display:none">
+      <div class="ma-list-hd">
+        <h3>Your alerts</h3>
+        <span class="count" id="alertsCount"></span>
+      </div>
       <div id="alertsList"></div>
+    </div>
+
+    <div class="ma-trust">
+      <div class="ma-trust-col">
+        <div class="ma-trust-num">01</div>
+        <h3 class="ma-trust-h">One email, never more</h3>
+        <p class="ma-trust-p">The moment your price is hit. No newsletters, no marketing, no follow-ups.</p>
+      </div>
+      <div class="ma-trust-col">
+        <div class="ma-trust-num">02</div>
+        <h3 class="ma-trust-h">No account needed</h3>
+        <p class="ma-trust-p">Confirm on one link. Cancel with one click. Your email is the only thing we keep.</p>
+      </div>
+      <div class="ma-trust-col">
+        <div class="ma-trust-num">03</div>
+        <h3 class="ma-trust-h">Your email is yours</h3>
+        <p class="ma-trust-p">Kept only until the alert fires. Never sold, never shared, never spammed.</p>
+      </div>
     </div>
   </div>
 
-  <script src="/config.js?v=4"></script>
+  <div class="foot ed-foot" style="margin-top:4rem">
+    <div class="ed-foot-l">© 2026 Ahmedabad Gold · Ratanpole, Ahmedabad</div>
+    <div class="ed-foot-c">An honest place for honest gold.</div>
+    <div class="ed-foot-r"><a href="jeweller-login.html">Jeweller? Update your rates →</a></div>
+  </div>
+
+  <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
-
     const form   = document.getElementById('lookupForm');
     const btn    = document.getElementById('lookupBtn');
     const msg    = document.getElementById('msg');
     const card   = document.getElementById('alertsCard');
     const list   = document.getElementById('alertsList');
+    const count  = document.getElementById('alertsCount');
 
     function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 
@@ -87,68 +215,57 @@
 
     function renderAlerts(rows, email) {
       card.style.display = 'block';
+      count.textContent = rows.length ? `${rows.filter(r => r.active).length} active · ${rows.length} total` : '';
       if (!rows.length) {
-        list.innerHTML = `<div class="ma-empty">No alerts found for <strong>${email}</strong>. <a href="index.html" style="color:var(--acc)">Set one up →</a></div>`;
+        list.innerHTML = `<div class="ma-empty">No alerts found for <strong style="color:var(--white)">${email}</strong>. <a href="index.html">Set one up →</a></div>`;
         return;
       }
-
       list.innerHTML = rows.map(a => `
         <div class="ma-alert ${a.active ? '' : 'inactive'}" data-id="${a.id}">
           <div class="ma-alert-info">
             <div class="ma-alert-jeweller">
-              ${a.jeweller_name || 'Any Ahmedabad Jeweller'}
-              <span class="${a.active ? 'ma-tag-on' : 'ma-tag-off'}" style="margin-left:.4rem">${a.active ? 'ACTIVE' : 'INACTIVE'}</span>
+              ${a.jeweller_name || 'Any Ahmedabad jeweller'}
+              <span class="${a.active ? 'ma-tag-on' : 'ma-tag-off'}">${a.active ? 'Active' : 'Inactive'}</span>
             </div>
             <div class="ma-alert-detail">
               Notify when <strong>${(a.alert_type || '22k').toUpperCase()}</strong> drops to <strong>${fmt(a.threshold_price)}/gram</strong>
-              · created ${new Date(a.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
+              &nbsp;·&nbsp; created ${new Date(a.created_at).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' })}
             </div>
           </div>
-          ${a.active ? `<button class="ma-cancel" onclick="cancelAlert(${a.id})">Cancel alert</button>` : '<span class="ma-alert-detail" style="font-style:italic">Already triggered or cancelled</span>'}
+          ${a.active ? `<button class="ma-cancel" onclick="cancelAlert(${a.id})">Cancel</button>` : '<span class="ma-alert-detail" style="font-style:italic">Already triggered or cancelled</span>'}
         </div>
       `).join('');
     }
 
     async function cancelAlert(id) {
-      if (!confirm('Cancel this price alert? You will stop receiving emails for it.')) return;
+      if (!confirm('Cancel this alert? You will stop receiving emails for it.')) return;
       const row = document.querySelector(`.ma-alert[data-id="${id}"]`);
       const btn = row?.querySelector('.ma-cancel');
       if (btn) { btn.disabled = true; btn.textContent = 'Cancelling…'; }
-
       try {
         const res  = await fetch(`${API_BASE}/api/alerts/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to cancel');
-
-        msg.className   = 'ma-msg ok';
-        msg.textContent = data.message || 'Alert cancelled.';
-        loadAlerts(document.getElementById('email').value.trim());
+        row.classList.add('inactive');
+        const tag = row.querySelector('.ma-tag-on');
+        if (tag) { tag.className = 'ma-tag-off'; tag.textContent = 'Inactive'; }
+        btn.replaceWith(Object.assign(document.createElement('span'), { className: 'ma-alert-detail', style: 'font-style:italic', textContent: 'Cancelled' }));
       } catch (err) {
-        msg.className   = 'ma-msg err';
-        msg.textContent = err.message;
-        if (btn) { btn.disabled = false; btn.textContent = 'Cancel alert'; }
+        alert(err.message);
+        if (btn) { btn.disabled = false; btn.textContent = 'Cancel'; }
       }
     }
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
-      if (!email || !email.includes('@')) {
-        msg.className = 'ma-msg err'; msg.textContent = 'Please enter a valid email.';
-        return;
-      }
-      msg.className = 'ma-msg'; msg.textContent = '';
-      btn.disabled = true; btn.textContent = 'Loading…';
-      loadAlerts(email).finally(() => { btn.disabled = false; btn.textContent = 'Show my alerts'; });
+      if (!email) return;
+      loadAlerts(email);
     });
 
-    // Pre-fill from ?email= so confirmation emails can deep-link here
-    const params = new URLSearchParams(window.location.search);
-    const pre    = params.get('email');
-    if (pre) {
-      document.getElementById('email').value = pre;
-      form.dispatchEvent(new Event('submit'));
-    }
+    // Autofill from URL ?email=
+    const urlEmail = new URLSearchParams(location.search).get('email');
+    if (urlEmail) { document.getElementById('email').value = urlEmail; loadAlerts(urlEmail); }
   </script>
 </body>
 </html>

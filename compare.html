@@ -1,80 +1,140 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f0f1e" />
-  <title>Compare jewellers — SonaToday</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2ea">
+  <title>Compare jewellers — Ahmedabad Gold</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <style>
-    .cmp-wrap   { max-width: 1100px; margin: 1.25rem auto 4rem; padding: 0 1rem; }
-    .cmp-back   { color: var(--muted); text-decoration: none; font-size: 13px; display: inline-block; margin-bottom: 1rem; }
-    .cmp-back:hover { color: var(--acc); }
-    .cmp-head   { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
-    .cmp-head h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
-    .cmp-head .sub { color: var(--muted); font-size: 12px; margin-top: .15rem; }
-    .cmp-controls { display: flex; gap: .5rem; align-items: center; }
-    .cmp-controls input { background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .45rem .7rem; border-radius: 8px; font-size: 13px; width: 80px; }
-    .cmp-controls select { background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .45rem .7rem; border-radius: 8px; font-size: 13px; }
+    .cmp-wrap { max-width: 1180px; margin: 0 auto; padding: 0 3.5% 4rem; }
+    .cmp-crumb { padding: 24px 0 12px; font-size: 12px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; font-weight: 500; }
+    .cmp-crumb a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+    .cmp-crumb a:hover { color: var(--acc); border-color: var(--acc); }
 
-    /* Two-card side-by-side grid (stacks on mobile) */
-    .cmp-grid    { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-    @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } }
-    .cmp-col     { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; overflow: hidden; }
-    .cmp-photo   { height: 140px; background: rgba(255,255,255,0.04) center/cover; border-bottom: 1px solid var(--acc-border); }
-    .cmp-body    { padding: 1.1rem 1.2rem 1.2rem; }
-    .cmp-name    { font-size: 1.15rem; font-weight: 700; margin: 0 0 .15rem; }
-    .cmp-area    { color: var(--muted); font-size: 12px; margin-bottom: .85rem; }
-    .cmp-row     { display: flex; justify-content: space-between; padding: .55rem 0; border-top: 1px solid rgba(255,255,255,0.06); font-size: 14px; }
-    .cmp-row:first-of-type { border-top: 0; }
-    .cmp-row .lbl  { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; }
-    .cmp-row .val  { font-weight: 600; }
-    .cmp-row.win .val   { color: #4ade80; }
-    .cmp-row.win .val::after  { content: ' ✓'; font-size: .85em; }
-    .cmp-row.tie .val   { color: var(--text); }
-    .cmp-row.miss .val  { color: var(--muted); font-style: italic; font-weight: 400; }
-    .cmp-section-head { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 1.25rem 0 .3rem; }
-    .cmp-actions { display: flex; gap: .5rem; margin-top: 1rem; flex-wrap: wrap; }
-    .cmp-actions a { flex: 1; min-width: 100px; text-align: center; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .55rem; border-radius: 8px; text-decoration: none; font-size: 13px; }
-    .cmp-actions a:hover { border-color: var(--acc); color: var(--acc); }
+    .cmp-hero { padding: 24px 0 44px; border-bottom: 1px solid var(--acc-border); display: grid; grid-template-columns: 1.5fr 1fr; gap: 3rem; align-items: end; }
+    .cmp-hero .eyebrow { font-size: 11px; letter-spacing: .34em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 14px; }
+    .cmp-hero h1 { margin: 0; font-weight: 400; font-size: 52px; line-height: 1.04; letter-spacing: -.03em; color: var(--white); }
+    .cmp-hero h1 em { font-style: italic; color: var(--acc); font-weight: 400; }
+    .cmp-controls { display: flex; gap: 12px; align-items: center; justify-content: flex-end; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+    .cmp-controls label { display: inline-flex; align-items: center; gap: 8px; }
+    .cmp-controls input, .cmp-controls select {
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: .5rem .8rem; border-radius: 4px; font-size: 13px; font-family: inherit;
+    }
+    .cmp-controls input { width: 72px; text-align: right; }
+    .cmp-controls input:focus, .cmp-controls select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(160,124,59,.12); }
+    #cmpDate { font-size: 12.5px; color: var(--muted); margin-top: 10px; letter-spacing: .04em; }
 
-    /* Bottom-line summary card */
-    .cmp-summary { margin-top: 1.25rem; padding: 1.1rem 1.25rem; background: linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.03)); border: 1px solid rgba(212,175,55,0.3); border-radius: 14px; }
-    .cmp-summary h3 { margin: 0 0 .35rem; font-size: 1.05rem; font-weight: 700; color: var(--acc); }
-    .cmp-summary p  { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text); }
-    .cmp-summary .bot-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: .85rem; }
-    .cmp-summary .bot-row .stat { background: rgba(0,0,0,0.2); border: 1px solid var(--acc-border); border-radius: 10px; padding: .55rem .8rem; flex: 1; min-width: 140px; }
-    .cmp-summary .stat .stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
-    .cmp-summary .stat .stat-val { font-size: 1.05rem; font-weight: 700; margin-top: .2rem; }
+    /* Two-column comparison grid */
+    .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 40px; border-top: 1px solid var(--white); border-bottom: 1px solid var(--acc-border); }
+    @media (max-width: 760px) { .cmp-grid { grid-template-columns: 1fr; } .cmp-hero { grid-template-columns: 1fr; gap: 1.25rem; } .cmp-hero h1 { font-size: 36px; } }
+    .cmp-col { padding: 32px 32px 26px; border-left: 1px solid var(--acc-border); background: var(--navy2); }
+    .cmp-col:first-child { border-left: none; }
+    .cmp-col-hd { padding-bottom: 22px; border-bottom: 1px solid var(--acc-border); }
+    .cmp-col-num { font-size: 11px; letter-spacing: .28em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 8px; }
+    .cmp-name { font-family: var(--fh); font-weight: 500; font-size: 24px; margin: 0; letter-spacing: -.015em; color: var(--white); }
+    .cmp-area { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .cmp-sym { font-family: var(--fm); font-size: 11.5px; color: var(--acc); margin-left: 8px; letter-spacing: .06em; }
 
-    .cmp-share-btn { width: 100%; background: #25D366; color: #fff; border: 0; padding: .8rem; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: .5rem; }
-    .cmp-share-btn:hover { filter: brightness(1.08); }
+    .cmp-row { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--acc-border); font-size: 14.5px; }
+    .cmp-row .lbl { color: var(--muted); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; font-weight: 500; }
+    .cmp-row .val { font-weight: 500; font-family: var(--fm); font-size: 16px; color: var(--white); }
+    .cmp-row.win .val { color: var(--green); font-weight: 600; }
+    .cmp-row.win .val::after { content: '  ✓'; font-size: .85em; color: var(--green); }
+    .cmp-row.miss .val { color: var(--muted); font-style: italic; font-weight: 400; }
+    .cmp-section-head { font-size: 10.5px; color: var(--acc); text-transform: uppercase; letter-spacing: .3em; font-weight: 500; margin: 22px 0 4px; }
+    .cmp-actions { display: flex; gap: 8px; margin-top: 22px; }
+    .cmp-actions a {
+      flex: 1; text-align: center; padding: 11px; border: 1px solid var(--acc-border);
+      color: var(--white); text-decoration: none; font-size: 12.5px; border-radius: 4px;
+      transition: border-color .2s, color .2s, background .2s;
+    }
+    .cmp-actions a:hover { border-color: var(--acc); color: var(--acc); background: rgba(160,124,59,.04); }
 
-    .cmp-empty { padding: 3rem 1rem; text-align: center; color: var(--muted); }
-    .cmp-empty a { color: var(--acc); text-decoration: none; }
+    /* Bottom-line summary */
+    .cmp-summary {
+      margin-top: 44px; padding: 32px 36px;
+      background: var(--navy3);
+      border-top: 2px solid var(--acc);
+      display: grid; grid-template-columns: 1fr 2fr; gap: 32px; align-items: start;
+    }
+    @media (max-width: 760px) { .cmp-summary { grid-template-columns: 1fr; padding: 26px 22px; } }
+    .cmp-summary-l .eyebrow { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 12px; }
+    .cmp-summary-l h3 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 28px; letter-spacing: -.02em; color: var(--white); }
+    .cmp-summary-r p { margin: 0 0 18px; font-size: 14.5px; line-height: 1.65; color: var(--muted); }
+    .cmp-summary .bot-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; }
+    .cmp-summary .stat { padding: 14px 20px 0 0; border-right: 1px solid var(--acc-border); }
+    .cmp-summary .stat:last-child { border-right: none; padding-right: 0; }
+    .cmp-summary .stat-lbl { font-size: 10.5px; letter-spacing: .22em; color: var(--muted); text-transform: uppercase; font-weight: 500; }
+    .cmp-summary .stat-val { font-family: var(--fh); font-size: 26px; font-weight: 400; margin-top: 8px; letter-spacing: -.015em; color: var(--white); }
+
+    .cmp-share-btn {
+      width: 100%; margin-top: 28px;
+      background: #25D366; color: #fff; border: 0; padding: 14px;
+      border-radius: 4px; font-weight: 500; font-size: 14px; letter-spacing: .04em;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+      transition: filter .15s;
+    }
+    .cmp-share-btn:hover { filter: brightness(.95); }
+
+    .cmp-empty {
+      padding: 5rem 1rem; text-align: center; color: var(--muted);
+      border: 1px dashed var(--acc-border); border-radius: 6px; background: var(--navy2);
+    }
+    .cmp-empty h2 { margin: 0 0 12px; font-family: var(--fh); font-weight: 400; font-size: 26px; color: var(--white); letter-spacing: -.015em; }
+    .cmp-empty a { color: var(--acc); text-decoration: none; border-bottom: 1px solid var(--acc); padding-bottom: 1px; }
   </style>
 </head>
 <body>
-  <div class="cmp-wrap">
-    <a class="cmp-back" href="index.html">← Back to all jewellers</a>
+  <!-- ═══════════════ EDITORIAL HEADER ═══════════════ -->
+  <header class="ed-header">
+    <div class="ed-header-inner">
+      <a href="index.html" class="ed-brand" style="text-decoration:none;color:inherit">
+        <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+        <div class="ed-brand-sub">The honest table · Live MCX</div>
+      </a>
+      <nav class="ed-nav">
+        <a href="index.html" class="ed-nav-link">Rates</a>
+        <a href="compare.html" class="ed-nav-link ed-nav-active">Compare</a>
+        <a href="index.html#trust" class="ed-nav-link">Jewellers</a>
+        <a href="my-alerts.html" class="ed-nav-link">Alerts</a>
+      </nav>
+      <div class="ed-header-r">
+        <span class="ed-live"><span class="live-dot"></span><span class="live-lbl">Live</span></span>
+        <a class="btn btn-sm" href="jeweller-login.html">Jeweller sign in</a>
+      </div>
+    </div>
+  </header>
 
-    <div class="cmp-head">
+  <div class="cmp-wrap">
+    <div class="cmp-crumb"><a href="index.html">RATES</a> &nbsp;→&nbsp; <span style="color:var(--white)">COMPARISON</span></div>
+
+    <div class="cmp-hero">
       <div>
-        <h1>Side-by-side comparison</h1>
-        <div class="sub" id="cmpDate"></div>
+        <div class="eyebrow">SIDE BY SIDE · LIVE COMPARISON</div>
+        <h1>Two jewellers,<br>one <em>honest</em> ledger.</h1>
+        <div id="cmpDate"></div>
       </div>
       <div class="cmp-controls">
-        <label style="font-size:12px;color:var(--muted)">For
-          <input id="cmpWeight" type="number" inputmode="decimal" min="0.1" step="0.1" value="10" />g
-          <select id="cmpPurity">
-            <option value="22">22K</option>
-            <option value="24">24K</option>
-          </select>
+        <label>Weight
+          <input id="cmpWeight" type="number" inputmode="decimal" min="0.1" step="0.1" value="10">
+          g
+        </label>
+        <label>Purity
+          <select id="cmpPurity"><option value="22">22K</option><option value="24">24K</option></select>
         </label>
       </div>
     </div>
 
     <div id="cmpRoot"></div>
+  </div>
+
+  <div class="foot ed-foot" style="margin-top:4rem">
+    <div class="ed-foot-l">© 2026 Ahmedabad Gold · Ratanpole, Ahmedabad</div>
+    <div class="ed-foot-c">Rates are indicative — always confirm with your jeweller before purchase.</div>
+    <div class="ed-foot-r"><a href="jeweller-login.html">Jeweller? Update your rates →</a></div>
   </div>
 
   <script src="/config.js?v=5"></script>

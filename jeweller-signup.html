@@ -1,117 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f0f1e" />
-  <title>Create your shop — SonaToday</title>
-  <link rel="manifest" href="/app-manifest.json" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SonaToday" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500;600&display=swap" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2ea">
+  <title>Create your shop — Ahmedabad Gold</title>
+  <link rel="manifest" href="/app-manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Ahmedabad Gold">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    .login-wrap   { max-width: 460px; margin: 1.8rem auto; padding: 0 1rem; }
-    .login-card   { background: var(--card); border: 1px solid rgba(241,235,221,.09); border-radius: 4px; padding: 2rem 1.75rem; box-shadow: 0 20px 50px -20px rgba(0,0,0,.5); }
-    .login-brand  { text-align: center; margin-bottom: 1.3rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgba(176,134,51,.28); }
-    .login-brand .logo {
-      font-family: 'Fraunces', Georgia, serif; font-weight: 400;
-      font-size: 30px; letter-spacing: -0.01em; color: var(--white);
-    }
-    .login-brand .logo .today { font-style: italic; font-weight: 300; color: #C89F55; margin-left: 1px; }
-    .login-brand .tag  { color: var(--muted); font-size: 10.5px; margin-top: .35rem; text-transform: uppercase; letter-spacing: .16em; font-weight: 500; }
-    .login-title  { font-size: 1.3rem; font-weight: 700; margin: 0 0 .25rem; }
-    .login-sub    { color: var(--muted); font-size: 13px; margin: 0 0 1.1rem; line-height: 1.5; }
-    .login-field  { margin-bottom: .9rem; }
-    .login-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .5px; }
-    .login-field input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .9rem 1rem; border-radius: 10px; font-size: 16px; min-height: 48px; }
-    .login-field input:focus { outline: none; border-color: var(--acc); }
-    .login-field .hint { font-size: 10.5px; color: var(--muted); margin-top: .25rem; }
-    .pwd-wrap     { position: relative; }
-    .pwd-toggle   { position: absolute; right: .6rem; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); padding: .35rem .5rem; font-size: 12px; cursor: pointer; }
-    .pwd-toggle:hover { color: var(--acc); }
-    .login-btn    { width: 100%; background: var(--acc); color: #000; border: 0; padding: 1rem; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 52px; box-shadow: 0 6px 18px -6px rgba(212,175,55,0.5); }
-    .login-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
-    .login-msg    { margin-top: 1rem; padding: .65rem .85rem; border-radius: 8px; font-size: 13px; display: none; }
-    .login-msg.err { background: rgba(239,68,68,0.1); color: #f87171; display: block; }
-    .login-msg.ok  { background: rgba(34,197,94,0.1); color: #4ade80; display: block; }
-    .login-back   { display: inline-block; margin-bottom: 1rem; color: var(--muted); text-decoration: none; font-size: 12px; }
-    .login-back:hover { color: var(--acc); }
-    .login-foot   { text-align: center; margin-top: 1rem; font-size: 12px; color: var(--muted); }
-    .login-foot a { color: var(--acc); text-decoration: none; }
+    /* Reuses .auth-* pattern from jeweller-login.html — kept here so both files stand alone. */
+    .auth-page { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) { .auth-page { grid-template-columns: 1fr; } .auth-side { display: none; } }
+    .auth-side { background: var(--navy3); border-right: 1px solid var(--acc-border); padding: 3rem 3.5rem; display: flex; flex-direction: column; justify-content: center; gap: 3.5rem; position: relative; }
+    .auth-brand { position: absolute; top: 3rem; left: 3.5rem; font-family: var(--fh); font-size: 17px; color: var(--white); font-weight: 500; letter-spacing: -.005em; }
+    .auth-brand .dot { color: var(--acc); }
+    .auth-brand .sub { display: block; font-size: 10.5px; letter-spacing: .26em; color: var(--muted); font-weight: 500; margin-top: 4px; text-transform: uppercase; }
+    .auth-side-mid { max-width: 380px; }
+    .auth-side-mid .eyebrow { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 18px; }
+    .auth-side-mid h2 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 40px; line-height: 1.05; letter-spacing: -.03em; color: var(--white); }
+    .auth-side-mid h2 em { font-style: italic; color: var(--acc); font-weight: 400; }
+    .auth-side-mid p { margin: 20px 0 24px; font-size: 14.5px; line-height: 1.7; color: var(--muted); }
+    .auth-side-foot { position: absolute; bottom: 3rem; left: 3.5rem; right: 3.5rem; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+    .auth-side-foot a { color: var(--muted); border-bottom: 1px solid var(--acc); padding-bottom: 1px; text-decoration: none; }
+    .auth-side-foot a:hover { color: var(--acc); }
 
-    /* Benefits strip — short, no marketing fluff, just the
-       concrete value props a jeweller cares about. */
-    .perks { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin: 1rem 0; }
-    .perk  { background: rgba(255,255,255,0.03); border: 1px solid var(--acc-border); border-radius: 9px; padding: .55rem .65rem; font-size: 11.5px; color: var(--text); line-height: 1.4; }
-    .perk b { color: var(--acc); display: block; font-size: 11px; margin-bottom: 1px; }
+    .auth-form-wrap { padding: 3rem 3.5rem; display: flex; flex-direction: column; justify-content: center; align-items: stretch; overflow-y: auto; }
+    @media (max-width: 900px) { .auth-form-wrap { padding: 2rem 1.5rem; } }
+    .auth-form { max-width: 420px; width: 100%; margin: 0 auto; }
+    .auth-back { color: var(--muted); text-decoration: none; font-size: 12.5px; letter-spacing: .04em; display: inline-block; margin-bottom: 20px; }
+    .auth-back:hover { color: var(--acc); }
+    .auth-h1 { font-family: var(--fh); font-weight: 400; font-size: 34px; letter-spacing: -.025em; color: var(--white); margin: 0 0 8px; line-height: 1.1; }
+    .auth-lede { color: var(--muted); font-size: 14px; margin: 0 0 24px; line-height: 1.6; }
+
+    .auth-field { margin-bottom: 14px; }
+    .auth-field label { display: block; font-size: 10.5px; letter-spacing: .22em; color: var(--muted); font-weight: 500; text-transform: uppercase; margin-bottom: 8px; }
+    .auth-field input {
+      width: 100%; box-sizing: border-box;
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: 12px 14px; border-radius: 3px; font-size: 15px; min-height: 48px;
+      font-family: inherit; transition: border-color .2s, box-shadow .2s;
+    }
+    .auth-field input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(160,124,59,.12); }
+    .auth-field .hint { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+    .pwd-wrap { position: relative; }
+    .pwd-toggle {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: transparent; border: 0; color: var(--muted);
+      padding: 6px 10px; font-size: 11px; letter-spacing: .12em; cursor: pointer;
+      font-family: inherit; font-weight: 500; text-transform: uppercase;
+    }
+    .pwd-toggle:hover { color: var(--acc); }
+
+    .auth-btn {
+      width: 100%; background: var(--white); color: var(--navy2); border: 0;
+      padding: 14px; border-radius: 3px; font-weight: 500; font-size: 14px;
+      letter-spacing: .04em; cursor: pointer; min-height: 52px;
+      font-family: inherit; transition: background .15s; margin-top: 8px;
+    }
+    .auth-btn:hover { background: #000; }
+    .auth-btn:disabled { opacity: .5; cursor: not-allowed; background: var(--muted); }
+
+    .auth-msg { margin-top: 14px; padding: 11px 14px; border-radius: 3px; font-size: 13px; display: none; }
+    .auth-msg.err { background: rgba(164,74,58,.08); color: var(--red); border: 1px solid rgba(164,74,58,.24); display: block; }
+    .auth-msg.ok { background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24); display: block; }
+
+    .auth-foot { text-align: left; margin-top: 24px; font-size: 13px; color: var(--muted); }
+    .auth-foot a { color: var(--white); border-bottom: 1px solid var(--acc); padding-bottom: 1px; text-decoration: none; font-weight: 500; }
+    .auth-foot a:hover { color: var(--acc); }
+
+    /* Perks — quiet 2x2 grid on the side panel */
+    .perks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+    .perk {
+      padding: 14px 16px;
+      background: var(--navy2); border: 1px solid var(--acc-border);
+      border-radius: 3px; font-size: 12.5px; color: var(--muted); line-height: 1.55;
+    }
+    .perk b {
+      color: var(--white); display: block;
+      font-size: 12px; letter-spacing: .04em; margin-bottom: 4px; font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <div class="login-wrap">
-    <a class="login-back" href="jeweller-login.html">← Back to sign in</a>
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="logo">Sona<span class="today">today</span></div>
-        <div class="tag">List your shop in 2 minutes</div>
+  <div class="auth-page">
+    <aside class="auth-side">
+      <div class="auth-brand">Ahmedabad Gold<span class="dot"> · </span><span class="sub">Jeweller Portal</span></div>
+      <div class="auth-side-mid">
+        <div class="eyebrow">JOIN THE HONEST TABLE</div>
+        <h2>List your shop, <em>quietly.</em></h2>
+        <p>Free during the Ahmedabad pilot. Publish your daily 22K &amp; 24K rate once — it appears on the public table instantly, alongside eleven other verified jewellers.</p>
+        <div class="perks">
+          <div class="perk"><b>Live MCX rate</b>Your stock revalued daily, in one click</div>
+          <div class="perk"><b>GST invoices</b>Auto-calculated, sent as a private link</div>
+          <div class="perk"><b>Client book</b>Birthdays, history, lifetime value</div>
+          <div class="perk"><b>Works offline</b>Installable on the shop counter's phone</div>
+        </div>
       </div>
-      <h1 class="login-title" style="font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:1.55rem;letter-spacing:-.015em">Create your shop</h1>
-      <p class="login-sub">Free during the Ahmedabad pilot. Publish your daily rate once and it appears on the comparison page instantly.</p>
+      <div class="auth-side-foot">Already have an account? <a href="jeweller-login.html">Sign in →</a></div>
+    </aside>
 
-      <div class="perks">
-        <div class="perk"><b>GST invoices</b>Auto-calculated, shared as a private link</div>
-        <div class="perk"><b>Live MCX rate</b>Your stock revalued daily</div>
-        <div class="perk"><b>Client book</b>Birthdays, history, lifetime value</div>
-        <div class="perk"><b>Mobile app</b>Installs to the home screen, works offline</div>
-      </div>
+    <main class="auth-form-wrap">
+      <div class="auth-form">
+        <a class="auth-back" href="jeweller-login.html">← Back to sign in</a>
+        <h1 class="auth-h1">Create your shop</h1>
+        <p class="auth-lede">Two minutes. Verify by email. Publish your first rate today.</p>
 
-      <form id="signupForm">
-        <div class="login-field">
-          <label for="name">Shop name *</label>
-          <input id="name" type="text" required autocomplete="organization" placeholder="e.g. Tanishq Satellite" />
-        </div>
-
-        <div class="login-field">
-          <label for="area">Area / locality</label>
-          <input id="area" type="text" autocomplete="address-level3" placeholder="e.g. Satellite, Ahmedabad" />
-          <div class="hint">Shown next to your name in search.</div>
-        </div>
-
-        <div class="login-field">
-          <label for="phone">Phone (WhatsApp)</label>
-          <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" />
-          <div class="hint">Customers tap to call or message you. You can change it later.</div>
-        </div>
-
-        <div class="login-field">
-          <label for="email">Email *</label>
-          <input id="email" type="email" required autocomplete="email" placeholder="you@shop.com" />
-          <div class="hint">You'll sign in with this.</div>
-        </div>
-
-        <div class="login-field">
-          <label for="password">Password *</label>
-          <div class="pwd-wrap">
-            <input id="password" type="password" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters" />
-            <button type="button" id="pwdToggle" class="pwd-toggle" aria-label="Show password">Show</button>
+        <form id="signupForm">
+          <div class="auth-field">
+            <label for="name">Shop name *</label>
+            <input id="name" type="text" required autocomplete="organization" placeholder="e.g. Tanishq Satellite">
           </div>
+          <div class="auth-field">
+            <label for="area">Area / locality</label>
+            <input id="area" type="text" autocomplete="address-level3" placeholder="e.g. Satellite, Ahmedabad">
+            <div class="hint">Shown next to your name in search.</div>
+          </div>
+          <div class="auth-field">
+            <label for="phone">Phone (WhatsApp)</label>
+            <input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210">
+            <div class="hint">Customers tap to call or message you. You can change it later.</div>
+          </div>
+          <div class="auth-field">
+            <label for="email">Email *</label>
+            <input id="email" type="email" required autocomplete="email" placeholder="you@shop.com">
+            <div class="hint">You'll sign in with this.</div>
+          </div>
+          <div class="auth-field">
+            <label for="password">Password *</label>
+            <div class="pwd-wrap">
+              <input id="password" type="password" required minlength="6" autocomplete="new-password" placeholder="At least 6 characters">
+              <button type="button" id="pwdToggle" class="pwd-toggle" aria-label="Show password">Show</button>
+            </div>
+          </div>
+
+          <button id="signupBtn" type="submit" class="auth-btn">Create my shop →</button>
+        </form>
+
+        <div id="signupMsg" class="auth-msg"></div>
+
+        <div class="auth-foot">
+          Already have an account? <a href="jeweller-login.html">Sign in →</a>
         </div>
-
-        <button id="signupBtn" type="submit" class="login-btn">Create my shop</button>
-      </form>
-
-      <div id="signupMsg" class="login-msg"></div>
-
-      <div class="login-foot">
-        Already have an account? <a href="jeweller-login.html">Sign in →</a>
       </div>
-    </div>
+    </main>
   </div>
 
   <script src="/config.js?v=5"></script>
@@ -119,7 +155,6 @@
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
-    // If already logged in, skip straight to the app
     if (localStorage.getItem('jwl_token')) window.location.href = 'app.html';
 
     const pwdInput  = document.getElementById('password');
@@ -136,7 +171,7 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      msg.className = 'login-msg';
+      msg.className = 'auth-msg';
       btn.disabled = true; btn.textContent = 'Creating…';
 
       const body = {
@@ -149,26 +184,24 @@
 
       try {
         const res  = await fetch(`${API_BASE}/api/auth/register`, {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify(body),
+          body: JSON.stringify(body),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Signup failed');
 
         localStorage.setItem('jwl_token', data.token);
         localStorage.setItem('jwl_user',  JSON.stringify({ id: data.id, name: body.name }));
-
-        // Flag the in-app welcome tour so it runs on first load.
         localStorage.setItem('jwl_tour_pending', '1');
 
-        msg.className   = 'login-msg ok';
-        msg.textContent = 'Shop created! Taking you in…';
+        msg.className   = 'auth-msg ok';
+        msg.textContent = 'Shop created. Taking you in…';
         setTimeout(() => { window.location.href = 'app.html'; }, 500);
       } catch (err) {
-        msg.className   = 'login-msg err';
+        msg.className   = 'auth-msg err';
         msg.textContent = err.message;
-        btn.disabled = false; btn.textContent = 'Create my shop';
+        btn.disabled = false; btn.textContent = 'Create my shop →';
       }
     });
   </script>

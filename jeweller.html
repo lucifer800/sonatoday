@@ -1,93 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-  <title>Jeweller Profile — Ahmedabad Gold & Silver Rates</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Jeweller — Ahmedabad Gold</title>
+  <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#D4AF37">
+  <meta name="theme-color" content="#f5f2ea">
   <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-  <!-- Open Graph fallback. Express middleware rewrites these per ?id=N. -->
   <meta property="og:type"         content="website">
   <meta property="og:site_name"    content="Ahmedabad Gold Rates">
   <meta property="og:title"        content="Ahmedabad Gold Rates — Jeweller Profile">
-  <meta property="og:description"  content="Today's verified rates, working hours, location and reviews.">
+  <meta property="og:description"  content="Today's verified rate, hours, location and reviews.">
   <meta property="og:image"        content="/api/og-image.png">
   <meta property="og:image:width"  content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card"        content="summary_large_image">
+
   <style>
-    .jp-wrap { max-width: 980px; margin: 2rem auto; padding: 0 1rem; }
-    .jp-back { color: var(--acc); text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: .35rem; margin-bottom: 1rem; }
-    .jp-back:hover { opacity: .8; }
-    .jp-card { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.75rem; margin-bottom: 1.25rem; }
-    /* Shop photo banner (top of profile, when jeweller uploads one) */
-    .jp-photo { height: 200px; background: rgba(255,255,255,0.04) center/cover; border-radius: 12px; margin: -.5rem 0 1.25rem; border: 1px solid var(--acc-border); }
-    @media (max-width: 600px) { .jp-photo { height: 150px; } }
-    /* Credibility badge row (BIS / GST / WhatsApp) */
-    .cred-row    { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .85rem; padding-top: .85rem; border-top: 1px solid rgba(255,255,255,0.06); }
-    .cred-badge  { display: inline-flex; align-items: center; gap: .35rem; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .35rem .65rem; border-radius: 8px; font-size: 12px; font-weight: 500; text-decoration: none; }
-    .cred-badge.cred-gold { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.35); color: var(--acc); }
-    .cred-badge.cred-wa   { background: rgba(37,211,102,0.1); border-color: rgba(37,211,102,0.35); color: #25D366; }
-    .cred-badge.cred-wa:hover { background: rgba(37,211,102,0.18); }
-    /* Chart time-range selector (1W / 1M / 3M / 1Y / All) */
-    .jp-range-bar    { display: flex; align-items: center; gap: .35rem; flex-wrap: wrap; margin-bottom: .65rem; }
-    .jp-range-btn    { background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--muted); padding: .3rem .65rem; border-radius: 6px; font-size: 11px; font-weight: 600; letter-spacing: .3px; cursor: pointer; transition: all .12s; }
-    .jp-range-btn:hover { color: var(--text); border-color: var(--acc); }
-    .jp-range-btn.active { background: var(--acc); color: #000; border-color: var(--acc); }
-    .jp-range-legend { margin-left: auto; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
-    .jp-dot   { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: .25rem; vertical-align: middle; }
-    .jp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .jp-name { font-size: 1.85rem; font-weight: 700; margin: 0 0 .25rem; }
-    .jp-area { color: var(--muted); font-size: 14px; }
-    .jp-sym  { display: inline-block; background: var(--acc-dim); color: var(--acc); padding: .25rem .65rem; border-radius: 6px; font-weight: 600; font-size: 13px; margin-left: .5rem; }
-    .jp-verified { background: linear-gradient(135deg,#1a8b4a,#22c55e); color: #fff; padding: .35rem .75rem; border-radius: 8px; font-size: 12px; font-weight: 600; }
-    .jp-rates { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
-    .jp-rate { background: rgba(255,255,255,0.02); border: 1px solid var(--acc-border); border-radius: 12px; padding: 1rem; }
-    .jp-rate-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-    .jp-rate-val { font-size: 1.6rem; font-weight: 700; color: var(--acc); margin-top: .35rem; }
-    .jp-rate-sub { font-size: 12px; color: var(--muted); }
-    .jp-section-title { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
-    .jp-review { border-left: 3px solid var(--acc); padding: .75rem 1rem; background: rgba(255,255,255,0.02); border-radius: 8px; margin-bottom: .75rem; }
-    .jp-review-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; }
-    .jp-review-name { font-weight: 600; font-size: 14px; }
-    .jp-review-date { font-size: 11px; color: var(--muted); }
-    .jp-review-text { font-size: 13px; color: var(--text); line-height: 1.5; }
-    .jp-verified-tag { background: #1a8b4a; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: .35rem; }
-    .jp-alert-form { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
-    .jp-alert-form input, .jp-alert-form select { background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); color: var(--text); padding: .6rem .75rem; border-radius: 8px; font-size: 13px; }
+    .jp-wrap { max-width: 1180px; margin: 0 auto; padding: 0 3.5% 4rem; }
+    .jp-crumb { padding: 24px 0 12px; font-size: 12px; letter-spacing: .18em; color: var(--muted); text-transform: uppercase; font-weight: 500; }
+    .jp-crumb a { color: var(--muted); text-decoration: none; border-bottom: 1px solid transparent; transition: color .2s, border-color .2s; }
+    .jp-crumb a:hover { color: var(--acc); border-color: var(--acc); }
+
+    /* Editorial hero */
+    .jp-hero { padding: 20px 0 56px; border-bottom: 1px solid var(--acc-border); display: grid; grid-template-columns: 1.4fr 1fr; gap: 3.5rem; align-items: start; }
+    @media (max-width: 900px) { .jp-hero { grid-template-columns: 1fr; gap: 2rem; } }
+    .jp-hero-l .eyebrow { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 14px; }
+    .jp-name { font-family: var(--fh); font-weight: 400; font-size: 54px; line-height: 1.03; letter-spacing: -.03em; color: var(--white); margin: 0; }
+    .jp-sym { display: none; }
+    .jp-verified {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24);
+      padding: 4px 12px; border-radius: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    }
+    .jp-area { color: var(--muted); font-size: 15px; margin-top: 24px; line-height: 1.6; max-width: 460px; }
+    .jp-about { color: var(--muted); font-size: 14.5px; line-height: 1.7; margin: 22px 0 0; max-width: 460px; }
+    .jp-shop-photo { height: 300px; background: var(--navy3) center/cover; margin-top: 26px; border-radius: 4px; }
+    @media (max-width: 900px) { .jp-shop-photo { height: 200px; } }
+
+    /* Right price card (mirrors the home hero) */
+    .jp-price-card {
+      background: var(--navy3);
+      border-top: 2px solid var(--acc);
+      padding: 32px 32px 26px;
+      min-height: 260px;
+    }
+    .jp-price-eyebrow { font-size: 10.5px; letter-spacing: .3em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 12px; }
+    .jp-price-24 { font-family: var(--fh); font-size: 54px; font-weight: 400; color: var(--white); letter-spacing: -.025em; line-height: 1; }
+    .jp-price-delta { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+    .jp-price-delta .up { color: var(--green); font-weight: 600; }
+    .jp-price-grid { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--acc-border); display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .jp-price-grid .lbl { font-size: 10px; letter-spacing: .22em; color: var(--muted); font-weight: 500; text-transform: uppercase; }
+    .jp-price-grid .val { font-family: var(--fh); font-size: 22px; margin-top: 4px; color: var(--white); font-weight: 400; letter-spacing: -.01em; }
+    .jp-rank {
+      margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--acc-border);
+      font-size: 11.5px; color: var(--muted); font-style: italic;
+    }
+    .jp-rank b { font-style: normal; color: var(--acc); font-weight: 600; }
+
+    /* Credibility badges row */
+    .cred-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+    .cred-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: 6px 12px; border-radius: 3px; font-size: 11.5px; font-weight: 500; letter-spacing: .06em;
+      text-decoration: none; transition: border-color .2s, color .2s;
+    }
+    .cred-badge:hover { border-color: var(--acc); color: var(--acc); }
+    .cred-badge.cred-gold { background: rgba(160,124,59,.06); border-color: rgba(160,124,59,.28); color: var(--acc); }
+    .cred-badge.cred-wa { background: rgba(37,211,102,.08); border-color: rgba(37,211,102,.3); color: #1a8f4a; }
+    .cred-badge.cred-wa:hover { background: rgba(37,211,102,.14); color: #1a8f4a; }
+
+    /* Section header */
+    .jp-section {
+      padding: 56px 0 32px;
+      display: grid; grid-template-columns: 1.4fr 3fr; gap: 3rem; align-items: start;
+      border-top: 1px solid var(--acc-border);
+    }
+    @media (max-width: 900px) { .jp-section { grid-template-columns: 1fr; gap: 1.25rem; } }
+    .jp-section-hd .num { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 10px; }
+    .jp-section-hd h2 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 32px; letter-spacing: -.025em; color: var(--white); line-height: 1.1; }
+    .jp-section-hd p { margin: 14px 0 0; font-size: 13.5px; line-height: 1.65; color: var(--muted); max-width: 320px; }
+
+    /* Chart section */
+    .jp-range-bar { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; }
+    .jp-range-btn {
+      background: transparent; border: 1px solid var(--acc-border); color: var(--muted);
+      padding: 6px 12px; border-radius: 3px; font-size: 11px; font-weight: 500; letter-spacing: .1em;
+      cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+    }
+    .jp-range-btn:hover { color: var(--white); border-color: var(--hair-strong); }
+    .jp-range-btn.active { background: var(--white); color: var(--navy2); border-color: var(--white); }
+    .jp-range-legend { margin-left: auto; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .jp-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+
+    /* Reviews */
+    .jp-review {
+      padding: 18px 22px; background: var(--navy2); border: 1px solid var(--acc-border);
+      border-left: 2px solid var(--acc); border-radius: 3px; margin-bottom: 12px;
+    }
+    .jp-review-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .jp-review-name { font-weight: 600; font-size: 14px; color: var(--white); }
+    .jp-review-date { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+    .jp-review-text { font-size: 13.5px; color: var(--white); line-height: 1.65; }
+    .jp-verified-tag {
+      background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24);
+      font-size: 9.5px; padding: 2px 8px; border-radius: 3px; margin-left: 8px; letter-spacing: .12em; font-weight: 600; text-transform: uppercase;
+    }
+
+    /* Alert form */
+    .jp-alert-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .jp-alert-form input, .jp-alert-form select {
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: 11px 14px; border-radius: 3px; font-size: 13.5px; font-family: inherit;
+    }
     .jp-alert-form input { flex: 1; min-width: 180px; }
-    .jp-alert-form button { background: var(--acc); color: #000; border: 0; padding: .6rem 1.25rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
-    .jp-alert-form button:hover { filter: brightness(1.1); }
-    .jp-msg { margin-top: .75rem; font-size: 13px; padding: .65rem .85rem; border-radius: 8px; display: none; }
-    .jp-msg.ok  { background: rgba(34,197,94,0.1);  color: #4ade80; display: block; }
-    .jp-msg.err { background: rgba(239,68,68,0.1);  color: #f87171; display: block; }
-    .jp-empty { color: var(--muted); font-size: 13px; font-style: italic; }
-    .jp-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; }
-    .jp-photo  { aspect-ratio: 4/3; border-radius: 10px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid var(--acc-border); cursor: pointer; transition: transform .2s; }
-    .jp-photo:hover { transform: scale(1.02); }
+    .jp-alert-form input:focus, .jp-alert-form select:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(160,124,59,.12); }
+    .jp-alert-form button {
+      background: var(--white); color: var(--navy2); border: 0; padding: 11px 22px;
+      border-radius: 3px; font-weight: 500; font-size: 13.5px; letter-spacing: .04em; cursor: pointer; transition: background .15s;
+    }
+    .jp-alert-form button:hover { background: #000; }
+
+    .jp-msg { margin-top: 12px; font-size: 13px; padding: 10px 14px; border-radius: 3px; display: none; }
+    .jp-msg.ok { background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24); display: block; }
+    .jp-msg.err { background: rgba(164,74,58,.08); color: var(--red); border: 1px solid rgba(164,74,58,.24); display: block; }
+
+    .jp-empty { color: var(--muted); font-size: 13.5px; font-style: italic; }
+
+    /* Photos gallery */
+    .jp-photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    .jp-photo { aspect-ratio: 4/3; overflow: hidden; background: var(--navy3); border: 1px solid var(--acc-border); cursor: pointer; transition: transform .15s; border-radius: 3px; }
+    .jp-photo:hover { transform: scale(1.015); }
     .jp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .jp-hours-grid { display: grid; grid-template-columns: 80px 1fr; gap: .5rem .85rem; font-size: 13px; }
-    .jp-hours-grid .day   { color: var(--muted); font-weight: 500; }
-    .jp-hours-grid .time  { color: var(--text); }
+
+    /* Hours */
+    .jp-hours-grid { display: grid; grid-template-columns: 100px 1fr; gap: 8px 24px; font-size: 13.5px; }
+    .jp-hours-grid .day { color: var(--muted); font-weight: 500; letter-spacing: .04em; }
+    .jp-hours-grid .time { color: var(--white); font-family: var(--fm); }
     .jp-hours-grid .today { color: var(--acc); font-weight: 600; }
-    .jp-map    { width: 100%; height: 320px; border: 0; border-radius: 12px; }
-    .jp-about  { color: var(--text); font-size: 13px; line-height: 1.6; margin: 0; }
-    .jp-cols   { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-    @media (max-width: 720px) { .jp-cols { grid-template-columns: 1fr; } }
+
+    .jp-map { width: 100%; height: 320px; border: 1px solid var(--acc-border); border-radius: 3px; }
   </style>
 </head>
 <body>
+  <header class="ed-header">
+    <div class="ed-header-inner">
+      <a href="index.html" class="ed-brand" style="text-decoration:none;color:inherit">
+        <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+        <div class="ed-brand-sub">The honest table · Live MCX</div>
+      </a>
+      <nav class="ed-nav">
+        <a href="index.html" class="ed-nav-link">Rates</a>
+        <a href="compare.html" class="ed-nav-link">Compare</a>
+        <a href="index.html#trust" class="ed-nav-link ed-nav-active">Jewellers</a>
+        <a href="my-alerts.html" class="ed-nav-link">Alerts</a>
+      </nav>
+      <div class="ed-header-r">
+        <span class="ed-live"><span class="live-dot"></span><span class="live-lbl">Live</span></span>
+        <a class="btn btn-sm" href="jeweller-login.html">Jeweller sign in</a>
+      </div>
+    </div>
+  </header>
+
   <div class="jp-wrap">
-    <a class="jp-back" href="index.html">← Back to all jewellers</a>
-    <div id="jpContent">Loading…</div>
+    <div class="jp-crumb"><a href="index.html">RATES</a> &nbsp;→&nbsp; <a href="index.html">JEWELLERS</a> &nbsp;→&nbsp; <span id="crumbName" style="color:var(--white)">Jeweller</span></div>
+    <div id="jpContent" style="padding: 3rem 0; color: var(--muted); font-size: 15px;">Loading…</div>
+  </div>
+
+  <div class="foot ed-foot" style="margin-top:4rem">
+    <div class="ed-foot-l">© 2026 Ahmedabad Gold · Ratanpole, Ahmedabad</div>
+    <div class="ed-foot-c">Rates are indicative — always confirm with your jeweller before purchase.</div>
+    <div class="ed-foot-r"><a href="jeweller-login.html">Jeweller? Update your rates →</a></div>
   </div>
 
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-  <script src="/config.js?v=4"></script>
+  <script src="/config.js?v=5"></script>
   <script src="data.js"></script>
   <script src="jeweller.js"></script>
 </body>

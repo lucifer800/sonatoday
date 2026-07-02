@@ -1,107 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f0f1e" />
-  <title>Jeweller Login — SonaToday</title>
-  <!-- PWA install support (so the app is installable from the login page too) -->
-  <link rel="manifest" href="/app-manifest.json" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SonaToday" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <link rel="stylesheet" href="style.css" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500;600&display=swap" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f2ea">
+  <title>Sign in — Ahmedabad Gold</title>
+  <link rel="manifest" href="/app-manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Ahmedabad Gold">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <style>
-    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    .login-wrap   { max-width: 420px; margin: 2.5rem auto; padding: 0 1rem; }
-    .login-card   { background: var(--card); border: 1px solid rgba(241,235,221,.09); border-radius: 4px; padding: 2rem 1.75rem; box-shadow: 0 20px 50px -20px rgba(0,0,0,.5); }
-    .login-brand  { text-align: center; margin-bottom: 1.4rem; padding-bottom: 1.1rem; border-bottom: 1px solid rgba(176,134,51,.28); }
-    .login-brand .logo {
-      font-family: 'Fraunces', Georgia, serif; font-weight: 400;
-      font-size: 30px; letter-spacing: -0.01em; color: var(--white);
+    .auth-page { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 900px) { .auth-page { grid-template-columns: 1fr; } .auth-side { display: none; } }
+
+    /* Left: editorial side */
+    .auth-side {
+      background: var(--navy3);
+      border-right: 1px solid var(--acc-border);
+      padding: 3rem 3.5rem;
+      display: flex; flex-direction: column; justify-content: center; gap: 3.5rem; position: relative;
     }
-    .login-brand .logo .today { font-style: italic; font-weight: 300; color: #C89F55; margin-left: 1px; }
-    .login-brand .tag  { color: var(--muted); font-size: 10.5px; margin-top: .35rem; text-transform: uppercase; letter-spacing: .16em; font-weight: 500; }
-    .login-title  { font-size: 1.3rem; font-weight: 700; margin: 0 0 .25rem; }
-    .login-sub    { color: var(--muted); font-size: 13px; margin: 0 0 1.25rem; }
-    .login-field  { margin-bottom: 1rem; }
-    .login-field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: .3rem; text-transform: uppercase; letter-spacing: .5px; }
-    /* Bigger touch targets — 48 px min on phones */
-    .login-field input { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .9rem 1rem; border-radius: 10px; font-size: 16px; min-height: 48px; }
-    .login-field input:focus { outline: none; border-color: var(--acc); }
-    .pwd-wrap     { position: relative; }
-    .pwd-toggle   { position: absolute; right: .6rem; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); padding: .35rem .5rem; font-size: 12px; cursor: pointer; }
+    .auth-brand { position: absolute; top: 3rem; left: 3.5rem; font-family: var(--fh); font-size: 17px; color: var(--white); font-weight: 500; letter-spacing: -.005em; }
+    .auth-brand .dot { color: var(--acc); }
+    .auth-brand .sub { display: block; font-size: 10.5px; letter-spacing: .26em; color: var(--muted); font-weight: 500; margin-top: 4px; text-transform: uppercase; }
+    .auth-side-mid { max-width: 380px; }
+    .auth-side-mid .eyebrow { font-size: 11px; letter-spacing: .32em; color: var(--acc); font-weight: 500; text-transform: uppercase; margin-bottom: 18px; }
+    .auth-side-mid h2 { margin: 0; font-family: var(--fh); font-weight: 400; font-size: 40px; line-height: 1.05; letter-spacing: -.03em; color: var(--white); }
+    .auth-side-mid h2 em { font-style: italic; color: var(--acc); font-weight: 400; }
+    .auth-side-mid p { margin: 20px 0 0; font-size: 14.5px; line-height: 1.7; color: var(--muted); }
+    .auth-side-foot { position: absolute; bottom: 3rem; left: 3.5rem; right: 3.5rem; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+    .auth-side-foot a { color: var(--muted); border-bottom: 1px solid var(--acc); padding-bottom: 1px; text-decoration: none; }
+    .auth-side-foot a:hover { color: var(--acc); }
+
+    /* Right: form */
+    .auth-form-wrap { padding: 3rem 3.5rem; display: flex; flex-direction: column; justify-content: center; align-items: stretch; }
+    @media (max-width: 900px) { .auth-form-wrap { padding: 2rem 1.5rem; } }
+    .auth-form { max-width: 380px; width: 100%; margin: 0 auto; }
+    .auth-back { color: var(--muted); text-decoration: none; font-size: 12.5px; letter-spacing: .04em; display: inline-block; margin-bottom: 24px; }
+    .auth-back:hover { color: var(--acc); }
+
+    .auth-h1 { font-family: var(--fh); font-weight: 400; font-size: 34px; letter-spacing: -.025em; color: var(--white); margin: 0 0 8px; line-height: 1.1; }
+    .auth-lede { color: var(--muted); font-size: 14px; margin: 0 0 32px; line-height: 1.6; }
+
+    .auth-field { margin-bottom: 18px; }
+    .auth-field label { display: block; font-size: 10.5px; letter-spacing: .22em; color: var(--muted); font-weight: 500; text-transform: uppercase; margin-bottom: 8px; }
+    .auth-field input {
+      width: 100%; box-sizing: border-box;
+      background: var(--navy2); border: 1px solid var(--acc-border); color: var(--white);
+      padding: 12px 14px; border-radius: 3px; font-size: 15px; min-height: 48px;
+      font-family: inherit; transition: border-color .2s, box-shadow .2s;
+    }
+    .auth-field input:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 0 3px rgba(160,124,59,.12); }
+    .pwd-wrap { position: relative; }
+    .pwd-toggle {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      background: transparent; border: 0; color: var(--muted);
+      padding: 6px 10px; font-size: 11px; letter-spacing: .12em; cursor: pointer;
+      font-family: inherit; font-weight: 500; text-transform: uppercase;
+    }
     .pwd-toggle:hover { color: var(--acc); }
-    .login-btn    { width: 100%; background: var(--acc); color: #000; border: 0; padding: 1rem; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; min-height: 52px; box-shadow: 0 6px 18px -6px rgba(212,175,55,0.5); }
-    .login-btn:hover    { filter: brightness(1.08); }
-    .login-btn:disabled { opacity: .55; cursor: not-allowed; box-shadow: none; }
-    .login-msg    { margin-top: 1rem; padding: .65rem .85rem; border-radius: 8px; font-size: 13px; display: none; }
-    .login-msg.err { background: rgba(239,68,68,0.1); color: #f87171; display: block; }
-    .login-msg.ok  { background: rgba(34,197,94,0.1); color: #4ade80; display: block; }
-    .login-back   { display: inline-block; margin-bottom: 1rem; color: var(--muted); text-decoration: none; font-size: 12px; }
-    .login-back:hover { color: var(--acc); }
-    .login-hint   { margin-top: 1rem; padding: .65rem .8rem; background: rgba(255,255,255,0.03); border-radius: 8px; font-size: 11px; color: var(--muted); line-height: 1.5; display: none; }
-    .login-hint code { color: var(--acc); }
-    .login-foot   { text-align: center; margin-top: 1rem; font-size: 12px; color: var(--muted); }
-    .login-foot a { color: var(--acc); text-decoration: none; }
+
+    .auth-btn {
+      width: 100%; background: var(--white); color: var(--navy2); border: 0;
+      padding: 14px; border-radius: 3px; font-weight: 500; font-size: 14px;
+      letter-spacing: .04em; cursor: pointer; min-height: 52px;
+      font-family: inherit; transition: background .15s;
+    }
+    .auth-btn:hover { background: #000; }
+    .auth-btn:disabled { opacity: .5; cursor: not-allowed; background: var(--muted); }
+
+    .auth-msg { margin-top: 16px; padding: 11px 14px; border-radius: 3px; font-size: 13px; display: none; }
+    .auth-msg.err { background: rgba(164,74,58,.08); color: var(--red); border: 1px solid rgba(164,74,58,.24); display: block; }
+    .auth-msg.ok { background: rgba(74,122,59,.1); color: var(--green); border: 1px solid rgba(74,122,59,.24); display: block; }
+
+    .auth-hint {
+      margin-top: 18px; padding: 12px 14px;
+      background: var(--navy3); border: 1px solid var(--acc-border); border-left: 2px solid var(--acc);
+      border-radius: 3px; font-size: 12px; color: var(--muted); line-height: 1.6; display: none;
+    }
+    .auth-hint code {
+      color: var(--acc); font-family: var(--fm); font-size: 11.5px;
+      background: var(--navy2); padding: 1px 6px; border-radius: 2px;
+    }
+
+    .auth-foot { text-align: left; margin-top: 32px; font-size: 13px; color: var(--muted); }
+    .auth-foot a { color: var(--white); border-bottom: 1px solid var(--acc); padding-bottom: 1px; text-decoration: none; font-weight: 500; }
+    .auth-foot a:hover { color: var(--acc); }
   </style>
 </head>
 <body>
-  <div class="login-wrap">
-    <a class="login-back" href="index.html">← Back to comparison</a>
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="logo">Sona<span class="today">today</span></div>
-        <div class="tag">Jeweller Portal</div>
+  <div class="auth-page">
+    <aside class="auth-side">
+      <div class="auth-brand">Ahmedabad Gold<span class="dot"> · </span><span class="sub">Jeweller Portal</span></div>
+      <div class="auth-side-mid">
+        <div class="eyebrow">FOR VERIFIED JEWELLERS</div>
+        <h2>Publish your rate. Reach the <em>honest buyer.</em></h2>
+        <p>Update your daily 22K and 24K rates in one form. They appear on the public table the moment you press publish — no calls, no back-and-forth. Free during the Ahmedabad pilot.</p>
       </div>
-      <h1 class="login-title" style="font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:1.55rem;letter-spacing:-.015em">Sign in</h1>
-      <p class="login-sub">Manage your shop's daily rates, stock and clients.</p>
+      <div class="auth-side-foot">Not on the platform yet? <a href="jeweller-signup.html">Create your shop →</a></div>
+    </aside>
 
-      <form id="loginForm">
-        <div class="login-field">
-          <label for="email">Email</label>
-          <input id="email" type="email" inputmode="email" required autocomplete="username" placeholder="shop@example.com" />
-        </div>
-        <div class="login-field">
-          <label for="password">Password</label>
-          <div class="pwd-wrap">
-            <input id="password" type="password" required autocomplete="current-password" />
-            <button type="button" id="pwdToggle" class="pwd-toggle" aria-label="Show password">Show</button>
+    <main class="auth-form-wrap">
+      <div class="auth-form">
+        <a class="auth-back" href="index.html">← Back to the public table</a>
+        <h1 class="auth-h1">Sign in</h1>
+        <p class="auth-lede">Manage your shop's daily rates, invoices, and client book.</p>
+
+        <form id="loginForm">
+          <div class="auth-field">
+            <label for="email">Email</label>
+            <input id="email" type="email" inputmode="email" required autocomplete="username" placeholder="shop@example.com">
           </div>
+          <div class="auth-field">
+            <label for="password">Password</label>
+            <div class="pwd-wrap">
+              <input id="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+              <button type="button" id="pwdToggle" class="pwd-toggle" aria-label="Show password">Show</button>
+            </div>
+          </div>
+          <button id="loginBtn" type="submit" class="auth-btn">Sign in →</button>
+        </form>
+
+        <div id="loginMsg" class="auth-msg"></div>
+
+        <div class="auth-hint" id="demoHint">
+          <strong style="color:var(--white)">Local demo</strong> — seeded emails like <code>tanishq@ahm.com</code> with password <code>pass123</code>.
         </div>
-        <button id="loginBtn" type="submit" class="login-btn">Sign in</button>
-      </form>
 
-      <div id="loginMsg" class="login-msg"></div>
-
-      <div class="login-hint" id="demoHint">
-        <strong>Local demo:</strong> seeded emails (e.g. <code>tanishq@ahm.com</code>) with password <code>pass123</code>.
+        <div class="auth-foot">
+          Not on Ahmedabad Gold yet? <a href="jeweller-signup.html">Create your shop in 2 minutes →</a>
+        </div>
       </div>
-
-      <div class="login-foot">
-        Not on SonaToday yet? <a href="jeweller-signup.html">Create your shop in 2 minutes →</a>
-      </div>
-    </div>
+    </main>
   </div>
 
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
-
-    // Register the service worker so the login page is PWA-installable too.
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
 
-    // Only show the demo-credentials hint on localhost — production
-    // jewellers shouldn't see seeded-account credentials in the wild.
+    // Show demo credentials only on localhost.
     const isLocal = ['localhost', '127.0.0.1', ''].includes(window.location.hostname);
     if (isLocal) document.getElementById('demoHint').style.display = 'block';
 
-    // Show/hide password toggle
+    // Show/hide password
     const pwdInput  = document.getElementById('password');
     const pwdToggle = document.getElementById('pwdToggle');
     pwdToggle.addEventListener('click', () => {
@@ -110,10 +156,8 @@
       pwdToggle.textContent = showing ? 'Show' : 'Hide';
     });
 
-    // If already logged in, jump straight to the dashboard
-    if (localStorage.getItem('jwl_token')) {
-      window.location.href = 'app.html';
-    }
+    // If already logged in, go to dashboard
+    if (localStorage.getItem('jwl_token')) window.location.href = 'app.html';
 
     const form = document.getElementById('loginForm');
     const msg  = document.getElementById('loginMsg');
@@ -121,7 +165,7 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      msg.className = 'login-msg';
+      msg.className = 'auth-msg';
       btn.disabled = true; btn.textContent = 'Signing in…';
 
       const email    = document.getElementById('email').value.trim();
@@ -129,9 +173,9 @@
 
       try {
         const res  = await fetch(`${API_BASE}/api/auth/login`, {
-          method:  'POST',
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Login failed');
@@ -139,13 +183,13 @@
         localStorage.setItem('jwl_token', data.token);
         localStorage.setItem('jwl_user',  JSON.stringify(data.user));
 
-        msg.className   = 'login-msg ok';
-        msg.textContent = 'Signed in. Redirecting…';
+        msg.className   = 'auth-msg ok';
+        msg.textContent = 'Signed in. Taking you in…';
         setTimeout(() => { window.location.href = 'app.html'; }, 400);
       } catch (err) {
-        msg.className   = 'login-msg err';
+        msg.className   = 'auth-msg err';
         msg.textContent = err.message;
-        btn.disabled = false; btn.textContent = 'Sign in';
+        btn.disabled = false; btn.textContent = 'Sign in →';
       }
     });
   </script>

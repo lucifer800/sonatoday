@@ -817,7 +817,7 @@ function toggleTheme() {
   localStorage.setItem('theme', next);
   applyTheme(next);
 }
-applyTheme(localStorage.getItem('theme') || 'dark');
+applyTheme(localStorage.getItem('theme') || 'light');
 
 /* ─── SYNC RATES FROM DB ──────────────────────────────────────
    The J array in data.js holds the initial demo rates. Whenever a

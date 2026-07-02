@@ -9,111 +9,146 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#D4AF37">
+    <meta name="theme-color" content="#f5f2ea">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Gold Rates">
     <link rel="apple-touch-icon" href="/icon.svg">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
 
-    <!-- Open Graph — link-preview card for WhatsApp / FB / Twitter / iMessage / LinkedIn -->
+    <!-- Open Graph -->
     <meta property="og:type"          content="website">
     <meta property="og:site_name"     content="Ahmedabad Gold Rates">
     <meta property="og:title"         content="Ahmedabad Gold Rate Today — Live MCX Prices">
-    <meta property="og:description"   content="Compare today's 22K and 24K gold rates from 12 verified Ahmedabad jewellers. Live MCX prices, smart-sorted by cheapest + most trusted.">
-    <meta property="og:url"           content="http://localhost:4000/">
-    <meta property="og:image"         content="http://localhost:4000/api/og-image.png">
+    <meta property="og:description"   content="Twelve verified Ahmedabad jewellers, one live honest comparison. 22K and 24K rates straight from MCX.">
+    <meta property="og:url"           content="https://sonatoday.com/">
+    <meta property="og:image"         content="https://sonatoday.com/api/og-image.png">
     <meta property="og:image:width"   content="1200">
     <meta property="og:image:height"  content="630">
     <meta name="twitter:card"         content="summary_large_image">
     <meta name="twitter:title"        content="Ahmedabad Gold Rate Today — Live MCX Prices">
-    <meta name="twitter:description"  content="Compare today's 22K and 24K gold rates from 12 verified Ahmedabad jewellers.">
-    <meta name="twitter:image"        content="http://localhost:4000/api/og-image.png">
-    <meta name="description"          content="Compare today's 22K and 24K gold rates from 12 verified Ahmedabad jewellers. Live MCX prices, set price alerts, find shop hours & locations.">
+    <meta name="twitter:description"  content="Twelve verified Ahmedabad jewellers, one honest table.">
+    <meta name="twitter:image"        content="https://sonatoday.com/api/og-image.png">
+    <meta name="description"          content="Twelve of Ahmedabad's most trusted jewellers, one live comparison. Live MCX rates, price alerts, shop details.">
 
-    <title>Ahmedabad Gold & Silver Rates — Live</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400&display=swap" rel="stylesheet">
-    
+    <title>Ahmedabad Gold Rates — the honest table</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <!-- features.css removed — style.css covers everything -->
 </head>
 <body>
 
     <div class="view active" id="view-public">
 
-        <div class="metal-bar" id="metalBar">
-            <span class="m-lbl m-gold" id="lblGold">Gold</span>
-            <div class="toggle-wrap" onclick="toggleMetal()" title="Switch Gold / Silver">
-                <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        <!-- ═══════════════ EDITORIAL HEADER ═══════════════ -->
+        <header class="ed-header">
+            <div class="ed-header-inner">
+                <div class="ed-brand" onclick="showPublic()">
+                    <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+                    <div class="ed-brand-sub" id="metalWord">The honest table · Live MCX</div>
+                </div>
+                <nav class="ed-nav">
+                    <a href="#rates" class="ed-nav-link ed-nav-active">Rates</a>
+                    <a href="compare.html" class="ed-nav-link">Compare</a>
+                    <a href="#trust" class="ed-nav-link">Jewellers</a>
+                    <a href="my-alerts.html" class="ed-nav-link">Alerts</a>
+                </nav>
+                <div class="ed-header-r">
+                    <span class="ed-live">
+                        <span class="live-dot"></span>
+                        <span class="live-lbl">Live</span>
+                    </span>
+                    <span class="hdr-date" id="hdrDate"></span>
+                    <button class="btn btn-sm" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark mode">🌙</button>
+                    <button class="btn btn-sm" onclick="openCalc()" title="Price calculator">Calculator</button>
+                    <a class="btn btn-sm ed-cta-link" href="jeweller-login.html">Jeweller sign in</a>
+                </div>
             </div>
-            <span class="m-lbl m-silver" id="lblSilver" style="opacity:.4">Silver</span>
-            <span class="m-mode" id="mMode">Viewing: Gold Rates</span>
+            <!-- SVG logo hidden but preserved for legacy JS references -->
+            <svg class="logo-icon" viewBox="0 0 33 33" fill="none" style="display:none"><rect width="33" height="33" fill="transparent"/><polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="currentColor" stroke-width="1.4" id="hexStroke"/></svg>
+        </header>
+
+        <!-- ═══════════════ METAL TOGGLE (quiet) ═══════════════ -->
+        <div class="metal-bar" id="metalBar">
+            <div class="metal-bar-inner">
+                <span class="m-lbl m-gold" id="lblGold">Gold</span>
+                <div class="toggle-wrap" onclick="toggleMetal()" title="Switch Gold / Silver">
+                    <div class="toggle-track"><div class="toggle-thumb"></div></div>
+                </div>
+                <span class="m-lbl m-silver" id="lblSilver">Silver</span>
+                <span class="m-mode" id="mMode">Viewing gold rates</span>
+            </div>
         </div>
 
+        <!-- ═══════════════ EDITORIAL HERO ═══════════════ -->
+        <section class="ed-hero" id="rates">
+            <div class="ed-hero-l">
+                <div class="ed-eyebrow" id="greetingMsg">TODAY'S RATE, WITHOUT THE MARKUP</div>
+                <h1 class="ed-h1">Know the honest<br>price of gold<br>before you buy.</h1>
+                <p class="ed-lede">Twelve of Ahmedabad's most trusted jewellers, one live comparison. Sorted by the cheapest, honest price — updated straight from MCX every minute.</p>
+                <div class="ed-hero-actions">
+                    <a href="#rates-table" class="ed-btn-primary">Compare rates ↓</a>
+                    <a href="#trust" class="ed-btn-link">How it works</a>
+                </div>
+            </div>
+            <aside class="ed-price-card">
+                <div class="ed-price-eyebrow">24K · PER 10 GRAM · MCX</div>
+                <div class="ed-price">
+                    <span class="mcx-price" id="mcxPrice">₹…</span>
+                    <span class="mcx-chg" id="mcxChg">fetching live</span>
+                </div>
+                <div class="mcx-lbl" id="mcxLbl" style="display:none">MCX Gold Base Rate (10g)</div>
+                <div class="ed-price-grid">
+                    <div>
+                        <div class="ed-tick">22K / 10G</div>
+                        <div class="ed-tick-val" id="tick22">—</div>
+                    </div>
+                    <div>
+                        <div class="ed-tick">SILVER / KG</div>
+                        <div class="ed-tick-val" id="tickSilver">—</div>
+                    </div>
+                </div>
+            </aside>
+        </section>
+
+        <!-- ═══════════════ MCX TICKER (jeweller strip) ═══════════════ -->
         <div class="ticker-bar">
             <div class="ticker-lbl" id="tickerLbl">MCX Live</div>
             <div class="ticker-track" id="tickerTrack"></div>
         </div>
 
-        <header>
-            <div class="hdr">
-                <div class="logo" onclick="showPublic()">
-                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none">
-                        <rect width="33" height="33" fill="#0A1628"/>
-                        <polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4" id="hexStroke"/>
-                        <polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/>
-                        <line x1="16.5" y1="3" x2="16.5" y2="30" stroke="#D4AF37" stroke-width=".4" opacity=".38"/>
-                        <line x1="3" y1="16.5" x2="30" y2="16.5" stroke="#D4AF37" stroke-width=".4" opacity=".38"/>
-                    </svg>
-                    <div class="logo-txt">Ahmedabad <span class="logo-sub" id="metalWord">Gold Rates · Live</span></div>
-                </div>
-                <div class="hdr-r">
-                    <div class="live-dot"></div>
-                    <span class="live-lbl">Live</span>
-                    <span class="hdr-date" id="hdrDate"></span>
-                    <button class="btn btn-sm" id="themeToggle" onclick="toggleTheme()" title="Toggle light / dark mode" style="margin-right:.5rem">🌙</button>
-                    <button class="btn btn-sm" onclick="openCalc()" title="Price calculator" style="margin-right:.5rem">🧮 Calculator</button>
-                    <button class="btn btn-sm" onclick="shareAllRates()" title="Share today's rates on WhatsApp" style="margin-right:.5rem;background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.35);color:#25D366">💬 Share Rates</button>
-                    <a class="btn btn-sm" href="my-alerts.html" style="text-decoration:none;margin-right:.5rem">🔔 My Alerts</a>
-                    <a class="btn btn-sm" href="jeweller-login.html" style="text-decoration:none">Jeweller Login</a>
-                </div>
-            </div>
-        </header>
-
-        <div class="hero">
-            <div class="hero-inner">
-                <div>
-                    <div id="greetingMsg" style="font-size: 14px; color: var(--acc-light); margin-bottom: 10px; font-weight: 500;"></div>
-<div class="mcx-lbl" id="mcxLbl">MCX Gold Base Rate (10g)</div>
-                    <div class="mcx-lbl" id="mcxLbl">MCX Gold Base Rate (10g)</div>
-                    <div style="display:flex;align-items:baseline;gap:.55rem">
-                        <div class="mcx-price gold-shimmer" id="mcxPrice">₹…</div>
-                        <span class="mcx-chg" id="mcxChg">● fetching live</span>
-                    </div>
-                </div>
-                <div class="stat-cards">
-                    <div class="sc"><div class="sc-val" id="stLow">₹71,800</div><div class="sc-lbl">Cheapest / 10g</div></div>
-                    <div class="sc"><div class="sc-val" id="stHigh">₹72,250</div><div class="sc-lbl">Highest / 10g</div></div>
-                    <div class="sc"><div class="sc-val" id="stAvg">₹72,030</div><div class="sc-lbl">Average / 10g</div></div>
-                    <div class="sc"><div class="sc-val">15</div><div class="sc-lbl">Jewellers</div></div>
-                </div>
-                <button class="refresh-btn" onclick="refreshRates()"><span class="spin" id="spinIcon">↻</span> Refresh</button>
-            </div>
-        </div>
-
+        <!-- announcement banner (admin-posted) -->
         <div id="annoBanner" class="anno"></div>
 
+        <!-- ═══════════════ STATS STRIP ═══════════════ -->
+        <div class="ed-stats">
+            <div class="sc"><div class="sc-val" id="stLow">—</div><div class="sc-lbl">Cheapest / 10g</div></div>
+            <div class="sc"><div class="sc-val" id="stHigh">—</div><div class="sc-lbl">Highest / 10g</div></div>
+            <div class="sc"><div class="sc-val" id="stAvg">—</div><div class="sc-lbl">Average / 10g</div></div>
+            <div class="sc"><div class="sc-val" id="stCount">12</div><div class="sc-lbl">Verified jewellers</div></div>
+            <button class="refresh-btn" onclick="refreshRates()" style="margin-left:auto"><span class="spin" id="spinIcon">↻</span> Refresh</button>
+        </div>
+
+        <!-- ═══════════════ SECTION 02 HEADER ═══════════════ -->
+        <header class="ed-section-hd" id="rates-table">
+            <div>
+                <div class="ed-sec-num">SECTION 02</div>
+                <h2 class="ed-h2">Twelve jewellers,<br>one honest table.</h2>
+            </div>
+            <p class="ed-sec-note">Sort by cheapest, most trusted, or making charge. Filter by area. Every row is a real, verified shop — no boosted listings, no partnerships.</p>
+        </header>
+
+        <!-- controls -->
         <div class="ctrls">
             <div class="srch-wrap">
                 <span class="si">⌕</span>
-                <input type="text" id="srchInput" placeholder="Search jeweller or symbol…" oninput="renderTable()">
+                <input type="text" id="srchInput" placeholder="Search jeweller, area, or symbol…" oninput="renderTable()">
             </div>
             <div class="sort-btns">
-                <button class="sb active" onclick="setSort(this,'smart')" title="Cheapest first, then most trusted within same price range">⚡ Smart Sort</button>
-                <button class="sb" onclick="setSort(this,'cheap')">💰 Cheapest First</button>
-                <button class="sb" onclick="setSort(this,'trust')">⭐ Most Trusted</button>
-                <button class="sb" onclick="setSort(this,'pricey')">↑ Priciest</button>
-                <button class="sb" onclick="setSort(this,'making')">Making ↑</button>
+                <button class="sb active" onclick="setSort(this,'smart')" title="Cheapest first, then most trusted within same price range">Smart</button>
+                <button class="sb" onclick="setSort(this,'cheap')">Cheapest</button>
+                <button class="sb" onclick="setSort(this,'trust')">Most trusted</button>
+                <button class="sb" onclick="setSort(this,'pricey')">Priciest</button>
+                <button class="sb" onclick="setSort(this,'making')">Lowest making</button>
             </div>
         </div>
 
@@ -135,13 +170,13 @@
             </label>
             <label class="fb-field">
                 <span class="fb-lbl">Max 22K ₹/g</span>
-                <input id="fltMaxPrice" type="number" placeholder="e.g. 7200" oninput="renderTable()" />
+                <input id="fltMaxPrice" type="number" placeholder="e.g. 7200" oninput="renderTable()">
             </label>
             <label class="fb-field fb-check">
-                <input id="fltTrusted" type="checkbox" onchange="renderTable()" />
+                <input id="fltTrusted" type="checkbox" onchange="renderTable()">
                 <span>Verified reviews only</span>
             </label>
-            <button class="sb" onclick="clearFilters()" style="margin-left:auto">✕ Clear</button>
+            <button class="sb" onclick="clearFilters()" style="margin-left:auto">Clear</button>
             <span id="fltCount" class="fb-count"></span>
         </div>
 
@@ -158,22 +193,23 @@
                         <th>24K / gram</th>
                         <th>24K / 10g</th>
                         <th>Making</th>
-                        <th style="color:var(--acc)">Trust Score ★</th>
-                        <th>Last Updated</th>
+                        <th>Trust ★</th>
+                        <th>Updated</th>
                     </tr>
                 </thead>
                 <tbody id="rateBody"></tbody>
             </table>
         </div>
 
-        <!-- ── PRICE ALERT SECTION ─────────────────────────────── -->
-        <div class="alert-section">
+        <!-- ═══════════════ ALERT SECTION (editorial) ═══════════════ -->
+        <section class="alert-section" id="alerts">
             <div class="alert-section-inner">
                 <div class="alert-left">
                     <div class="alert-icon">🔔</div>
                     <div>
-                        <div class="alert-heading">Price Drop Alert</div>
-                        <div class="alert-sub">We'll email you the moment 22K gold drops to your target price</div>
+                        <div class="ed-sec-num">SECTION 03 · A QUIET WAY TO WAIT</div>
+                        <div class="alert-heading">Tell us the number. We'll tell you the day.</div>
+                        <div class="alert-sub">Set a rate that feels fair. We'll send one quiet email — never more — the day the market meets your target. No account required, unsubscribe with a click.</div>
                     </div>
                 </div>
                 <div class="alert-form-row" id="alertFormRow">
@@ -181,34 +217,56 @@
                         <option value="22k">22K</option>
                         <option value="24k">24K</option>
                     </select>
-                    <div style="position:relative;display:flex;align-items:center">
-                        <span style="position:absolute;left:.85rem;color:var(--acc);font-weight:700;font-size:14px">₹</span>
-                        <input  class="alert-input" id="alertPrice" type="number"
-                                placeholder="Target price / gram  e.g. 7150"
-                                style="padding-left:2rem;min-width:220px">
+                    <div style="position:relative;display:flex;align-items:center;flex:1;min-width:180px">
+                        <span style="position:absolute;left:.85rem;color:var(--acc);font-weight:600;font-size:14px">₹</span>
+                        <input class="alert-input" id="alertPrice" type="number" placeholder="Target price per gram, e.g. 7,150" style="padding-left:1.9rem;width:100%">
                     </div>
-                    <input  class="alert-input" id="alertEmail" type="email"
-                            placeholder="your@email.com">
-                    <button class="alert-btn" onclick="setAlert()">Notify Me →</button>
+                    <input class="alert-input" id="alertEmail" type="email" placeholder="your@email.com">
+                    <button class="alert-btn" onclick="setAlert()">Notify me →</button>
                 </div>
                 <div class="alert-msg" id="alertMsg"></div>
             </div>
-        </div>
+        </section>
 
-        <div class="foot">
-            ⚠ Rates are indicative. Confirm with your jeweller before purchase. &nbsp;|&nbsp;
-            <a onclick="showLogin()" style="cursor:pointer; color:var(--acc);">Jeweller? Update your rates →</a>
+        <!-- ═══════════════ TRUST PROMISE (three columns) ═══════════════ -->
+        <section class="ed-trust" id="trust">
+            <div class="ed-trust-col">
+                <div class="ed-trust-num">01</div>
+                <h3 class="ed-trust-h">Rates from MCX</h3>
+                <p class="ed-trust-p">Straight from the exchange, refreshed every minute. What the market pays, is what you see.</p>
+            </div>
+            <div class="ed-trust-col">
+                <div class="ed-trust-num">02</div>
+                <h3 class="ed-trust-h">Verified jewellers</h3>
+                <p class="ed-trust-p">Every shop is visited, licensed, and BIS-hallmarked. No middlemen, no phantom listings.</p>
+            </div>
+            <div class="ed-trust-col">
+                <div class="ed-trust-num">03</div>
+                <h3 class="ed-trust-h">Free, always</h3>
+                <p class="ed-trust-p">No accounts. No ads. No boosted listings. Just the honest price of gold — because you deserve to know.</p>
+            </div>
+        </section>
+
+        <!-- ═══════════════ FOOTER ═══════════════ -->
+        <div class="foot ed-foot">
+            <div class="ed-foot-l">© 2026 Ahmedabad Gold · Ratanpole, Ahmedabad</div>
+            <div class="ed-foot-c">Rates are indicative — always confirm with your jeweller before purchase.</div>
+            <div class="ed-foot-r"><a onclick="showLogin()" style="cursor:pointer">Jeweller? Update your rates →</a></div>
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════
+         LOGGED-IN VIEWS (jeweller portal, admin, modals)
+         Structurally unchanged — CSS restyles them editorially.
+         ═══════════════════════════════════════════════════ -->
     <div class="view" id="view-login">
         <div class="modal-bg">
             <div class="modal-box">
-                <div class="modal-logo">Ahmedabad <span>Gold &amp; Silver</span> Rates</div>
-                <div class="modal-sub">Jeweller &amp; Admin Portal — all credentials listed below</div>
+                <div class="modal-logo">Ahmedabad <span>Gold Rates</span></div>
+                <div class="modal-sub">Jeweller &amp; Admin portal — credentials listed below</div>
                 <div class="role-tabs">
-                    <button class="rtab active" onclick="setRole('jeweller',this)">Jeweller Login</button>
-                    <button class="rtab" onclick="setRole('admin',this)">Admin Login</button>
+                    <button class="rtab active" onclick="setRole('jeweller',this)">Jeweller</button>
+                    <button class="rtab" onclick="setRole('admin',this)">Admin</button>
                 </div>
                 <div class="creds-box">
                     <table class="creds-tbl">
@@ -217,7 +275,7 @@
                     </table>
                 </div>
                 <div class="form-group" style="margin-bottom:.85rem">
-                    <label class="flbl">Email / Username</label>
+                    <label class="flbl">Email</label>
                     <input class="finp" id="loginEmail" type="email" placeholder="your@email.com">
                 </div>
                 <div class="form-group" style="margin-bottom:.85rem">
@@ -225,23 +283,23 @@
                     <input class="finp" id="loginPass" type="password" placeholder="••••••••">
                 </div>
                 <div class="login-err" id="loginErr">Incorrect credentials. Check the table above.</div>
-                <button class="btn btn-acc" style="width:100%;padding:.72rem" onclick="doLogin()">Sign In</button>
+                <button class="btn btn-acc" style="width:100%;padding:.72rem" onclick="doLogin()">Sign in</button>
                 <div class="back-lnk" onclick="showPublic()">← Back to public rates</div>
             </div>
         </div>
     </div>
 
     <div class="view" id="view-jeweller">
-        <header>
-            <div class="hdr">
-                <div class="logo" onclick="showPublic()">
-                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none"><rect width="33" height="33" fill="#0A1628"/><polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4"/><polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/></svg>
-                    <div class="logo-txt">Jeweller Portal <span class="logo-sub">Ahmedabad Rates</span></div>
+        <header class="ed-header">
+            <div class="ed-header-inner">
+                <div class="ed-brand" onclick="showPublic()">
+                    <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+                    <div class="ed-brand-sub">Jeweller portal</div>
                 </div>
-                <div class="hdr-r">
+                <div class="ed-header-r">
                     <span class="hdr-date" id="jwlDate"></span>
                     <button class="btn btn-sm" onclick="showPublic()">← Public</button>
-                    <button class="btn btn-sm" onclick="showLogin()">Logout</button>
+                    <button class="btn btn-sm" onclick="showLogin()">Sign out</button>
                 </div>
             </div>
         </header>
@@ -252,12 +310,12 @@
                     <div class="sb-name" id="jwlName">Tanishq</div>
                     <div class="sb-role" id="jwlRole">Jeweller · TNQ</div>
                 </div>
-                <div class="nav-item active" onclick="showJSec('js-overview',this)">📊 Overview</div>
-                <div class="nav-item" onclick="showJSec('js-update',this)">✏️ Update Rates</div>
-                <div class="nav-item" onclick="showJSec('js-history',this)">📋 History</div>
-                <div class="nav-item" onclick="showJSec('js-profile',this)">👤 Profile</div>
+                <div class="nav-item active" onclick="showJSec('js-overview',this)">Overview</div>
+                <div class="nav-item" onclick="showJSec('js-update',this)">Update rates</div>
+                <div class="nav-item" onclick="showJSec('js-history',this)">History</div>
+                <div class="nav-item" onclick="showJSec('js-profile',this)">Profile</div>
                 <div class="nav-sep"></div>
-                <div class="nav-item" onclick="showPublic()">🔗 Public Page</div>
+                <div class="nav-item" onclick="showPublic()">Public page →</div>
             </div>
             <div class="dash-content">
                 <div class="dash-sec active" id="js-overview">
@@ -269,15 +327,15 @@
                         <div class="dc"><div class="dc-val" id="ov24g">—</div><div class="dc-lbl">24K / gram</div></div>
                         <div class="dc"><div class="dc-val" id="ov24t">—</div><div class="dc-lbl">24K / 10g</div></div>
                         <div class="dc"><div class="dc-val" id="ovMk">—</div><div class="dc-lbl">Making %</div></div>
-                        <div class="dc"><div class="dc-val" id="ovTrust">—</div><div class="dc-lbl">Trust Score</div></div>
+                        <div class="dc"><div class="dc-val" id="ovTrust">—</div><div class="dc-lbl">Trust score</div></div>
                     </div>
-                    <div style="font-size:11px;color:var(--muted);margin-bottom:.6rem">Your market rank (22K/10g)</div>
+                    <div style="font-size:11px;letter-spacing:.24em;color:var(--muted);margin-bottom:.6rem;font-weight:500;text-transform:uppercase">Your market rank (22K/10g)</div>
                     <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:.95rem;max-width:460px"><div id="rankViz">—</div></div>
                 </div>
                 <div class="dash-sec" id="js-update">
-                    <div class="dash-title">Update Rates</div>
+                    <div class="dash-title">Update rates</div>
                     <div class="dash-sub">Publishes immediately to the public table.</div>
-                    <div class="suc-msg" id="updSuc">✓ Rates published successfully.</div>
+                    <div class="suc-msg" id="updSuc">✓ Rates published.</div>
                     <div class="upd-form">
                         <div class="f-row">
                             <div><label class="flbl">22K / gram (₹)</label><input class="finp" id="f22g" type="number" oninput="autoC('22')"><div class="f-note">10g auto-fills</div></div>
@@ -287,28 +345,28 @@
                             <div><label class="flbl">24K / gram (₹)</label><input class="finp" id="f24g" type="number" oninput="autoC('24')"><div class="f-note">10g auto-fills</div></div>
                             <div><label class="flbl">24K / 10g (₹)</label><input class="finp" id="f24t" type="number" readonly style="opacity:.5"></div>
                         </div>
-                        <div style="margin-bottom:.85rem"><label class="flbl">Making Charge (%)</label><input class="finp" id="fMk" type="number" style="max-width:130px"></div>
-                        <div style="margin-bottom:.85rem"><label class="flbl">Optional Note</label><input class="finp" id="fNote" type="text" placeholder="e.g. Festival offer — 5% off making today"></div>
-                        <button class="btn btn-acc" onclick="submitUpdate()">Publish Rates</button>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Making charge (%)</label><input class="finp" id="fMk" type="number" style="max-width:130px"></div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Optional note</label><input class="finp" id="fNote" type="text" placeholder="e.g. Festival offer — 5% off making today"></div>
+                        <button class="btn btn-acc" onclick="submitUpdate()">Publish rates</button>
                     </div>
                 </div>
                 <div class="dash-sec" id="js-history">
-                    <div class="dash-title">Rate History</div><div class="dash-sub">Last 30 days</div>
+                    <div class="dash-title">Rate history</div><div class="dash-sub">Last 30 days</div>
                     <div style="overflow-x:auto"><table style="min-width:460px">
                         <thead><tr><th>Date</th><th>22K/10g</th><th>24K/10g</th><th>Making</th><th>Time</th><th>Note</th></tr></thead>
                         <tbody id="jwlHistBody"></tbody>
                     </table></div>
                 </div>
                 <div class="dash-sec" id="js-profile">
-                    <div class="dash-title">My Profile</div><div class="dash-sub">Contact information</div>
+                    <div class="dash-title">Profile</div><div class="dash-sub">Contact information</div>
                     <div class="upd-form">
-                        <div style="margin-bottom:.85rem"><label class="flbl">Jeweller Name</label><input class="finp" id="pName"></div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Jeweller name</label><input class="finp" id="pName"></div>
                         <div class="f-row">
                             <div><label class="flbl">Email</label><input class="finp" id="pEmail"></div>
                             <div><label class="flbl">Phone</label><input class="finp" id="pPhone"></div>
                         </div>
-                        <div style="margin-bottom:.85rem"><label class="flbl">Area / Location</label><input class="finp" id="pArea"></div>
-                        <button class="btn btn-acc" onclick="alert('Profile saved!')">Save Profile</button>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Area / location</label><input class="finp" id="pArea"></div>
+                        <button class="btn btn-acc" onclick="alert('Profile saved!')">Save</button>
                     </div>
                 </div>
             </div>
@@ -316,15 +374,15 @@
     </div>
 
     <div class="view" id="view-admin">
-        <header>
-            <div class="hdr">
-                <div class="logo" onclick="showPublic()">
-                    <svg class="logo-icon" viewBox="0 0 33 33" fill="none"><rect width="33" height="33" fill="#0A1628"/><polygon points="16.5,3 30,10.5 30,22.5 16.5,30 3,22.5 3,10.5" fill="none" stroke="#D4AF37" stroke-width="1.4"/><polygon points="16.5,9 24,13.5 24,19.5 16.5,24 9,19.5 9,13.5" fill="rgba(212,175,55,0.13)" stroke="#D4AF37" stroke-width=".85"/></svg>
-                    <div class="logo-txt">Admin Panel <span class="logo-sub">Ahmedabad Rates</span></div>
+        <header class="ed-header">
+            <div class="ed-header-inner">
+                <div class="ed-brand" onclick="showPublic()">
+                    <div class="ed-brand-name">Ahmedabad Gold<span class="ed-brand-dot"> · </span></div>
+                    <div class="ed-brand-sub">Admin panel</div>
                 </div>
-                <div class="hdr-r">
+                <div class="ed-header-r">
                     <button class="btn btn-sm" onclick="showPublic()">← Public</button>
-                    <button class="btn btn-sm" onclick="showLogin()">Logout</button>
+                    <button class="btn btn-sm" onclick="showLogin()">Sign out</button>
                 </div>
             </div>
         </header>
@@ -333,121 +391,121 @@
                 <div class="sb-user">
                     <div class="sb-avatar">AD</div>
                     <div class="sb-name">Administrator</div>
-                    <div class="sb-role">Full Access</div>
+                    <div class="sb-role">Full access</div>
                 </div>
-                <div class="nav-item active" onclick="showASec('as-overview',this)">📊 Overview</div>
-                <div class="nav-item" onclick="showASec('as-jewellers',this)">🏪 Jewellers</div>
-                <div class="nav-item" onclick="showASec('as-override',this)">💰 Override Rates</div>
-                <div class="nav-item" onclick="showASec('as-history',this)">📋 History</div>
-                <div class="nav-item" onclick="showASec('as-announce',this)">📢 Announcements</div>
-                <div class="nav-item" onclick="showASec('as-reviews',this)">📸 Review Approvals <span id="pendingBadge" style="background:#ef4444;color:#fff;border-radius:10px;font-size:10px;padding:.1rem .45rem;margin-left:.3rem;font-weight:700"></span></div>
-                <div class="nav-item" onclick="showASec('as-creds',this)">🔑 Login Credentials</div>
-                <div class="nav-item" onclick="showASec('as-export',this)">⬇ Export</div>
+                <div class="nav-item active" onclick="showASec('as-overview',this)">Overview</div>
+                <div class="nav-item" onclick="showASec('as-jewellers',this)">Jewellers</div>
+                <div class="nav-item" onclick="showASec('as-override',this)">Override rates</div>
+                <div class="nav-item" onclick="showASec('as-history',this)">History</div>
+                <div class="nav-item" onclick="showASec('as-announce',this)">Announcements</div>
+                <div class="nav-item" onclick="showASec('as-reviews',this)">Review approvals <span id="pendingBadge" style="background:var(--red);color:var(--navy2);border-radius:3px;font-size:10px;padding:.1rem .4rem;margin-left:.3rem;font-weight:600"></span></div>
+                <div class="nav-item" onclick="showASec('as-creds',this)">Credentials</div>
+                <div class="nav-item" onclick="showASec('as-export',this)">Export</div>
                 <div class="nav-sep"></div>
-                <div class="nav-item" onclick="showPublic()">🔗 Public Page</div>
+                <div class="nav-item" onclick="showPublic()">Public page →</div>
             </div>
             <div class="dash-content">
                 <div class="dash-sec active" id="as-overview">
-                    <div class="dash-title">Platform Overview</div>
+                    <div class="dash-title">Platform overview</div>
                     <div class="dash-sub" id="admDate">—</div>
                     <div class="cards-row">
-                        <div class="dc"><div class="dc-val">15</div><div class="dc-lbl">Jewellers</div></div>
-                        <div class="dc"><div class="dc-val">12</div><div class="dc-lbl">Updated Today</div></div>
+                        <div class="dc"><div class="dc-val">12</div><div class="dc-lbl">Jewellers</div></div>
+                        <div class="dc"><div class="dc-val">12</div><div class="dc-lbl">Updated today</div></div>
                         <div class="dc"><div class="dc-val" id="admLow">—</div><div class="dc-lbl">Cheapest 22K</div></div>
                         <div class="dc"><div class="dc-val" id="admHigh">—</div><div class="dc-lbl">Highest 22K</div></div>
                         <div class="dc"><div class="dc-val" style="color:var(--green)">Active</div><div class="dc-lbl">System</div></div>
                     </div>
-                    <div style="font-size:11px;color:var(--muted);margin-bottom:.65rem">Rate spread (cheapest → priciest)</div>
+                    <div style="font-size:11px;letter-spacing:.24em;color:var(--muted);margin-bottom:.65rem;font-weight:500;text-transform:uppercase">Rate spread (cheapest → priciest)</div>
                     <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1rem;max-width:600px"><div id="spreadViz"></div></div>
                 </div>
                 <div class="dash-sec" id="as-jewellers">
-                    <div class="dash-title">Manage Jewellers</div><div class="dash-sub">All registered jewellers</div>
-                    <button class="btn btn-acc btn-sm" style="margin-bottom:1rem" onclick="alert('Add Jeweller — connect to backend')">+ Add Jeweller</button>
+                    <div class="dash-title">Manage jewellers</div><div class="dash-sub">All registered jewellers</div>
+                    <button class="btn btn-acc btn-sm" style="margin-bottom:1rem" onclick="alert('Add Jeweller — connect to backend')">+ Add jeweller</button>
                     <div class="jwl-grid" id="jwlGrid"></div>
                 </div>
                 <div class="dash-sec" id="as-override">
-                    <div class="dash-title">Override Rates</div><div class="dash-sub">Manually set any jeweller's rates</div>
+                    <div class="dash-title">Override rates</div><div class="dash-sub">Manually set any jeweller's rates</div>
                     <div class="upd-form">
-                    <div style="margin-bottom:.85rem"><label class="flbl">Select Jeweller</label>
-                        <select class="finp" id="orJwl" style="background:var(--navy3);color:var(--white)"><option value="">— Choose —</option></select>
-                    </div>
-                    <div class="f-row">
-                        <div><label class="flbl">22K / gram</label><input class="finp" id="or22g" type="number"></div>
-                        <div><label class="flbl">24K / gram</label><input class="finp" id="or24g" type="number"></div>
-                    </div>
-                    <div style="margin-bottom:.85rem"><label class="flbl">Making (%)</label><input class="finp" id="orMk" type="number" style="max-width:115px"></div>
-                    <div class="suc-msg" id="orSuc">✓ Rates overridden.</div>
-                    <button class="btn btn-acc" onclick="doOverride()">Override &amp; Publish</button>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Select jeweller</label>
+                            <select class="finp" id="orJwl"><option value="">— Choose —</option></select>
+                        </div>
+                        <div class="f-row">
+                            <div><label class="flbl">22K / gram</label><input class="finp" id="or22g" type="number"></div>
+                            <div><label class="flbl">24K / gram</label><input class="finp" id="or24g" type="number"></div>
+                        </div>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Making (%)</label><input class="finp" id="orMk" type="number" style="max-width:115px"></div>
+                        <div class="suc-msg" id="orSuc">✓ Rates overridden.</div>
+                        <button class="btn btn-acc" onclick="doOverride()">Override &amp; publish</button>
                     </div>
                 </div>
-                 <div class="dash-sec" id="as-history">
-                    <div class="dash-title">Rate History</div><div class="dash-sub">All updates across all jewellers</div>
+                <div class="dash-sec" id="as-history">
+                    <div class="dash-title">Rate history</div><div class="dash-sub">All updates across all jewellers</div>
                     <div style="overflow-x:auto"><table style="min-width:560px">
-                    <thead><tr><th>Time</th><th>Jeweller</th><th>22K/10g</th><th>24K/10g</th><th>Making</th><th>By</th></tr></thead>
-                    <tbody id="admHistBody"></tbody>
+                        <thead><tr><th>Time</th><th>Jeweller</th><th>22K/10g</th><th>24K/10g</th><th>Making</th><th>By</th></tr></thead>
+                        <tbody id="admHistBody"></tbody>
                     </table></div>
                 </div>
                 <div class="dash-sec" id="as-announce">
                     <div class="dash-title">Announcements</div><div class="dash-sub">Post a banner on the public page</div>
                     <div class="ann-form">
-                    <div style="margin-bottom:.85rem"><label class="flbl">Message</label>
-                        <textarea id="annoTxt" placeholder="e.g. Market closed today. Rates may not be updated."></textarea>
+                        <div style="margin-bottom:.85rem"><label class="flbl">Message</label>
+                            <textarea id="annoTxt" placeholder="e.g. Market closed today. Rates may not be updated."></textarea>
+                        </div>
+                        <div style="display:flex;gap:.65rem">
+                            <button class="btn btn-acc" onclick="postAnno()">Post</button>
+                            <button class="btn btn-sm" onclick="clearAnno()">Clear</button>
+                        </div>
                     </div>
-                    <div style="display:flex;gap:.65rem">
-                        <button class="btn btn-acc" onclick="postAnno()">Post</button>
-                        <button class="btn btn-sm" onclick="clearAnno()">Clear</button>
-                    </div>
-                    </div>
-                    <div style="font-size:11px;color:var(--muted)">Current: <span id="curAnno" style="color:var(--acc3)">None</span></div>
+                    <div style="font-size:11px;color:var(--muted);margin-top:.75rem">Current: <span id="curAnno" style="color:var(--acc)">None</span></div>
                 </div>
-
                 <div class="dash-sec" id="as-reviews">
-                    <div class="dash-title">📸 Review Approvals</div>
+                    <div class="dash-title">Review approvals</div>
                     <div class="dash-sub">Only approve reviews that have a valid purchase photo attached. Reject spam or fake ones.</div>
                     <div id="pendingRevContainer" style="max-width:640px"></div>
                 </div>
-
                 <div class="dash-sec" id="as-creds">
-                    <div class="dash-title">Login Credentials</div>
+                    <div class="dash-title">Login credentials</div>
                     <div class="dash-sub">All accounts on the platform — admin and jewellers</div>
                     <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1.3rem;margin-bottom:1.3rem">
-                    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem">Admin Account</div>
-                    <table class="ct" style="width:100%">
-                        <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Role</th><th>Status</th></tr></thead>
-                        <tbody>
-                        <tr>
-                            <td>Administrator</td>
-                            <td class="mono">admin@ahm.com</td>
-                            <td class="mono">admin123</td>
-                            <td><span class="tag-on">Admin</span></td>
-                            <td><span class="tag-on">Active</span></td>
-                        </tr>
-                        </tbody>
-                    </table>
-                    </div>
-                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1.3rem">
-                    <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem">Jeweller Accounts (15)</div>
-                    <div style="overflow-x:auto">
-                        <table class="ct" style="min-width:640px">
-                        <thead><tr><th>#</th><th>Jeweller</th><th>Symbol</th><th>Email</th><th>Password</th><th>Status</th><th>Action</th></tr></thead>
-                        <tbody id="credsAdmBody"></tbody>
+                        <div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem;font-weight:500">Admin account</div>
+                        <table class="ct" style="width:100%">
+                            <thead><tr><th>Name</th><th>Email</th><th>Password</th><th>Role</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td>Administrator</td>
+                                    <td class="mono">admin@ahm.com</td>
+                                    <td class="mono">admin123</td>
+                                    <td><span class="tag-on">Admin</span></td>
+                                    <td><span class="tag-on">Active</span></td>
+                                </tr>
+                            </tbody>
                         </table>
                     </div>
+                    <div style="background:var(--navy2);border:1px solid var(--acc-border);padding:1.3rem">
+                        <div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc);margin-bottom:.85rem;font-weight:500">Jeweller accounts (12)</div>
+                        <div style="overflow-x:auto">
+                            <table class="ct" style="min-width:640px">
+                                <thead><tr><th>#</th><th>Jeweller</th><th>Symbol</th><th>Email</th><th>Password</th><th>Status</th><th>Action</th></tr></thead>
+                                <tbody id="credsAdmBody"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-
                 <div class="dash-sec" id="as-export">
                     <div class="dash-title">Export</div><div class="dash-sub">Download current data as CSV</div>
                     <div style="display:flex;gap:.7rem;margin-bottom:1rem">
-                    <button class="btn btn-acc" onclick="exportCSV()">⬇ Today's Rates (CSV)</button>
-                    <button class="btn btn-sm" onclick="alert('Historical — connect to backend')">⬇ Historical</button>
+                        <button class="btn btn-acc" onclick="exportCSV()">Today's rates (CSV)</button>
+                        <button class="btn btn-sm" onclick="alert('Historical — connect to backend')">Historical</button>
                     </div>
-                    <div style="font-size:12px;color:var(--muted)">Includes jeweller, symbol, 22K/g, 22K/10g, 24K/g, 24K/10g, making%, trust score, last updated.</div>
+                    <div style="font-size:12px;color:var(--muted)">Includes jeweller, symbol, 22K/g, 22K/10g, 24K/g, 24K/10g, making %, trust score, last updated.</div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════
+         REVIEW MODAL — editorial, preserves all IDs
+         ═══════════════════════════════════════════════════ -->
     <div class="rm-overlay" id="reviewModal">
         <div class="rm-box">
             <div class="rm-head">
@@ -457,256 +515,148 @@
             <div class="rm-body">
                 <div class="rev-list" id="revList"></div>
                 <div class="add-rev">
-                    <div class="add-rev-title">Write a Verified Review</div>
+                    <div class="add-rev-title">Write a verified review</div>
                     <div class="notice-box">
-                        📸 Upload a <strong style="color:var(--acc3)">photo of your purchase or receipt</strong> to unlock the review form. This ensures only real buyers can review.
+                        Upload a <strong style="color:var(--acc)">photo of your purchase or receipt</strong> to unlock the review form. This keeps reviews honest — only real buyers can leave one.
                     </div>
                     <div class="upload-zone" onclick="document.getElementById('photoUp').click()">
                         <input type="file" id="photoUp" accept="image/*" onchange="handlePhoto(event)" style="display:none">
                         <div class="up-icon">📷</div>
                         <div class="up-txt" id="photoUpLabel">Tap to upload purchase photo or receipt</div>
-                        <div class="up-req">📌 Required — unlocks the review form · Max 8MB</div>
+                        <div class="up-req">Required — unlocks the review form · Max 8MB</div>
                     </div>
                     <img id="upPreview" alt="Preview">
                     <div id="revForm" style="display:none">
                         <div style="font-size:11px;color:var(--green);margin-bottom:.85rem">✓ Photo uploaded — review form unlocked</div>
                         <div style="margin-bottom:.65rem">
-                            <label class="flbl">Your Rating</label>
+                            <label class="flbl">Your rating</label>
                             <div class="star-pick" id="starPick">
                                 <span onclick="setStar(1)">★</span><span onclick="setStar(2)">★</span>
                                 <span onclick="setStar(3)">★</span><span onclick="setStar(4)">★</span><span onclick="setStar(5)">★</span>
                             </div>
                         </div>
-                        <div style="margin-bottom:.65rem"><label class="flbl">Your Name</label><input class="finp" id="rName" placeholder="e.g. Priya S."></div>
+                        <div style="margin-bottom:.65rem"><label class="flbl">Your name</label><input class="finp" id="rName" placeholder="e.g. Priya S."></div>
                         <div style="margin-bottom:.65rem">
-                            <label class="flbl">Your Review</label>
+                            <label class="flbl">Your review</label>
                             <textarea class="finp" id="rText" rows="3" style="resize:vertical" placeholder="Share your experience…"></textarea>
                         </div>
                         <div class="err-msg" id="starErr">Please select a star rating first.</div>
-                        <button class="btn btn-acc" onclick="submitRev()">Submit Review</button>
+                        <button class="btn btn-acc" onclick="submitRev()">Submit review</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════════════════
-         Compare FAB — appears when 1 or 2 jewellers ticked.
-         Hidden by default; _refreshCompareUI() toggles it.
-         ═══════════════════════════════════════════════════ -->
+    <!-- Compare FAB -->
     <div id="cmpFab" style="display:none">
-      <span id="cmpFabLabel">⇄ Compare</span>
-      <button class="cmp-fab-go"    onclick="goCompare()">Open →</button>
-      <button class="cmp-fab-clear" onclick="clearCompare()" aria-label="Clear selection">×</button>
+        <span id="cmpFabLabel">⇄ Compare</span>
+        <button class="cmp-fab-go" onclick="goCompare()">Open →</button>
+        <button class="cmp-fab-clear" onclick="clearCompare()" aria-label="Clear selection">×</button>
     </div>
 
-    <style>
-      /* Compare-row checkbox: bigger touch target, accent colour */
-      .cmp-check { width: 18px; height: 18px; accent-color: var(--acc); cursor: pointer; }
-      .cmp-check:disabled { cursor: not-allowed; opacity: .35; }
-      /* Floating "Compare these 2" pill, bottom-right */
-      #cmpFab {
-        position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 900;
-        display: flex; align-items: center; gap: .65rem;
-        background: var(--card); border: 1px solid var(--acc);
-        border-radius: 999px; padding: .55rem .65rem .55rem 1rem;
-        box-shadow: 0 16px 40px -12px rgba(212,175,55,0.45), 0 2px 8px rgba(0,0,0,0.35);
-        font-size: 13px; font-weight: 600; color: var(--text);
-        animation: cmpPop .2s ease-out;
-      }
-      @keyframes cmpPop { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-      #cmpFab button { border: 0; border-radius: 999px; padding: .45rem .9rem; font-size: 12px; font-weight: 700; cursor: pointer; }
-      .cmp-fab-go { background: var(--acc); color: #000; }
-      .cmp-fab-go:hover { filter: brightness(1.08); }
-      .cmp-fab-clear { background: rgba(255,255,255,0.05); color: var(--muted); width: 30px; height: 30px; padding: 0; font-size: 18px; line-height: 1; }
-      .cmp-fab-clear:hover { background: rgba(239,68,68,0.15); color: #f87171; }
-      @media (max-width: 520px) {
-        #cmpFab { left: 1rem; right: 1rem; justify-content: space-between; border-radius: 14px; }
-      }
-    </style>
-
     <!-- ═══════════════════════════════════════════════════
-         Price Calculator Modal
-         Live: weight × today's MCX rate + making + 3% GST.
-         Auto-updates the moment any input changes.
+         CALCULATOR MODAL — editorial styling via style.css
          ═══════════════════════════════════════════════════ -->
     <div id="calcModal" class="calc-modal" style="display:none" onclick="if(event.target===this)closeCalc()">
-      <div class="calc-card">
-        <div class="calc-head">
-          <h3 style="margin:0;font-size:1.1rem;font-weight:700">🧮 Gold Price Calculator</h3>
-          <button onclick="closeCalc()" class="calc-close" aria-label="Close">×</button>
+        <div class="calc-card">
+            <div class="calc-head">
+                <h3 style="margin:0;font-size:1.15rem;font-weight:500;letter-spacing:-.01em">Gold price calculator</h3>
+                <button onclick="closeCalc()" class="calc-close" aria-label="Close">×</button>
+            </div>
+            <p class="calc-sub">Pick a jeweller, enter the weight, see the total cost broken down.</p>
+            <div class="calc-grid">
+                <div><label>Jeweller</label><select id="calcJeweller"></select></div>
+                <div><label>Purity</label><select id="calcPurity"><option value="22">22 Karat (916 hallmark)</option><option value="24">24 Karat (pure gold)</option></select></div>
+                <div><label>Weight (grams)</label><input id="calcWeight" type="number" inputmode="decimal" min="0" step="0.1" value="10"></div>
+                <div><label>Making charge override (%)</label><input id="calcMaking" type="number" inputmode="numeric" min="0" max="50" step="0.5" placeholder="Auto from jeweller"></div>
+            </div>
+            <div class="calc-result" id="calcResult">
+                <div class="calc-row"><span>Gold value</span><span id="calcGold">—</span></div>
+                <div class="calc-row"><span>Making charge</span><span id="calcMake">—</span></div>
+                <div class="calc-row"><span>GST (3% on gold + making)</span><span id="calcGst">—</span></div>
+                <div class="calc-row calc-total"><span>Total to pay</span><span id="calcTotal">—</span></div>
+                <div class="calc-note" id="calcNote"></div>
+            </div>
+            <div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="copyCalc()" style="flex:1;min-width:120px">📋 Copy breakdown</button>
+                <button class="btn btn-sm" onclick="shareCalc()" style="flex:1;min-width:120px">💬 Send to WhatsApp</button>
+            </div>
         </div>
-        <p class="calc-sub">Pick a jeweller, enter the weight, see the total cost broken down.</p>
-
-        <div class="calc-grid">
-          <div>
-            <label>Jeweller</label>
-            <select id="calcJeweller"></select>
-          </div>
-          <div>
-            <label>Purity</label>
-            <select id="calcPurity">
-              <option value="22">22 Karat (916 hallmark)</option>
-              <option value="24">24 Karat (pure gold)</option>
-            </select>
-          </div>
-          <div>
-            <label>Weight (grams)</label>
-            <input id="calcWeight" type="number" inputmode="decimal" min="0" step="0.1" value="10" />
-          </div>
-          <div>
-            <label>Making charge override (%)</label>
-            <input id="calcMaking" type="number" inputmode="numeric" min="0" max="50" step="0.5" placeholder="Auto from jeweller" />
-          </div>
-        </div>
-
-        <div class="calc-result" id="calcResult">
-          <div class="calc-row"><span>Gold value</span> <span id="calcGold">—</span></div>
-          <div class="calc-row"><span>Making charge</span> <span id="calcMake">—</span></div>
-          <div class="calc-row"><span>GST (3% on gold + making)</span> <span id="calcGst">—</span></div>
-          <div class="calc-row calc-total"><span>Total to pay</span> <span id="calcTotal">—</span></div>
-          <div class="calc-note" id="calcNote"></div>
-        </div>
-
-        <div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap">
-          <button class="btn btn-sm" onclick="copyCalc()" style="flex:1;min-width:120px">📋 Copy breakdown</button>
-          <button class="btn btn-sm" onclick="shareCalc()" style="flex:1;min-width:120px;background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.35);color:#25D366">💬 Send to WhatsApp</button>
-        </div>
-      </div>
     </div>
 
-    <style>
-      .calc-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-      .calc-card  { background: var(--card); border: 1px solid var(--acc-border); border-radius: 16px; padding: 1.5rem; max-width: 520px; width: 100%; max-height: 92vh; overflow-y: auto; box-shadow: 0 24px 60px -16px rgba(0,0,0,0.6); }
-      .calc-head  { display: flex; justify-content: space-between; align-items: center; margin-bottom: .35rem; }
-      .calc-close { background: none; border: 0; color: var(--muted); font-size: 1.6rem; line-height: 1; padding: 0 .35rem; cursor: pointer; }
-      .calc-close:hover { color: var(--text); }
-      .calc-sub   { color: var(--muted); font-size: 13px; margin: 0 0 1.1rem; }
-      .calc-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-bottom: 1rem; }
-      @media (max-width: 460px) { .calc-grid { grid-template-columns: 1fr; } }
-      .calc-grid label { display: block; font-size: 11px; color: var(--muted); margin-bottom: .25rem; text-transform: uppercase; letter-spacing: .4px; }
-      .calc-grid input, .calc-grid select { width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid var(--acc-border); color: var(--text); padding: .65rem .8rem; border-radius: 8px; font-size: 14px; }
-      .calc-grid input:focus, .calc-grid select:focus { outline: none; border-color: var(--acc); }
-      .calc-result { background: rgba(255,255,255,0.03); border: 1px solid var(--acc-border); border-radius: 10px; padding: .85rem 1rem; }
-      .calc-row  { display: flex; justify-content: space-between; align-items: baseline; padding: .25rem 0; font-size: 14px; color: var(--text); }
-      .calc-row span:first-child { color: var(--muted); font-size: 13px; }
-      .calc-row.calc-total { border-top: 1px solid rgba(255,255,255,0.08); margin-top: .35rem; padding-top: .65rem; font-weight: 700; font-size: 1.05rem; }
-      .calc-row.calc-total span:last-child { color: var(--acc); font-size: 1.25rem; }
-      .calc-note { color: var(--muted); font-size: 11px; margin-top: .65rem; font-style: italic; }
-    </style>
-
-    <script src="/config.js?v=4"></script>
+    <script src="/config.js?v=5"></script>
     <script src="data.js?v=3"></script>
     <script src="app.js?v=5"></script>
     <script>
-      // ── Register service worker for PWA install + offline support ──
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW register failed:', err));
+        // ── Service worker for PWA install + offline support ──
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.warn('SW register failed:', err));
+            });
+        }
+
+        /* ════════════════════════════════════════════════════════
+           PRICE CALCULATOR (kept from original)
+        ════════════════════════════════════════════════════════ */
+        function _fmtIN(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+        function _populateCalcJewellers() {
+            const sel = document.getElementById('calcJeweller');
+            if (!sel) return;
+            const list = (typeof J !== 'undefined' ? J : []).filter(j => j.r22g != null && j.r24g != null).sort((a, b) => a.r22g - b.r22g);
+            sel.innerHTML = list.length
+                ? list.map(j => `<option value="${j.id}" data-r22="${j.r22g}" data-r24="${j.r24g}" data-mk="${j.making || 10}">${j.name} (22K ₹${Math.round(j.r22g)}/g)</option>`).join('')
+                : '<option disabled>No rates available right now</option>';
+        }
+        function _runCalc() {
+            const sel = document.getElementById('calcJeweller');
+            const opt = sel?.selectedOptions?.[0];
+            if (!opt || opt.disabled) return;
+            const purity = document.getElementById('calcPurity').value;
+            const wt = parseFloat(document.getElementById('calcWeight').value) || 0;
+            const rate = parseFloat(purity === '24' ? opt.dataset.r24 : opt.dataset.r22);
+            const mkOver = parseFloat(document.getElementById('calcMaking').value);
+            const mkPct = Number.isFinite(mkOver) ? mkOver : parseFloat(opt.dataset.mk || 10);
+            const gold = wt * rate;
+            const make = (gold * mkPct) / 100;
+            const gst = (gold + make) * 0.03;
+            const total = gold + make + gst;
+            document.getElementById('calcGold').textContent = _fmtIN(gold);
+            document.getElementById('calcMake').textContent = `${_fmtIN(make)} (${mkPct}%)`;
+            document.getElementById('calcGst').textContent = _fmtIN(gst);
+            document.getElementById('calcTotal').textContent = _fmtIN(total);
+            document.getElementById('calcNote').textContent = `${opt.textContent.split(' (')[0]} · ${wt}g of ${purity}K @ ₹${Math.round(rate)}/g`;
+        }
+        function openCalc() { _populateCalcJewellers(); document.getElementById('calcModal').style.display = 'flex'; _runCalc(); }
+        function closeCalc() { document.getElementById('calcModal').style.display = 'none'; }
+        function copyCalc() {
+            const txt = document.getElementById('calcNote').textContent + '\n' +
+                'Gold: ' + document.getElementById('calcGold').textContent + '\n' +
+                'Making: ' + document.getElementById('calcMake').textContent + '\n' +
+                'GST 3%: ' + document.getElementById('calcGst').textContent + '\n' +
+                'TOTAL: ' + document.getElementById('calcTotal').textContent + '\n\n' +
+                'Calculated on sonatoday.com';
+            navigator.clipboard?.writeText(txt).then(() => alert('Breakdown copied.'));
+        }
+        function shareCalc() {
+            const note = document.getElementById('calcNote').textContent;
+            const total = document.getElementById('calcTotal').textContent;
+            const msg = `*Gold price estimate*\n${note}\n\nGold: ${document.getElementById('calcGold').textContent}\nMaking: ${document.getElementById('calcMake').textContent}\nGST 3%: ${document.getElementById('calcGst').textContent}\n*Total: ${total}*\n\nCompare verified Ahmedabad jewellers → ${window.location.origin}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+        function shareAllRates() {
+            const list = (typeof J !== 'undefined' ? J : []).filter(j => j.r22g != null).sort((a, b) => a.r22g - b.r22g);
+            if (!list.length) { alert('No live rates available to share yet.'); return; }
+            const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+            const lines = list.slice(0, 12).map((j, i) => `${i + 1}. ${j.name} — 22K ₹${Math.round(j.r22g)}/g${j.making ? ` · making ${j.making}%` : ''}`).join('\n');
+            const msg = `*Today's gold rates · Ahmedabad*\n${date}\n\n${lines}\n\nLive updates → ${window.location.origin}\nPowered by SonaToday`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+        ['calcJeweller','calcPurity','calcWeight','calcMaking'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', _runCalc);
+            document.getElementById(id)?.addEventListener('change', _runCalc);
         });
-      }
-
-      /* ════════════════════════════════════════════════════════
-         PRICE CALCULATOR
-         Pure client-side: reuses J (the live jeweller dataset
-         already loaded by app.js) so the picker stays in sync
-         with whatever the server returned.
-      ════════════════════════════════════════════════════════ */
-      function _fmtIN(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
-
-      function _populateCalcJewellers() {
-        const sel = document.getElementById('calcJeweller');
-        if (!sel) return;
-        // Only list jewellers that have a real rate today.
-        const list = (typeof J !== 'undefined' ? J : [])
-          .filter(j => j.r22g != null && j.r24g != null)
-          .sort((a, b) => a.r22g - b.r22g);
-        sel.innerHTML = list.length
-          ? list.map(j => `<option value="${j.id}" data-r22="${j.r22g}" data-r24="${j.r24g}" data-mk="${j.making || 10}">${j.name} (22K ₹${Math.round(j.r22g)}/g)</option>`).join('')
-          : '<option disabled>No rates available right now</option>';
-      }
-
-      function _runCalc() {
-        const sel    = document.getElementById('calcJeweller');
-        const opt    = sel?.selectedOptions?.[0];
-        if (!opt || opt.disabled) return;
-        const purity = document.getElementById('calcPurity').value;
-        const wt     = parseFloat(document.getElementById('calcWeight').value) || 0;
-        const rate   = parseFloat(purity === '24' ? opt.dataset.r24 : opt.dataset.r22);
-        const mkOver = parseFloat(document.getElementById('calcMaking').value);
-        const mkPct  = Number.isFinite(mkOver) ? mkOver : parseFloat(opt.dataset.mk || 10);
-
-        const gold   = wt * rate;
-        const make   = (gold * mkPct) / 100;
-        const gst    = (gold + make) * 0.03;
-        const total  = gold + make + gst;
-
-        document.getElementById('calcGold').textContent  = _fmtIN(gold);
-        document.getElementById('calcMake').textContent  = `${_fmtIN(make)}  (${mkPct}%)`;
-        document.getElementById('calcGst').textContent   = _fmtIN(gst);
-        document.getElementById('calcTotal').textContent = _fmtIN(total);
-        document.getElementById('calcNote').textContent =
-          `${opt.textContent.split(' (')[0]} · ${wt}g of ${purity}K @ ₹${Math.round(rate)}/g`;
-      }
-
-      function openCalc() {
-        _populateCalcJewellers();
-        document.getElementById('calcModal').style.display = 'flex';
-        _runCalc();
-      }
-      function closeCalc() { document.getElementById('calcModal').style.display = 'none'; }
-
-      function copyCalc() {
-        const txt = document.getElementById('calcNote').textContent + '\n' +
-                    'Gold: '   + document.getElementById('calcGold').textContent  + '\n' +
-                    'Making: ' + document.getElementById('calcMake').textContent  + '\n' +
-                    'GST 3%: ' + document.getElementById('calcGst').textContent   + '\n' +
-                    'TOTAL: '  + document.getElementById('calcTotal').textContent + '\n\n' +
-                    'Calculated on sonatoday.com';
-        navigator.clipboard?.writeText(txt).then(() => alert('Breakdown copied to clipboard.'));
-      }
-
-      function shareCalc() {
-        const note = document.getElementById('calcNote').textContent;
-        const total = document.getElementById('calcTotal').textContent;
-        const msg = `💰 *Gold Price Estimate*\n${note}\n\n` +
-                    `Gold: ${document.getElementById('calcGold').textContent}\n` +
-                    `Making: ${document.getElementById('calcMake').textContent}\n` +
-                    `GST 3%: ${document.getElementById('calcGst').textContent}\n` +
-                    `*Total: ${total}*\n\n` +
-                    `Compare verified Ahmedabad jewellers → ${window.location.origin}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-      }
-
-      /* ════════════════════════════════════════════════════════
-         SHARE TODAY'S RATES SUMMARY (all jewellers in one WA msg)
-      ════════════════════════════════════════════════════════ */
-      function shareAllRates() {
-        const list = (typeof J !== 'undefined' ? J : [])
-          .filter(j => j.r22g != null)
-          .sort((a, b) => a.r22g - b.r22g);
-        if (!list.length) { alert('No live rates available to share yet.'); return; }
-
-        const date = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-        const lines = list.slice(0, 12).map((j, i) =>
-          `${i + 1}. ${j.name} — 22K ₹${Math.round(j.r22g)}/g${j.making ? ` · making ${j.making}%` : ''}`
-        ).join('\n');
-        const msg =
-          `🌟 *Today's Gold Rates · Ahmedabad*\n` +
-          `${date}\n\n` +
-          lines + '\n\n' +
-          `Live updates → ${window.location.origin}\n` +
-          `Powered by SonaToday`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-      }
-
-      // Re-run calc whenever the user changes anything in the modal.
-      ['calcJeweller','calcPurity','calcWeight','calcMaking'].forEach(id => {
-        document.getElementById(id)?.addEventListener('input',  _runCalc);
-        document.getElementById(id)?.addEventListener('change', _runCalc);
-      });
-      // Close modal on Esc.
-      window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCalc(); });
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCalc(); });
     </script>
 </body>
 </html>
