@@ -710,6 +710,7 @@
 
     <div style="display:flex;gap:.5rem;margin-bottom:.9rem">
       <input id="stockSearch" placeholder="🔍 Search items…" style="flex:1;background:rgba(0,0,0,.25);border:1px solid var(--acc-border);color:var(--text);padding:.6rem .8rem;border-radius:10px;font-size:14px" />
+      <button id="openPurchasesBtn" class="chip-btn chip-btn--ochre" style="padding:.55rem .9rem">Purchases</button>
       <button class="pub-btn" id="addItemBtn" style="width:auto;margin:0;padding:.6rem 1rem;font-size:.9rem">+ Add</button>
     </div>
 
@@ -1035,6 +1036,48 @@
 
       <button class="pub-btn" id="genInvBtn" style="margin-top:.7rem">Generate Invoice →</button>
       <div class="msg" id="sMsg"></div>
+    </div>
+  </div>
+
+  <!-- ════════ PURCHASES SHEET (Phase 12) ════════ -->
+  <div id="poSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 style="margin:0;font-size:1.05rem;font-weight:700">Purchases</h3>
+        <button class="sheet-x" onclick="closePurchasesSheet()">×</button>
+      </div>
+
+      <div id="poSummary" class="muted" style="font-size:12px;margin:.2rem 0 1rem;line-height:1.55"></div>
+
+      <div id="poList" style="margin-bottom:1rem;max-height:200px;overflow-y:auto"></div>
+
+      <div style="border-top:1px solid var(--rule);padding-top:1rem" id="poForm">
+        <div class="eyebrow" style="margin-bottom:.6rem">Record a new purchase</div>
+
+        <div class="if"><label>Supplier</label>
+          <select id="poSupplier"><option value="">— Add new supplier —</option></select>
+        </div>
+        <div id="poNewSupplier" class="if"><label>New supplier name *</label><input id="poSupplierName" placeholder="e.g. Rajesh Gold Bullion" /></div>
+
+        <div class="if"><label>Item description *</label><input id="poDesc" placeholder="e.g. Plain gold chain 22K 20-inch" /></div>
+
+        <div class="if-row">
+          <div class="if"><label>Purity</label>
+            <select id="poPurity"><option value="22">22K</option><option value="24">24K</option><option value="18">18K</option><option value="20">20K</option><option value="14">14K</option></select>
+          </div>
+          <div class="if"><label>Weight per piece (g) *</label><input id="poWeight" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0.0" /></div>
+        </div>
+
+        <div class="if-row">
+          <div class="if"><label>Quantity</label><input id="poQty" type="number" inputmode="numeric" min="1" value="1" /></div>
+          <div class="if"><label>Total cost paid ₹ *</label><input id="poCost" type="number" inputmode="numeric" min="0" placeholder="0" /></div>
+        </div>
+
+        <div class="if"><label>Notes (optional)</label><input id="poNotes" placeholder="e.g. Batch reference, hallmark stamp" /></div>
+
+        <button class="pub-btn" id="poAddBtn" style="margin-top:.6rem">Record purchase → adds to stock</button>
+        <div class="msg" id="poMsg"></div>
+      </div>
     </div>
   </div>
 
@@ -2465,6 +2508,134 @@
         toast('Staff member removed.');
       } catch(e){ toast(e.message, true); }
     };
+    /* ════════════ PURCHASES / SUPPLIERS (Phase 12) ════════════
+       Owner records purchases from suppliers; each POST /api/purchases
+       auto-creates inventory rows so cost_price and stock update in
+       one shot. Staff can view but not record — the Record button
+       stays hidden for role='staff' below. */
+    let poSuppliers = [];
+
+    window.closePurchasesSheet = () => { document.getElementById('poSheet').style.display = 'none'; };
+
+    async function openPurchasesSheet(){
+      const isStaff = me && me.role === 'staff';
+      document.getElementById('poForm').style.display = isStaff ? 'none' : 'block';
+      document.getElementById('poSheet').style.display = 'flex';
+      document.getElementById('poMsg').className = 'msg';
+      ['poDesc','poWeight','poCost','poNotes','poSupplierName'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+      document.getElementById('poQty').value = 1;
+      document.getElementById('poPurity').value = '22';
+      await Promise.all([refreshPurchasesList(), refreshSuppliersDropdown()]);
+    }
+
+    async function refreshSuppliersDropdown(){
+      try {
+        const r = await fetch(`${API_BASE}/api/suppliers`, { headers:{ Authorization:`Bearer ${token}` } });
+        const d = await r.json();
+        poSuppliers = d.suppliers || [];
+        const sel = document.getElementById('poSupplier');
+        sel.innerHTML = '<option value="">— Add new supplier —</option>' +
+          poSuppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        toggleNewSupplierField();
+      } catch(e){ /* offline — ignore */ }
+    }
+    function toggleNewSupplierField(){
+      const on = !document.getElementById('poSupplier').value;
+      document.getElementById('poNewSupplier').style.display = on ? 'block' : 'none';
+    }
+    // Attach the toggle listener lazily so it never fires before the
+    // element exists.
+    setTimeout(() => {
+      const sel = document.getElementById('poSupplier');
+      if (sel) sel.addEventListener('change', toggleNewSupplierField);
+    }, 0);
+
+    async function refreshPurchasesList(){
+      const host = document.getElementById('poList');
+      const sumEl = document.getElementById('poSummary');
+      host.innerHTML = '<div class="muted" style="font-size:12px">Loading…</div>';
+      sumEl.textContent = '';
+      try {
+        const r = await fetch(`${API_BASE}/api/purchases`, { headers:{ Authorization:`Bearer ${token}` } });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Load failed');
+        const { purchases, summary } = d;
+        if (!purchases.length) {
+          host.innerHTML = `<div class="muted" style="font-size:12px;padding:.4rem 0">No purchases recorded yet.</div>`;
+        } else {
+          host.innerHTML = purchases.slice(0, 10).map(p => {
+            const when = new Date(p.received_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+            const supplier = p.supplier_name || 'Unknown supplier';
+            return `<div style="padding:.55rem 0;border-bottom:1px solid var(--rule)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:13px;font-weight:500">${p.description}</span>
+                <span style="font-family:var(--f-serif);font-size:15px" class="num-tab">${fmt(p.total_cost)}</span>
+              </div>
+              <div class="muted" style="font-size:11px;margin-top:1px">${supplier} · ${p.quantity}× ${p.weight_g}g ${p.purity}K · ${when}</div>
+            </div>`;
+          }).join('');
+        }
+        sumEl.textContent = summary.count
+          ? `${summary.count} purchase${summary.count!==1?'s':''} · ${fmt(summary.totalCost)} spent · ${summary.totalWeight.toFixed(1)}g received.`
+          : 'Every purchase auto-creates matching stock items, so profit reporting includes cost of goods.';
+      } catch(e){ host.innerHTML = `<div class="muted" style="font-size:12px;color:var(--sanguine)">${e.message}</div>`; }
+    }
+
+    document.getElementById('openPurchasesBtn').addEventListener('click', openPurchasesSheet);
+
+    document.getElementById('poAddBtn').addEventListener('click', async () => {
+      const msg = document.getElementById('poMsg');
+      const btn = document.getElementById('poAddBtn');
+      const supplierId = document.getElementById('poSupplier').value || null;
+      const supplierName = supplierId
+        ? (poSuppliers.find(s => String(s.id) === supplierId)||{}).name
+        : document.getElementById('poSupplierName').value.trim();
+      if (!supplierId && !supplierName) {
+        msg.className='msg err'; msg.textContent='Pick a supplier or enter a new one.'; return;
+      }
+      const body = {
+        supplier_id: supplierId,
+        supplier_name: supplierName,
+        description: document.getElementById('poDesc').value.trim(),
+        purity:      document.getElementById('poPurity').value,
+        weight_g:    parseFloat(document.getElementById('poWeight').value) || 0,
+        quantity:    parseInt(document.getElementById('poQty').value, 10) || 1,
+        total_cost:  parseFloat(document.getElementById('poCost').value) || 0,
+        notes:       document.getElementById('poNotes').value.trim(),
+      };
+      msg.className='msg'; btn.disabled=true; btn.textContent='Recording…';
+      try {
+        // If a new supplier name was given, create the supplier first
+        // (silently) so subsequent purchases can pick it from the list.
+        if (!supplierId && supplierName) {
+          try {
+            const sr = await fetch(`${API_BASE}/api/suppliers`, {
+              method:'POST',
+              headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+              body: JSON.stringify({ name: supplierName }),
+            });
+            const sd = await sr.json();
+            if (sr.ok && sd.id) body.supplier_id = sd.id;
+          } catch { /* non-fatal — the PO still stores the name */ }
+        }
+        const r = await fetch(`${API_BASE}/api/purchases`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Record failed');
+        msg.className='msg ok';
+        msg.textContent = `Recorded. ${d.inventory_created} stock item${d.inventory_created!==1?'s':''} added at ₹${Math.round(d.per_item_cost).toLocaleString('en-IN')} each.`;
+        ['poDesc','poWeight','poCost','poNotes','poSupplierName'].forEach(id => { const el = document.getElementById(id); if (el) el.value=''; });
+        document.getElementById('poQty').value = 1;
+        await Promise.all([refreshPurchasesList(), refreshSuppliersDropdown()]);
+        // Also refresh stock so the added items appear immediately.
+        if (typeof loadInventory === 'function') loadInventory();
+      } catch(err){ msg.className='msg err'; msg.textContent = err.message; }
+      finally { btn.disabled=false; btn.textContent='Record purchase → adds to stock'; }
+    });
+
     document.getElementById('openStaffBtn').addEventListener('click', () => window.openStaffSheet());
     document.getElementById('stAddBtn').addEventListener('click', async () => {
       const msg = document.getElementById('stMsg');

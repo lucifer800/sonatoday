@@ -207,6 +207,41 @@ const initDb = () => {
     db.run(`ALTER TABLE jewellers ADD COLUMN parent_jeweller_id INTEGER`, () => {});
     db.run(`ALTER TABLE jewellers ADD COLUMN staff_label TEXT`, () => {});
 
+    // ── Phase 12 — Suppliers + purchase orders ─────────────────
+    // One row per supplier the shop buys from. Scoped to the owner.
+    db.run(`CREATE TABLE IF NOT EXISTS suppliers (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      jeweller_id  INTEGER NOT NULL,
+      name         TEXT NOT NULL,
+      phone        TEXT,
+      gstin        TEXT,
+      notes        TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(jeweller_id) REFERENCES jewellers(id)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_suppliers_jeweller ON suppliers(jeweller_id)`);
+
+    // One row per purchase (single-line MVP). Total_cost is the
+    // amount paid for the whole batch; per_item_cost = total_cost /
+    // qty is stamped onto each inventory_items row we create, so
+    // Phase 6 profit reporting closes automatically.
+    db.run(`CREATE TABLE IF NOT EXISTS purchase_orders (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      jeweller_id    INTEGER NOT NULL,
+      supplier_id    INTEGER,
+      supplier_name  TEXT,
+      description    TEXT,
+      purity         TEXT,
+      weight_g       REAL,
+      quantity       INTEGER DEFAULT 1,
+      total_cost     REAL,
+      notes          TEXT,
+      received_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(jeweller_id) REFERENCES jewellers(id),
+      FOREIGN KEY(supplier_id) REFERENCES suppliers(id)
+    )`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_po_jeweller ON purchase_orders(jeweller_id)`);
+
     // MCX history archive — one row per metal per calendar day (IST).
     // Lives here (not in ibjaScraper.js) so it's guaranteed to exist on
     // the *primary* DB connection before any scraper writes to it. The
@@ -1868,6 +1903,137 @@ app.get('/api/jewellers/:id/history', (req, res) => {
 // GET /sitemap.xml — dynamic sitemap with every jeweller profile.
 // Google + Bing read this once a day; helps them discover all 12
 // (and any future) jeweller pages without needing internal-link crawl.
+// ═══════════════════════════════════════════════════════════════
+// SUPPLIERS + PURCHASE ORDERS  (Phase 12)
+// A shop records purchases from suppliers; each PO auto-creates
+// inventory_items rows so stock, cost_price and Phase-6 profit
+// margin all fall into place. Owner-only for creation/deletion;
+// staff can still list to see what's arrived.
+// ═══════════════════════════════════════════════════════════════
+app.get('/api/suppliers', requireAuth, (req, res) => {
+  db.all(
+    `SELECT id, name, phone, gstin, notes, created_at
+       FROM suppliers WHERE jeweller_id = ?
+      ORDER BY name COLLATE NOCASE ASC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ suppliers: rows || [] });
+    }
+  );
+});
+
+app.post('/api/suppliers', requireAuth, requireOwner, (req, res) => {
+  const { name, phone, gstin, notes } = req.body || {};
+  if (!name || !String(name).trim()) return res.status(400).json({ error: 'Supplier name is required.' });
+  const clean = (v) => typeof v === 'string' && v.trim() ? v.trim() : null;
+  db.run(
+    `INSERT INTO suppliers (jeweller_id, name, phone, gstin, notes)
+     VALUES (?, ?, ?, ?, ?)`,
+    [req.jeweller.id, String(name).trim(), clean(phone), clean(gstin), clean(notes)],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      db.get(`SELECT * FROM suppliers WHERE id = ?`, [this.lastID], (e, row) => res.json(row || { id: this.lastID }));
+    }
+  );
+});
+
+app.delete('/api/suppliers/:id', requireAuth, requireOwner, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  db.run(
+    `DELETE FROM suppliers WHERE id = ? AND jeweller_id = ?`,
+    [id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Supplier not found.' });
+      res.json({ success: true });
+    }
+  );
+});
+
+// GET /api/purchases — history for this shop, joined with supplier
+// name (falls back to the supplier_name snapshot if the supplier
+// row was later deleted). Newest first.
+app.get('/api/purchases', requireAuth, (req, res) => {
+  db.all(
+    `SELECT po.id, po.description, po.purity, po.weight_g, po.quantity,
+            po.total_cost, po.notes, po.received_at,
+            COALESCE(s.name, po.supplier_name) AS supplier_name
+       FROM purchase_orders po
+  LEFT JOIN suppliers s ON s.id = po.supplier_id
+      WHERE po.jeweller_id = ?
+      ORDER BY po.received_at DESC, po.id DESC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // Roll-up so the Purchases sheet can show a summary line.
+      const totalCost   = rows.reduce((s, r) => s + (r.total_cost || 0), 0);
+      const totalWeight = rows.reduce((s, r) => s + ((r.weight_g || 0) * (r.quantity || 1)), 0);
+      res.json({ purchases: rows, summary: { count: rows.length, totalCost, totalWeight } });
+    }
+  );
+});
+
+// POST /api/purchases — record a purchase AND replenish stock.
+// Body: supplier_id? supplier_name? description, purity, weight_g,
+//       quantity=1, total_cost, notes?
+// Server-side: creates the PO row + N inventory_items rows so stock
+// and cost_price update in one call. per-item cost = total / qty.
+app.post('/api/purchases', requireAuth, requireOwner, (req, res) => {
+  const b = req.body || {};
+  const desc     = String(b.description || '').trim();
+  const purity   = ['22', '24', '18', '20', '14'].includes(String(b.purity)) ? String(b.purity) : '22';
+  const weight   = parseFloat(b.weight_g);
+  const quantity = Math.max(1, parseInt(b.quantity, 10) || 1);
+  const total    = parseFloat(b.total_cost);
+  if (!desc)                            return res.status(400).json({ error: 'Item description is required.' });
+  if (!Number.isFinite(weight) || weight <= 0) return res.status(400).json({ error: 'Valid weight (per piece) is required.' });
+  if (!Number.isFinite(total)  || total < 0)   return res.status(400).json({ error: 'Valid total cost is required.' });
+  const perItemCost = total / quantity;
+
+  // Resolve supplier — either an existing supplier_id or a fresh
+  // name snapshot (we still store the name in the PO in case the
+  // supplier row is later deleted).
+  const supplierId   = parseInt(b.supplier_id, 10) || null;
+  const supplierName = typeof b.supplier_name === 'string' ? b.supplier_name.trim() : null;
+  const clean = (v) => typeof v === 'string' && v.trim() ? v.trim() : null;
+
+  db.serialize(() => {
+    db.run(
+      `INSERT INTO purchase_orders
+         (jeweller_id, supplier_id, supplier_name, description, purity, weight_g, quantity, total_cost, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [req.jeweller.id, supplierId, supplierName, desc, purity, weight, quantity, total, clean(b.notes)],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        const poId = this.lastID;
+
+        // Auto-create inventory rows so stock reflects the purchase
+        // immediately. Each row carries per-item cost so profit
+        // margin (Phase 6) closes without any extra data entry.
+        const stmt = db.prepare(
+          `INSERT INTO inventory_items
+             (jeweller_id, name, category, purity, weight_g, cost_price, in_stock)
+           VALUES (?, ?, ?, ?, ?, ?, 1)`
+        );
+        for (let i = 0; i < quantity; i++) {
+          stmt.run([req.jeweller.id, desc, null, purity, weight, Math.round(perItemCost * 100) / 100]);
+        }
+        stmt.finalize((e) => {
+          if (e) return res.status(500).json({ error: e.message });
+          db.get(`SELECT * FROM purchase_orders WHERE id = ?`, [poId], (e2, row) => {
+            res.json({
+              ...(row || { id: poId }),
+              inventory_created: quantity,
+              per_item_cost: Math.round(perItemCost * 100) / 100,
+            });
+          });
+        });
+      }
+    );
+  });
+});
+
 app.get('/sitemap.xml', (req, res) => {
   db.all(`SELECT id, updated FROM jewellers ORDER BY id`, (err, rows) => {
     const origin = (process.env.SITE_URL || `https://${req.get('host')}`).replace(/\/$/, '');
