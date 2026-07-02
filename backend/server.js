@@ -181,6 +181,13 @@ const initDb = () => {
     db.run(`ALTER TABLE jewellers ADD COLUMN bis_license TEXT`,  () => {});
     db.run(`ALTER TABLE jewellers ADD COLUMN address_line TEXT`, () => {});
     db.run(`ALTER TABLE jewellers ADD COLUMN whatsapp TEXT`,     () => {});
+    // Phase 9 — UPI ID for payment QR codes on invoices.
+    db.run(`ALTER TABLE jewellers ADD COLUMN upi_id TEXT`,       () => {});
+    // Phase 9 — payment tracking on sales. amount_paid is the sum
+    // recorded so far; payment_status is derived on write ('unpaid'
+    // / 'partial' / 'paid') so we can filter cheaply.
+    db.run(`ALTER TABLE sales ADD COLUMN amount_paid REAL DEFAULT 0`,   () => {});
+    db.run(`ALTER TABLE sales ADD COLUMN payment_status TEXT DEFAULT 'unpaid'`, () => {});
 
     // MCX history archive — one row per metal per calendar day (IST).
     // Lives here (not in ibjaScraper.js) so it's guaranteed to exist on
@@ -662,7 +669,7 @@ function requireAuth(req, res, next) {
 app.get('/api/jewellers/me', requireAuth, (req, res) => {
   db.get(
     `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
-            verified, photo_url, gst_number, bis_license,
+            verified, photo_url, gst_number, bis_license, upi_id,
             r22g, r24g, making, updated
        FROM jewellers WHERE id = ?`,
     [req.jeweller.id],
@@ -728,7 +735,7 @@ app.post('/api/jewellers/:id/rates', requireAuth, (req, res) => {
 // PUT /api/jewellers/me/profile — update credibility fields
 // (phone, WhatsApp, address, GST, BIS licence). Photo handled separately.
 app.put('/api/jewellers/me/profile', requireAuth, (req, res) => {
-  const { phone, whatsapp, address_line, gst_number, bis_license } = req.body || {};
+  const { phone, whatsapp, address_line, gst_number, bis_license, upi_id } = req.body || {};
   // Light validation — these are display fields, not security-critical.
   // Trim everything and treat empty strings as null so the DB stays clean.
   const norm = (v) => {
@@ -742,18 +749,26 @@ app.put('/api/jewellers/me/profile', requireAuth, (req, res) => {
     address_line: norm(address_line),
     gst_number:   norm(gst_number),
     bis_license:  norm(bis_license),
+    upi_id:       norm(upi_id),
   };
+  // Cheap UPI-VPA sanity: something like "name@bank". We accept
+  // pretty much any handle format because UPI is loose, but block
+  // obviously wrong shapes so the QR generator doesn't produce
+  // an unusable code.
+  if (updates.upi_id && !/^[a-zA-Z0-9._-]{2,}@[a-zA-Z0-9._-]{2,}$/.test(updates.upi_id)) {
+    return res.status(400).json({ error: 'UPI ID should look like name@bank (e.g. shop@okhdfcbank).' });
+  }
   db.run(
     `UPDATE jewellers
-        SET phone = ?, whatsapp = ?, address_line = ?, gst_number = ?, bis_license = ?
+        SET phone = ?, whatsapp = ?, address_line = ?, gst_number = ?, bis_license = ?, upi_id = ?
       WHERE id = ?`,
-    [updates.phone, updates.whatsapp, updates.address_line, updates.gst_number, updates.bis_license, req.jeweller.id],
+    [updates.phone, updates.whatsapp, updates.address_line, updates.gst_number, updates.bis_license, updates.upi_id, req.jeweller.id],
     function (err) {
       if (err) return res.status(500).json({ error: err.message });
       // Re-read so the response includes the recomputed completeness.
       db.get(
         `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
-                verified, photo_url, gst_number, bis_license,
+                verified, photo_url, gst_number, bis_license, upi_id,
                 r22g, r24g, making, updated
            FROM jewellers WHERE id = ?`,
         [req.jeweller.id],
@@ -1191,7 +1206,7 @@ app.get('/api/public/invoices/:id/:sig', (req, res) => {
     if (!sale) return res.status(404).json({ error: 'Invoice not found' });
     db.get(
       `SELECT name, phone, whatsapp, area, address_line,
-              gst_number, bis_license
+              gst_number, bis_license, upi_id
          FROM jewellers WHERE id = ?`,
       [sale.jeweller_id],
       (e2, seller) => {
@@ -1200,6 +1215,83 @@ app.get('/api/public/invoices/:id/:sig', (req, res) => {
       }
     );
   });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PAYMENTS  (Phase 9 — payment tracking)
+// Record a payment against a sale. Body: { amount, note? }.
+// - Adds to sales.amount_paid (never negative, never over total).
+// - Recomputes sales.payment_status ('unpaid' / 'partial' / 'paid').
+// - Idempotent-ish only in the sense that repeat calls stack; the
+//   frontend guards double-tapping.
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/sales/:id/payment', requireAuth, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const amt = parseFloat(req.body && req.body.amount);
+  if (!Number.isFinite(amt) || amt <= 0) {
+    return res.status(400).json({ error: 'A positive amount is required.' });
+  }
+  db.get(
+    `SELECT id, total, amount_paid FROM sales WHERE id = ? AND jeweller_id = ?`,
+    [id, req.jeweller.id],
+    (err, sale) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!sale) return res.status(404).json({ error: 'Sale not found.' });
+      const total = Number(sale.total) || 0;
+      const prev  = Number(sale.amount_paid) || 0;
+      // Cap at total so we never store more paid than the bill is worth.
+      const nextPaid = Math.min(total, prev + amt);
+      const status =
+        nextPaid <= 0 ? 'unpaid' :
+        nextPaid < total - 0.5 ? 'partial' : 'paid';   // ₹0.50 grace for rounding
+      db.run(
+        `UPDATE sales SET amount_paid = ?, payment_status = ? WHERE id = ? AND jeweller_id = ?`,
+        [Math.round(nextPaid * 100) / 100, status, id, req.jeweller.id],
+        function (e2) {
+          if (e2) return res.status(500).json({ error: e2.message });
+          res.json({ id, total, amount_paid: nextPaid, payment_status: status });
+        }
+      );
+    }
+  );
+});
+
+// GET /api/dues — every sale of mine that isn't fully paid, newest
+// first, joined with the customer name/phone for one-tap WA follow-up.
+// Also returns a rolled-up summary the Home card uses.
+app.get('/api/dues', requireAuth, (req, res) => {
+  db.all(
+    `SELECT id, invoice_number, customer_id, customer_name, customer_phone,
+            total, amount_paid, payment_status, sold_at
+       FROM sales
+      WHERE jeweller_id = ? AND payment_status IN ('unpaid', 'partial')
+      ORDER BY sold_at ASC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const enriched = rows.map(r => {
+        const balance = Math.max(0, (Number(r.total) || 0) - (Number(r.amount_paid) || 0));
+        const soldDay = (r.sold_at || '').slice(0, 10);
+        const daysOld = soldDay
+          ? Math.max(0, Math.floor((Date.parse(todayIso) - Date.parse(soldDay)) / 86400000))
+          : null;
+        return { ...r, balance, daysOld };
+      });
+      const totalDue = enriched.reduce((s, r) => s + r.balance, 0);
+      const oldest  = enriched.length
+        ? Math.max(...enriched.map(r => r.daysOld || 0))
+        : 0;
+      res.json({
+        dues: enriched,
+        summary: {
+          count: enriched.length,
+          totalDue,
+          oldestDays: oldest,
+        },
+      });
+    }
+  );
 });
 
 // ═══════════════════════════════════════════════════════════════

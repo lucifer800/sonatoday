@@ -216,6 +216,49 @@
     .skel.box  { height:36px; width:36px; border-radius:8px; }
     @keyframes skel { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+    /* Payment status pill — same 3 states as invoice pages, sized for the
+       jeweller app's bill rows. Hairline outline, no gradient. */
+    .pay-pill {
+      display: inline-flex; align-items: center;
+      padding: .2rem .5rem; border-radius: 999px;
+      font-size: 9.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase;
+    }
+    .pay-pill.paid    { color: var(--sage);      border: 1px solid rgba(122,144,112,.4); background: transparent; }
+    .pay-pill.partial { color: var(--ochre-soft);border: 1px solid var(--ochre-line);    background: transparent; }
+    .pay-pill.unpaid  { color: var(--sanguine);  border: 1px solid rgba(167,74,52,.4);   background: transparent; }
+
+    /* Home Payments card — dues headline uses the display serif so the
+       number sings; UPI setup row uses the same notice-card left keyline. */
+    .dues-row {
+      display: flex; align-items: baseline; justify-content: space-between;
+      padding: .6rem 0; border-bottom: 1px solid var(--rule);
+      cursor: pointer; transition: color .15s ease;
+    }
+    .dues-row:last-of-type { border-bottom: 0; }
+    .dues-row:hover .dues-amt { color: var(--ochre-soft); }
+    .dues-amt {
+      font-family: var(--f-serif); font-weight: 400;
+      font-size: 22px; color: var(--paper); letter-spacing: -.005em;
+      font-variant-numeric: tabular-nums lining-nums;
+    }
+    .dues-total { color: var(--ochre); }
+    .upi-cta {
+      margin-top: 1rem; padding: .85rem 1rem;
+      background: var(--ink-elev-2); border: 1px solid var(--rule);
+      border-left: 2px solid var(--ochre); border-radius: 3px;
+      display: flex; align-items: center; gap: .8rem;
+    }
+    .upi-cta .body { flex: 1; }
+    .upi-cta .h    { font-family: var(--f-serif); font-size: 15px; color: var(--paper); letter-spacing:-.005em; }
+    .upi-cta .s    { font-size: 11.5px; color: var(--paper-mute); margin-top: 2px; line-height: 1.45; }
+    .upi-cta button {
+      flex-shrink: 0; padding: .55rem .85rem;
+      background: var(--ochre); color: #FFFCF3; border: 0; border-radius: 3px;
+      font-family: var(--f-sans); font-size: 11.5px; font-weight: 500; letter-spacing: .02em;
+      cursor: pointer; white-space: nowrap;
+    }
+    .upi-cta button:hover { background: var(--ochre-soft); }
+
     /* ── Screen container ── */
     .screen { display: none; padding: 1rem; max-width: 640px; margin: 0 auto; animation: fade .2s ease; }
     .screen.active { display: block; }
@@ -601,6 +644,14 @@
           <div class="muted" style="font-size:11.5px;margin-top:2px" id="ringMsg">Reach 75% to unlock the Verified ✓ badge.</div>
         </div>
       </div>
+    </div>
+
+    <!-- Payments card — shown when there are outstanding dues OR
+         when UPI is unset (so the jeweller can add it once). Hidden
+         otherwise. Tapping the dues line opens the Bills tab. -->
+    <div class="card" id="paymentsCard" style="display:none">
+      <div class="card-title">Payments</div>
+      <div id="paymentsBody"></div>
     </div>
 
     <div class="card">
@@ -1469,13 +1520,24 @@
       list.innerHTML = sales.map(s => {
         const d = new Date(s.sold_at);
         const when = isNaN(d) ? '' : d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
+        // Payment status — cheap derivation if the server hasn't sent one
+        // yet (e.g. older cached SW responses on the client).
+        const paid  = Number(s.amount_paid) || 0;
+        const total = Number(s.total) || 0;
+        const status = s.payment_status ||
+          (paid <= 0 ? 'unpaid' : (paid < total - 0.5 ? 'partial' : 'paid'));
+        const pillHtml = `<span class="pay-pill ${status}">${
+          status === 'paid' ? 'Paid' : status === 'partial' ? 'Partial' : 'Due'
+        }</span>`;
         return `<div class="bill" onclick="openInvoice(${s.id})">
-          <div class="bill-ic">🧾</div>
           <div class="bill-info">
             <div class="bill-cust">${s.customer_name}</div>
             <div class="bill-meta">${s.invoice_number} · ${s.weight_g}g ${s.purity}K · ${when}</div>
           </div>
-          <div class="bill-amt">${fmt(s.total)}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+            <div class="bill-amt num-tab">${fmt(s.total)}</div>
+            ${pillHtml}
+          </div>
         </div>`;
       }).join('');
     }
@@ -2118,7 +2180,117 @@
         bcastIdx >= bcastQueue.length ? '✅ Done' : `Open WhatsApp for next (${bcastIdx + 1} of ${bcastQueue.length}) →`;
     };
 
-    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(loadLoyalty).then(maybeStartTour);
+    /* ════════════ PAYMENTS (Phase 9) ════════════
+       Loads /api/dues + renders the Home Payments card. Two things
+       can appear:
+         1. Outstanding-dues line (headline total, sub-line count/oldest)
+         2. UPI-not-set CTA — asks the jeweller to add their UPI ID
+            once, so it shows on every future invoice's QR.
+       The card hides itself when neither applies. */
+    async function loadPayments(){
+      const card = document.getElementById('paymentsCard');
+      const host = document.getElementById('paymentsBody');
+      if (!card || !host) return;
+      let dues = null;
+      try {
+        const r = await fetch(`${API_BASE}/api/dues`, { headers:{ Authorization:`Bearer ${token}` } });
+        if (r.ok) dues = await r.json();
+      } catch { /* offline — leave dues null */ }
+      const hasDues = dues && dues.summary && dues.summary.count > 0;
+      const hasUpi  = !!(me && me.upi_id);
+      const hasSales = (typeof sales !== 'undefined' && sales && sales.length) ||
+                        (dues && (dues.summary.count > 0));
+      // Only surface the UPI CTA once the jeweller has at least one bill.
+      const shouldPromptUpi = !hasUpi && hasSales;
+      if (!hasDues && !shouldPromptUpi) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+
+      const parts = [];
+      if (hasDues) {
+        const s = dues.summary;
+        const oldestLine = s.oldestDays > 0
+          ? `${s.count} unpaid bill${s.count!==1?'s':''} · oldest ${s.oldestDays} day${s.oldestDays!==1?'s':''}`
+          : `${s.count} unpaid bill${s.count!==1?'s':''}`;
+        parts.push(`
+          <div class="dues-row" onclick="openBillsTab()">
+            <div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--paper-mute)">Outstanding dues</div>
+              <div class="muted" style="font-size:11.5px;margin-top:2px">${oldestLine}</div>
+            </div>
+            <div class="dues-amt dues-total">${fmt(s.totalDue)}</div>
+          </div>
+        `);
+        // Top 3 oldest for quick reference.
+        parts.push(dues.dues.slice(0, 3).map(d => {
+          const nm = (d.customer_name || 'Walk-in').replace(/^\[Demo\]\s*/, '');
+          return `
+            <div class="dues-row" onclick="openInvoice(${d.id})">
+              <div>
+                <div style="font-size:13px;font-weight:500">${nm}</div>
+                <div class="muted" style="font-size:11px;margin-top:1px">${d.invoice_number} · ${d.daysOld}d old</div>
+              </div>
+              <div class="dues-amt">${fmt(d.balance)}</div>
+            </div>`;
+        }).join(''));
+      }
+      if (shouldPromptUpi) {
+        parts.push(`
+          <div class="upi-cta">
+            <div class="body">
+              <div class="h">Add your UPI ID</div>
+              <div class="s">Once set, every invoice you generate carries a scan-to-pay QR — customers settle in one tap.</div>
+            </div>
+            <button onclick="promptUpiSetup()">Add UPI</button>
+          </div>
+        `);
+      }
+      host.innerHTML = parts.join('');
+    }
+    window.openBillsTab = () => {
+      const b = document.querySelector('.tab[data-scr="bills"]');
+      if (b) b.click();
+    };
+
+    /* One-tap UPI setup — prompt(), save, refresh. Deliberately
+       tiny because the profile flow doesn't yet exist in the app.
+       The backend validates the VPA shape. */
+    window.promptUpiSetup = async () => {
+      const val = prompt(
+        'Enter your UPI ID (VPA)\n\nExample: shopname@okhdfcbank, shopname@ybl, 9876543210@paytm',
+        (me && me.upi_id) || ''
+      );
+      if (val == null) return;
+      const upi = String(val).trim();
+      if (!upi) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/jewellers/me/profile`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            phone: me && me.phone, whatsapp: me && me.whatsapp,
+            address_line: me && me.address_line, gst_number: me && me.gst_number,
+            bis_license: me && me.bis_license, upi_id: upi,
+          }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Could not save');
+        me = data;
+        toast('UPI saved — every new invoice now shows a scan-to-pay QR.');
+        loadPayments();
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+
+    // Refresh the Payments card when the Bills tab is opened so a
+    // just-recorded payment reflects on Home the next time it's viewed.
+    document.querySelector('.tabbar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab');
+      if (btn && btn.dataset.scr === 'home')  loadPayments();
+      if (btn && btn.dataset.scr === 'bills') loadPayments();
+    });
+
+    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(loadLoyalty).then(loadPayments).then(maybeStartTour);
   </script>
 </body>
 </html>

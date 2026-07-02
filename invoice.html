@@ -146,9 +146,30 @@
       letter-spacing: .04em;
     }
     .err { max-width: 780px; margin: 2rem auto; background: var(--paper); padding: 2rem; text-align: center; color: #A94438; border: 1px solid var(--rule); border-radius: 3px; }
+
+    /* Payment status pill + UPI QR block (mirrors invoice-view.html) */
+    .pay-pill { display: inline-flex; align-items: center; gap: .35rem; padding: .28rem .6rem; border-radius: 999px; font-size: 10px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; }
+    .pay-pill.paid    { color: #3E6236; border: 1px solid rgba(62,98,54,.4);   background: rgba(62,98,54,.06); }
+    .pay-pill.partial { color: var(--ochre); border: 1px solid var(--ochre-line); background: rgba(168,120,51,.05); }
+    .pay-pill.unpaid  { color: #A94438; border: 1px solid rgba(169,68,56,.35); background: rgba(169,68,56,.05); }
+    .pay-block { margin-top: 2rem; padding: 1.4rem 1.2rem; border: 1px solid var(--rule-strong); background: #F5EFE1; border-radius: 3px; display: grid; grid-template-columns: auto 1fr; gap: 1.3rem; align-items: center; }
+    .pay-block canvas, .pay-block img { display: block; width: 132px; height: 132px; background: #fff; padding: 8px; border: 1px solid var(--rule); border-radius: 3px; }
+    .pay-block .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .22em; color: var(--mute); font-weight: 500; margin-bottom: .35rem; }
+    .pay-block .h   { font-family: var(--f-serif); font-size: 20px; color: var(--ink); letter-spacing: -.005em; line-height: 1.2; }
+    .pay-block .h em { font-style: italic; color: var(--ochre); font-weight: 300; }
+    .pay-block .sub { font-size: 12.5px; color: #4A473F; line-height: 1.55; margin-top: .55rem; }
+    .pay-block .upi { font-family: var(--f-sans); font-size: 11.5px; color: var(--mute); margin-top: .4rem; letter-spacing: .02em; }
+    .pay-status-line { margin-top: 1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .pay-actions { margin-top: 1rem; display: flex; gap: .5rem; }
+    .pay-actions button { flex: 1; padding: .7rem .9rem; background: transparent; border: 1px solid var(--rule-strong); color: var(--ink); border-radius: 3px; font-family: var(--f-sans); font-size: 12px; font-weight: 500; letter-spacing: .01em; cursor: pointer; }
+    .pay-actions button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .pay-actions button:hover { border-color: var(--ochre); }
+    .no-upi-note { margin-top: 1rem; padding: .9rem 1rem; background: #F5EFE1; border: 1px dashed var(--rule-strong); border-radius: 3px; font-size: 12px; color: #4A473F; line-height: 1.55; }
+    .no-upi-note a { color: var(--ochre); text-decoration: underline; }
+
     @media print {
       body { background: #fff; padding: 0; }
-      .actions { display: none; }
+      .actions, .pay-actions { display: none; }
       .inv { box-shadow: none; border: 0; max-width: 100%; padding: 1.5rem; }
     }
   </style>
@@ -165,6 +186,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
@@ -265,6 +287,8 @@
 
         <div class="words">${inWords(s.total)}</div>
 
+        ${renderPaymentBlock(s, j)}
+
         <div class="foot">
           This is a computer-generated tax invoice. Gold rate as quoted on date of sale.<br>
           Generated via SonaToday · sonatoday.com
@@ -275,6 +299,106 @@
       document.getElementById('waBtn').onclick   = shareInvoice;
       document.getElementById('pdfBtn').onclick  = downloadPdfOnly;
       document.getElementById('copyBtn').onclick = copyPublicLink;
+      // Payment action wiring — only present when there's a balance.
+      const recordBtn = document.getElementById('recordPayBtn');
+      const paidBtn   = document.getElementById('markPaidBtn');
+      if (recordBtn) recordBtn.onclick = () => recordPayment(false);
+      if (paidBtn)   paidBtn.onclick   = () => recordPayment(true);
+      // Draw the UPI QR after the DOM is in place.
+      drawUpiQr(s, seller);
+    }
+
+    // ─────────── UPI PAYMENT HELPERS ───────────
+    // UPI deep-link URI per NPCI spec.
+    function upiUri(sale, jew){
+      if (!jew || !jew.upi_id) return null;
+      const balance = Math.max(0, (sale.total || 0) - (sale.amount_paid || 0));
+      if (balance <= 0) return null;
+      const params = new URLSearchParams({
+        pa: jew.upi_id,
+        pn: jew.name || 'SonaToday',
+        am: balance.toFixed(2),
+        tn: `Invoice ${sale.invoice_number || ''}`.trim(),
+        cu: 'INR',
+      });
+      return `upi://pay?${params.toString()}`;
+    }
+
+    function renderPaymentBlock(sale, jew){
+      const paid = Number(sale.amount_paid) || 0;
+      const total = Number(sale.total) || 0;
+      const balance = Math.max(0, total - paid);
+      const status = sale.payment_status || (balance <= 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'));
+      const label = status === 'paid' ? 'Paid in full' : status === 'partial' ? 'Partly paid' : 'Payment due';
+      const statusLine = balance > 0
+        ? `<div class="pay-status-line"><span class="pay-pill ${status}">${label}</span><span style="font-family:var(--f-serif);font-size:20px;color:var(--ink);letter-spacing:-.005em">${fmt(balance)} <span style="font-family:var(--f-sans);font-size:10px;text-transform:uppercase;letter-spacing:.22em;color:var(--mute)">balance</span></span></div>`
+        : `<div class="pay-status-line"><span class="pay-pill paid">${label}</span><span style="font-size:11.5px;letter-spacing:.06em;color:var(--mute)">${paid > 0 ? fmt(paid) + ' received' : ''}</span></div>`;
+      const controls = balance > 0
+        ? `<div class="pay-actions">
+             <button id="recordPayBtn">Record partial payment</button>
+             <button id="markPaidBtn" class="primary">Mark paid in full</button>
+           </div>`
+        : '';
+      if (!upiUri(sale, jew)) {
+        // No UPI configured — show a hint so the jeweller sets it once.
+        return `${statusLine}${controls}
+          ${balance > 0 ? `<div class="no-upi-note">Add your UPI ID under Profile to embed a payment QR on every invoice. Customers can then scan and pay in one tap.</div>` : ''}`;
+      }
+      return `
+        ${statusLine}
+        <div class="pay-block">
+          <div id="upiQr"></div>
+          <div>
+            <div class="lbl">Pay via UPI</div>
+            <div class="h">Scan to settle <em>${fmt(balance)}</em></div>
+            <div class="sub">Customer opens any UPI app (GPay, PhonePe, Paytm, bank app), scans this code, and pays directly to ${jew.name || 'you'}.</div>
+            <div class="upi">${jew.upi_id}</div>
+          </div>
+        </div>
+        ${controls}`;
+    }
+
+    function drawUpiQr(sale, jew){
+      const host = document.getElementById('upiQr');
+      const uri  = upiUri(sale, jew);
+      if (!host || !uri || typeof QRCode === 'undefined') return;
+      host.innerHTML = '';
+      new QRCode(host, {
+        text: uri,
+        width: 132, height: 132,
+        colorDark:  '#1B1A17',
+        colorLight: '#FFFFFF',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
+    }
+
+    // POST /api/sales/:id/payment. If mark-paid-in-full: send the
+    // full remaining balance. Otherwise prompt for an amount.
+    async function recordPayment(fullBalance){
+      const balance = Math.max(0, (sale.total || 0) - (sale.amount_paid || 0));
+      if (balance <= 0) { alert('This invoice is already fully paid.'); return; }
+      let amount = balance;
+      if (!fullBalance) {
+        const raw = prompt(`Amount received (₹). Balance is ${Math.round(balance).toLocaleString('en-IN')}.`, String(Math.round(balance)));
+        if (raw == null) return;   // cancelled
+        amount = parseFloat(String(raw).replace(/[^0-9.]/g, ''));
+        if (!Number.isFinite(amount) || amount <= 0) { alert('Enter a valid amount.'); return; }
+      }
+      try {
+        const r = await fetch(`${API_BASE}/api/sales/${sale.id}/payment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ amount }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Payment record failed');
+        // Reflect on the loaded sale and re-render.
+        sale.amount_paid    = data.amount_paid;
+        sale.payment_status = data.payment_status;
+        render();
+      } catch (err) {
+        alert(err.message);
+      }
     }
 
     // Copies the public /invoice-view.html link to the clipboard so

@@ -47,6 +47,20 @@
     .totals .tr.grand span:first-child{font-family:var(--f-sans);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.22em;color:var(--mute);align-self:center}
     .words{margin-top:1.5rem;font-family:var(--f-serif);font-style:italic;font-weight:300;font-size:13.5px;color:#4A473F;padding-top:1rem;border-top:1px solid var(--rule)}
     .words::before{content:"In words: ";font-style:normal;font-family:var(--f-sans);text-transform:uppercase;font-size:9.5px;letter-spacing:.22em;color:var(--mute);margin-right:.5rem}
+    /* Payment status pill — hairline, small caps, three states */
+    .pay-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .6rem;border-radius:999px;font-size:10px;font-weight:500;letter-spacing:.16em;text-transform:uppercase}
+    .pay-pill.paid{color:#3E6236;border:1px solid rgba(62,98,54,.4);background:rgba(62,98,54,.06)}
+    .pay-pill.partial{color:var(--ochre);border:1px solid var(--ochre-line);background:rgba(168,120,51,.05)}
+    .pay-pill.unpaid{color:#A94438;border:1px solid rgba(169,68,56,.35);background:rgba(169,68,56,.05)}
+    /* UPI QR block — editorial layout: QR left, instruction right. */
+    .pay-block{margin-top:2rem;padding:1.4rem 1.2rem;border:1px solid var(--rule-strong);background:#F5EFE1;border-radius:3px;display:grid;grid-template-columns:auto 1fr;gap:1.3rem;align-items:center}
+    .pay-block canvas,.pay-block img{display:block;width:132px;height:132px;background:#fff;padding:8px;border:1px solid var(--rule);border-radius:3px}
+    .pay-block .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.22em;color:var(--mute);font-weight:500;margin-bottom:.35rem}
+    .pay-block .h{font-family:var(--f-serif);font-size:20px;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+    .pay-block .h em{font-style:italic;color:var(--ochre);font-weight:300}
+    .pay-block .sub{font-size:12.5px;color:#4A473F;line-height:1.55;margin-top:.55rem}
+    .pay-block .upi{font-family:var(--f-sans);font-size:11.5px;color:var(--mute);margin-top:.4rem;letter-spacing:.02em}
+    .pay-status-line{margin-top:1rem;display:flex;justify-content:space-between;align-items:center;gap:1rem}
     .foot{margin-top:2rem;padding-top:1rem;border-top:1px solid var(--rule);font-size:10.5px;color:var(--mute);text-align:center;line-height:1.7;letter-spacing:.04em}
     .err{max-width:780px;margin:2rem auto;background:var(--paper);padding:2rem;text-align:center;color:#A94438;border:1px solid var(--rule);border-radius:3px}
     @media print{body{background:#fff;padding:0}.actions{display:none}.inv{box-shadow:none;border:0;max-width:100%;padding:1.5rem}}
@@ -61,6 +75,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/config.js?v=5"></script>
   <script>
     const API_BASE = window.API_BASE || 'http://127.0.0.1:4000';
@@ -162,6 +177,8 @@
 
         <div class="words">${inWords(s.total)}</div>
 
+        ${renderPaymentBlock(s, j)}
+
         <div class="foot">
           This is a computer-generated tax invoice. Gold rate as quoted on date of sale.<br>
           Shared via SonaToday · sonatoday.com
@@ -169,6 +186,65 @@
       </div>`;
 
       document.getElementById('pdfBtn').onclick = downloadPdf;
+      // Draw the UPI QR after the DOM is in place.
+      drawUpiQr(s, j);
+    }
+
+    // Build a UPI deep-link URI following the standard NPCI schema.
+    // Reference: upi://pay?pa=<vpa>&pn=<name>&am=<amount>&tn=<note>&cu=INR
+    function upiUri(sale, seller){
+      if (!seller || !seller.upi_id) return null;
+      const balance = Math.max(0, (sale.total || 0) - (sale.amount_paid || 0));
+      if (balance <= 0) return null;
+      const params = new URLSearchParams({
+        pa: seller.upi_id,
+        pn: seller.name || 'SonaToday',
+        am: balance.toFixed(2),
+        tn: `Invoice ${sale.invoice_number || ''}`.trim(),
+        cu: 'INR',
+      });
+      return `upi://pay?${params.toString()}`;
+    }
+
+    // Renders the pay block markup only when it makes sense
+    // (seller has UPI configured AND there's still a balance).
+    function renderPaymentBlock(sale, seller){
+      const paid = Number(sale.amount_paid) || 0;
+      const total = Number(sale.total) || 0;
+      const balance = Math.max(0, total - paid);
+      const status = sale.payment_status || (balance <= 0 ? 'paid' : (paid > 0 ? 'partial' : 'unpaid'));
+      const label = status === 'paid' ? 'Paid in full' : status === 'partial' ? 'Partly paid' : 'Payment due';
+      const balLine = balance > 0
+        ? `<div class="pay-status-line"><span class="pay-pill ${status}">${label}</span><span style="font-family:var(--f-serif);font-size:20px;color:var(--ink);letter-spacing:-.005em">${fmt(balance)} <span style="font-family:var(--f-sans);font-size:10px;text-transform:uppercase;letter-spacing:.22em;color:var(--mute)">balance</span></span></div>`
+        : `<div class="pay-status-line"><span class="pay-pill paid">${label}</span><span style="font-size:11.5px;letter-spacing:.06em;color:var(--mute)">Thank you.</span></div>`;
+      // QR only if we can generate one.
+      if (!upiUri(sale, seller)) return balLine;
+      const shopName = seller && seller.name ? seller.name : '';
+      return `
+        ${balLine}
+        <div class="pay-block">
+          <div id="upiQr"></div>
+          <div>
+            <div class="lbl">Pay via UPI</div>
+            <div class="h">Scan to settle <em>${fmt(balance)}</em></div>
+            <div class="sub">Open any UPI app (GPay, PhonePe, Paytm, or your bank app), scan this code, and complete the payment to ${shopName || 'the seller'}.</div>
+            <div class="upi">${seller.upi_id}</div>
+          </div>
+        </div>`;
+    }
+
+    function drawUpiQr(sale, seller){
+      const host = document.getElementById('upiQr');
+      const uri  = upiUri(sale, seller);
+      if (!host || !uri || typeof QRCode === 'undefined') return;
+      host.innerHTML = '';
+      new QRCode(host, {
+        text: uri,
+        width: 132, height: 132,
+        colorDark:  '#1B1A17',
+        colorLight: '#FFFFFF',
+        correctLevel: QRCode.CorrectLevel.M,
+      });
     }
 
     async function downloadPdf(){
