@@ -993,12 +993,33 @@
       </div>
       <div class="if"><label>GST %</label><input id="sGst" type="number" inputmode="decimal" step="0.5" min="0" value="3" /></div>
 
+      <!-- Old-gold exchange (optional, collapsed by default) -->
+      <div style="margin:.4rem 0 .2rem">
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:13px;cursor:pointer;color:var(--paper)">
+          <input type="checkbox" id="sExToggle" style="width:16px;height:16px;accent-color:var(--ochre)" />
+          Customer is exchanging old gold
+        </label>
+      </div>
+      <div id="sExFields" style="display:none">
+        <div class="if-row">
+          <div class="if"><label>Old gold weight (g) *</label><input id="sExWeight" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0.0" /></div>
+          <div class="if"><label>Old purity</label>
+            <select id="sExPurity"><option value="22">22K</option><option value="24">24K</option><option value="20">20K</option><option value="18">18K</option><option value="14">14K</option></select>
+          </div>
+        </div>
+        <div class="if-row">
+          <div class="if"><label>Credit rate ₹/g *</label><input id="sExRate" type="number" inputmode="numeric" min="0" placeholder="auto" /></div>
+          <div class="if"><label>Deduction % <span class="muted" style="font-size:10px">(wastage)</span></label><input id="sExDeduction" type="number" inputmode="decimal" step="0.5" min="0" max="50" value="3" /></div>
+        </div>
+      </div>
+
       <!-- Live breakdown -->
       <div class="calc-box" id="sBreak">
         <div class="cb-row"><span>Gold value</span><span id="cbGold">—</span></div>
         <div class="cb-row"><span>Making</span><span id="cbMake">—</span></div>
         <div class="cb-row"><span>GST</span><span id="cbGst">—</span></div>
-        <div class="cb-row cb-total"><span>Total</span><span id="cbTotal">—</span></div>
+        <div class="cb-row" id="cbExRow" style="display:none"><span>Less: old gold credit</span><span id="cbEx" style="color:var(--sage)">—</span></div>
+        <div class="cb-row cb-total"><span>Total payable</span><span id="cbTotal">—</span></div>
       </div>
 
       <button class="pub-btn" id="genInvBtn" style="margin-top:.7rem">Generate Invoice →</button>
@@ -1577,6 +1598,13 @@
       document.getElementById('sMaking').value = me?.making || 10;
       document.getElementById('sGst').value = 3;
       document.getElementById('sRate').value = rateForSale('22');
+      // Reset exchange sub-form
+      document.getElementById('sExToggle').checked = false;
+      document.getElementById('sExFields').style.display = 'none';
+      document.getElementById('sExWeight').value='';
+      document.getElementById('sExPurity').value='22';
+      document.getElementById('sExRate').value='';
+      document.getElementById('sExDeduction').value='3';
       document.getElementById('sMsg').className='msg';
       toggleWalkin();
       calcSale();
@@ -1611,18 +1639,47 @@
       calcSale();
     });
 
-    ['sWeight','sRate','sMaking','sGst'].forEach(id =>
+    ['sWeight','sRate','sMaking','sGst','sExWeight','sExRate','sExDeduction'].forEach(id =>
       document.getElementById(id).addEventListener('input', calcSale));
+    document.getElementById('sExPurity').addEventListener('change', () => {
+      // Credit rate defaults to the jeweller's rate for that purity
+      // (or live MCX fallback) — editable after.
+      document.getElementById('sExRate').value = rateForSale(document.getElementById('sExPurity').value) || '';
+      calcSale();
+    });
+    document.getElementById('sExToggle').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      document.getElementById('sExFields').style.display = on ? 'block' : 'none';
+      if (on && !document.getElementById('sExRate').value) {
+        document.getElementById('sExRate').value = rateForSale(document.getElementById('sExPurity').value) || '';
+      }
+      calcSale();
+    });
+
+    // Reads the exchange sub-form; returns 0 when toggled off/empty.
+    function exchangeCredit() {
+      if (!document.getElementById('sExToggle').checked) return 0;
+      const w = parseFloat(document.getElementById('sExWeight').value)||0;
+      const r = parseFloat(document.getElementById('sExRate').value)||0;
+      const d = parseFloat(document.getElementById('sExDeduction').value)||0;
+      if (w <= 0 || r <= 0) return 0;
+      return w * r * (1 - Math.min(50, Math.max(0, d)) / 100);
+    }
 
     function calcSale() {
       const w = parseFloat(document.getElementById('sWeight').value)||0;
       const r = parseFloat(document.getElementById('sRate').value)||0;
       const mk = parseFloat(document.getElementById('sMaking').value)||0;
       const gst = parseFloat(document.getElementById('sGst').value)||0;
-      const gold = w*r, make = gold*mk/100, g = (gold+make)*gst/100, total = gold+make+g;
+      const gold = w*r, make = gold*mk/100, g = (gold+make)*gst/100, gross = gold+make+g;
+      const ex = exchangeCredit();
+      const total = Math.max(0, gross - ex);
       document.getElementById('cbGold').textContent  = gold?fmt(gold):'—';
       document.getElementById('cbMake').textContent  = gold?`${fmt(make)} (${mk}%)`:'—';
       document.getElementById('cbGst').textContent   = gold?`${fmt(g)} (${gst}%)`:'—';
+      const exRow = document.getElementById('cbExRow');
+      exRow.style.display = ex > 0 ? 'flex' : 'none';
+      if (ex > 0) document.getElementById('cbEx').textContent = '− ' + fmt(ex);
       document.getElementById('cbTotal').textContent = gold?fmt(total):'—';
     }
 
@@ -1653,6 +1710,21 @@
         making_pct: parseFloat(document.getElementById('sMaking').value)||0,
         gst_pct: parseFloat(document.getElementById('sGst').value)||0,
       };
+      // Attach exchange fields only when the toggle is on and weight given.
+      if (document.getElementById('sExToggle').checked) {
+        const exW = parseFloat(document.getElementById('sExWeight').value);
+        if (exW > 0) {
+          body.ex_weight_g      = exW;
+          body.ex_purity        = document.getElementById('sExPurity').value;
+          body.ex_rate_per_g    = parseFloat(document.getElementById('sExRate').value)||0;
+          body.ex_deduction_pct = parseFloat(document.getElementById('sExDeduction').value)||0;
+          if (!body.ex_rate_per_g) {
+            msg.className='msg err'; msg.textContent='Enter the credit rate for the old gold.';
+            btn.disabled=false; btn.textContent='Generate Invoice →';
+            return;
+          }
+        }
+      }
       try {
         const r = await fetch(`${API_BASE}/api/sales`, { method:'POST',
           headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify(body) });

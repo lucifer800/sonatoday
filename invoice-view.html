@@ -172,7 +172,8 @@
           <div class="tr"><span>Taxable value</span><span>${fmt((s.gold_value||0)+(s.making_amount||0))}</span></div>
           <div class="tr"><span>CGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
           <div class="tr"><span>SGST @ ${(s.gst_pct/2)}%</span><span>${fmt(half)}</span></div>
-          <div class="tr grand"><span>Total</span><span>${fmt(s.total)}</span></div>
+          ${exchangeRows(s)}
+          <div class="tr grand"><span>Total${(s.ex_value||0)>0?' payable':''}</span><span>${fmt(s.total)}</span></div>
         </div>
 
         <div class="words">${inWords(s.total)}</div>
@@ -188,6 +189,18 @@
       document.getElementById('pdfBtn').onclick = downloadPdf;
       // Draw the UPI QR after the DOM is in place.
       drawUpiQr(s, j);
+    }
+
+    // Exchange-credit rows for the totals block. Empty string when
+    // the sale had no old-gold trade-in.
+    function exchangeRows(s){
+      const ex = Number(s.ex_value) || 0;
+      if (ex <= 0) return '';
+      const detail = `${s.ex_weight_g}g ${s.ex_purity}K @ ${fmt(s.ex_rate_per_g)}/g` +
+        ((Number(s.ex_deduction_pct)||0) > 0 ? ` − ${s.ex_deduction_pct}%` : '');
+      return `
+        <div class="tr"><span>Gross total</span><span>${fmt(s.gross_total || ((s.total||0)+ex))}</span></div>
+        <div class="tr"><span>Less: old gold exchange<br><i style="font-size:10.5px;color:var(--mute)">${detail}</i></span><span style="color:#3E6236">− ${fmt(ex)}</span></div>`;
     }
 
     // Build a UPI deep-link URI following the standard NPCI schema.

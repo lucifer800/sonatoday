@@ -188,6 +188,17 @@ const initDb = () => {
     // / 'partial' / 'paid') so we can filter cheaply.
     db.run(`ALTER TABLE sales ADD COLUMN amount_paid REAL DEFAULT 0`,   () => {});
     db.run(`ALTER TABLE sales ADD COLUMN payment_status TEXT DEFAULT 'unpaid'`, () => {});
+    // Phase 10 — old-gold exchange. When a customer trades in old
+    // jewellery against a new purchase, we record what was taken in
+    // and the credit given. sales.total remains NET PAYABLE (gross
+    // minus exchange credit) so payment tracking is unaffected;
+    // gross_total preserves the pre-exchange figure for the invoice.
+    db.run(`ALTER TABLE sales ADD COLUMN ex_weight_g REAL`,       () => {});
+    db.run(`ALTER TABLE sales ADD COLUMN ex_purity TEXT`,         () => {});
+    db.run(`ALTER TABLE sales ADD COLUMN ex_rate_per_g REAL`,     () => {});
+    db.run(`ALTER TABLE sales ADD COLUMN ex_deduction_pct REAL`,  () => {});
+    db.run(`ALTER TABLE sales ADD COLUMN ex_value REAL DEFAULT 0`,() => {});
+    db.run(`ALTER TABLE sales ADD COLUMN gross_total REAL`,       () => {});
 
     // MCX history archive — one row per metal per calendar day (IST).
     // Lives here (not in ibjaScraper.js) so it's guaranteed to exist on
@@ -946,16 +957,46 @@ app.post('/api/sales', requireAuth, (req, res) => {
   const makingAmount = goldValue * (makingPct / 100);
   const taxable      = goldValue + makingAmount;
   const gstAmount    = taxable * (gstPct / 100);
-  const total        = taxable + gstAmount;
+  const grossTotal   = taxable + gstAmount;
   const r2 = (n) => Math.round(n * 100) / 100;
+
+  // ── Old-gold exchange (optional) ─────────────────────────────
+  // The jeweller weighs the customer's old piece, picks its purity,
+  // credits it at a rate/g, and applies a deduction % (melting loss/
+  // wastage/impurity margin). GST is charged on the NEW item's full
+  // taxable value — the exchange credit reduces only what the
+  // customer pays, per standard jeweller billing practice.
+  let exWeight = null, exPurity = null, exRate = null, exDeduction = null, exValue = 0;
+  const exW = parseFloat(b.ex_weight_g);
+  if (Number.isFinite(exW) && exW > 0) {
+    const exR = parseFloat(b.ex_rate_per_g);
+    if (!Number.isFinite(exR) || exR <= 0) {
+      return res.status(400).json({ error: 'Exchange rate per gram is required when exchange weight is given' });
+    }
+    const exD = Number.isFinite(parseFloat(b.ex_deduction_pct)) ? parseFloat(b.ex_deduction_pct) : 0;
+    if (exD < 0 || exD > 50) {
+      return res.status(400).json({ error: 'Exchange deduction must be between 0 and 50%' });
+    }
+    exWeight    = r2(exW);
+    exPurity    = ['24','22','20','18','14'].includes(String(b.ex_purity)) ? String(b.ex_purity) : '22';
+    exRate      = r2(exR);
+    exDeduction = exD;
+    exValue     = r2(exW * exR * (1 - exD / 100));
+  }
+  // Net payable = gross minus exchange credit, floored at zero.
+  // (If the old gold is worth more than the new piece, the excess is
+  // settled in cash outside the invoice — total simply reads 0.)
+  const total = Math.max(0, r2(grossTotal - exValue));
 
   nextInvoiceNumber(req.jeweller.id, (invoiceNumber) => {
     db.run(
       `INSERT INTO sales
         (jeweller_id, invoice_number, customer_id, customer_name, customer_phone, customer_gstin,
          item_id, description, purity, weight_g, rate_per_g, gold_value,
-         making_pct, making_amount, gst_pct, gst_amount, total)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         making_pct, making_amount, gst_pct, gst_amount, total,
+         ex_weight_g, ex_purity, ex_rate_per_g, ex_deduction_pct, ex_value, gross_total,
+         payment_status)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [
         req.jeweller.id, invoiceNumber,
         b.customer_id || null, String(b.customer_name).trim(),
@@ -963,6 +1004,10 @@ app.post('/api/sales', requireAuth, (req, res) => {
         b.item_id || null, b.description || null, purity,
         r2(weight), r2(rate), r2(goldValue),
         makingPct, r2(makingAmount), gstPct, r2(gstAmount), r2(total),
+        exWeight, exPurity, exRate, exDeduction, exValue, r2(grossTotal),
+        // A fully-exchange-covered bill has nothing left to collect —
+        // mark it paid at birth so it never appears in the dues list.
+        total <= 0 ? 'paid' : 'unpaid',
       ],
       function (err) {
         if (err) return res.status(500).json({ error: err.message });
