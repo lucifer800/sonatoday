@@ -646,6 +646,17 @@
       </div>
     </div>
 
+    <!-- Owner-only: Shop staff card. Hidden entirely for staff logins
+         and only surfaces on Home for owners. -->
+    <div class="notice-card" id="staffCard" style="display:none">
+      <div class="notice-body">
+        <div class="eyebrow" style="color:var(--ochre-soft)">Shop staff</div>
+        <div class="notice-lede">Give assistants their own logins</div>
+        <div class="notice-sub" id="staffCardSub">Staff can bill and manage stock — no access to Reports or deletions.</div>
+      </div>
+      <button class="pub-btn" id="openStaffBtn" style="margin:0;width:auto;padding:.7rem 1rem;font-size:12.5px">Manage</button>
+    </div>
+
     <!-- Payments card — shown when there are outstanding dues OR
          when UPI is unset (so the jeweller can add it once). Hidden
          otherwise. Tapping the dues line opens the Bills tab. -->
@@ -1024,6 +1035,33 @@
 
       <button class="pub-btn" id="genInvBtn" style="margin-top:.7rem">Generate Invoice →</button>
       <div class="msg" id="sMsg"></div>
+    </div>
+  </div>
+
+  <!-- ════════ STAFF MANAGER SHEET (Phase 11 — owner-only) ════════ -->
+  <div id="staffSheet" class="sheet" style="display:none">
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <h3 style="margin:0;font-size:1.05rem;font-weight:700">Shop staff</h3>
+        <button class="sheet-x" onclick="closeStaffSheet()">×</button>
+      </div>
+
+      <p class="muted" style="font-size:12px;margin:.2rem 0 1rem;line-height:1.55">
+        Staff can bill, add stock and manage clients. They can't see Reports,
+        delete records, or edit shop settings.
+      </p>
+
+      <div id="staffList" style="margin-bottom:1rem"></div>
+
+      <div style="border-top:1px solid var(--rule);padding-top:1rem">
+        <div class="eyebrow" style="margin-bottom:.6rem">Add a staff member</div>
+        <div class="if"><label>Full name *</label><input id="stName" placeholder="e.g. Rakesh Solanki" /></div>
+        <div class="if"><label>Role label (optional)</label><input id="stLabel" placeholder="e.g. Counter staff" /></div>
+        <div class="if"><label>Email *</label><input id="stEmail" type="email" autocomplete="off" placeholder="staff@shop.com" /></div>
+        <div class="if"><label>Password (min 6 chars) *</label><input id="stPass" type="text" placeholder="Share this with them once" /></div>
+        <button class="pub-btn" id="stAddBtn" style="margin-top:.6rem">Create staff account</button>
+        <div class="msg" id="stMsg"></div>
+      </div>
     </div>
   </div>
 
@@ -2362,7 +2400,98 @@
       if (btn && btn.dataset.scr === 'bills') loadPayments();
     });
 
-    loadMe().then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(loadLoyalty).then(loadPayments).then(maybeStartTour);
+    /* ════════════ STAFF (Phase 11) ════════════
+       Owner-only. `me.role` comes back from /api/jewellers/me and
+       tells us to hide/show the Reports tab, the staff card on Home,
+       and the delete buttons across the app. Staff never see any of
+       these — their JWT is silently rescoped to the owner's shop on
+       the backend, so every existing screen just works. */
+    function applyRoleGate(){
+      const isStaff = me && me.role === 'staff';
+      // Hide Reports tab entirely for staff.
+      const rt = document.querySelector('.tab[data-scr="reports"]');
+      if (rt) rt.style.display = isStaff ? 'none' : '';
+      // Home Reports button — also hidden for staff.
+      const homeReports = document.querySelector('[onclick="openReports()"]');
+      if (homeReports) homeReports.style.display = isStaff ? 'none' : '';
+      // Owner-only cards on Home.
+      const staffCard = document.getElementById('staffCard');
+      if (staffCard) staffCard.style.display = isStaff ? 'none' : 'flex';
+      // Add a small role chip to the top bar for staff.
+      const shop = document.getElementById('topShop');
+      if (shop && isStaff && !shop.dataset.roleBadged) {
+        shop.dataset.roleBadged = '1';
+        shop.innerHTML += ' <span style="color:var(--ochre-soft);text-transform:none;letter-spacing:0;font-size:10px">· staff</span>';
+      }
+    }
+
+    // Staff manager sheet — open, list, add, remove.
+    window.openStaffSheet = async () => {
+      document.getElementById('staffSheet').style.display = 'flex';
+      document.getElementById('stMsg').className = 'msg';
+      ['stName','stLabel','stEmail','stPass'].forEach(id => { document.getElementById(id).value=''; });
+      await refreshStaffList();
+    };
+    window.closeStaffSheet = () => { document.getElementById('staffSheet').style.display = 'none'; };
+    async function refreshStaffList(){
+      const host = document.getElementById('staffList');
+      host.innerHTML = '<div class="muted" style="font-size:12px">Loading…</div>';
+      try {
+        const r = await fetch(`${API_BASE}/api/staff`, { headers:{ Authorization:`Bearer ${token}` } });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Could not load staff');
+        if (!d.staff.length) {
+          host.innerHTML = `<div class="muted" style="font-size:12px;padding:.4rem 0">No staff added yet. Fill the form below to create the first login.</div>`;
+          return;
+        }
+        host.innerHTML = d.staff.map(s => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--rule)">
+            <div style="min-width:0;flex:1">
+              <div style="font-size:13px;font-weight:500">${s.name}</div>
+              <div class="muted" style="font-size:11px;margin-top:1px">${s.email}${s.staff_label ? ' · ' + s.staff_label : ''}</div>
+            </div>
+            <button onclick="removeStaff(${s.id}, '${(s.name||'').replace(/'/g,"&#39;")}')" style="background:transparent;border:0;color:var(--sanguine);font-size:11px;cursor:pointer;text-decoration:underline">Remove</button>
+          </div>`).join('');
+      } catch(e){ host.innerHTML = `<div class="muted" style="font-size:12px;color:var(--sanguine)">${e.message}</div>`; }
+    }
+    window.removeStaff = async (id, name) => {
+      if (!confirm(`Remove ${name}? They'll immediately lose access.`)) return;
+      try {
+        const r = await fetch(`${API_BASE}/api/staff/${id}`, {
+          method:'DELETE', headers:{ Authorization:`Bearer ${token}` }
+        });
+        if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || 'Delete failed'); }
+        await refreshStaffList();
+        toast('Staff member removed.');
+      } catch(e){ toast(e.message, true); }
+    };
+    document.getElementById('openStaffBtn').addEventListener('click', () => window.openStaffSheet());
+    document.getElementById('stAddBtn').addEventListener('click', async () => {
+      const msg = document.getElementById('stMsg');
+      const btn = document.getElementById('stAddBtn');
+      const body = {
+        name:     document.getElementById('stName').value.trim(),
+        label:    document.getElementById('stLabel').value.trim(),
+        email:    document.getElementById('stEmail').value.trim(),
+        password: document.getElementById('stPass').value,
+      };
+      msg.className='msg'; btn.disabled=true; btn.textContent='Creating…';
+      try {
+        const r = await fetch(`${API_BASE}/api/staff`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Create failed');
+        msg.className='msg ok'; msg.textContent = `Created. Give ${d.name} their email + password so they can sign in.`;
+        ['stName','stLabel','stEmail','stPass'].forEach(id => { document.getElementById(id).value=''; });
+        await refreshStaffList();
+      } catch(err){ msg.className='msg err'; msg.textContent = err.message; }
+      finally { btn.disabled=false; btn.textContent='Create staff account'; }
+    });
+
+    loadMe().then(applyRoleGate).then(loadMcx).then(checkDemoState).then(loadActivityFeed).then(loadLoyalty).then(loadPayments).then(maybeStartTour);
   </script>
 </body>
 </html>

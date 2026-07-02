@@ -199,6 +199,13 @@ const initDb = () => {
     db.run(`ALTER TABLE sales ADD COLUMN ex_deduction_pct REAL`,  () => {});
     db.run(`ALTER TABLE sales ADD COLUMN ex_value REAL DEFAULT 0`,() => {});
     db.run(`ALTER TABLE sales ADD COLUMN gross_total REAL`,       () => {});
+    // Phase 11 — staff accounts. `role` is 'owner' (default) or
+    // 'staff'. Staff rows carry parent_jeweller_id pointing at the
+    // owner they act on behalf of; all their reads/writes are scoped
+    // to that owner's data via the requireAuth middleware below.
+    db.run(`ALTER TABLE jewellers ADD COLUMN role TEXT DEFAULT 'owner'`, () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN parent_jeweller_id INTEGER`, () => {});
+    db.run(`ALTER TABLE jewellers ADD COLUMN staff_label TEXT`, () => {});
 
     // MCX history archive — one row per metal per calendar day (IST).
     // Lives here (not in ibjaScraper.js) so it's guaranteed to exist on
@@ -663,21 +670,62 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // ── JWT auth middleware ──────────────────────────────────────
-// Reads Authorization: Bearer <token>, verifies, attaches req.jeweller
+// Reads Authorization: Bearer <token>, verifies, and looks up the
+// caller's row so we can resolve staff → owner scope. After this
+// middleware, downstream routes see:
+//   req.jeweller.id       — the SHOP id (owner's id, even for staff)
+//   req.jeweller.actualId — the row that actually logged in
+//   req.jeweller.role     — 'owner' | 'staff'
+// Every existing route already reads req.jeweller.id and writes
+// against jeweller_id = ?; keeping the field pointed at the owner
+// means staff calls transparently operate on the shop's data.
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token  = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Login required' });
+  let decoded;
   try {
-    req.jeweller = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
-    next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret_key');
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
+  db.get(
+    `SELECT id, email, role, parent_jeweller_id FROM jewellers WHERE id = ?`,
+    [decoded.id],
+    (err, row) => {
+      if (err || !row) return res.status(401).json({ error: 'Session no longer valid' });
+      const role     = row.role || 'owner';
+      const shopId   = role === 'staff' && row.parent_jeweller_id
+        ? row.parent_jeweller_id
+        : row.id;
+      req.jeweller = {
+        id: shopId,
+        actualId: row.id,
+        role,
+        email: row.email,
+      };
+      next();
+    }
+  );
 }
 
-// GET /api/jewellers/me — the logged-in jeweller's own record (no password)
+// Blocks staff from touching owner-only routes (reports, deletes,
+// staff management, profile edits). Runs AFTER requireAuth.
+function requireOwner(req, res, next) {
+  if (!req.jeweller || req.jeweller.role !== 'owner') {
+    return res.status(403).json({ error: 'Only the shop owner can do this.' });
+  }
+  next();
+}
+
+// GET /api/jewellers/me — the shop's record (owners see their own,
+// staff see their owner's, tagged with the caller's role so the UI
+// can hide owner-only screens).
 app.get('/api/jewellers/me', requireAuth, (req, res) => {
+  // Attach role + staff identity onto the response so the frontend
+  // knows whether to show Reports / delete buttons / staff manager.
+  res.locals.role     = req.jeweller.role;
+  res.locals.actualId = req.jeweller.actualId;
   db.get(
     `SELECT id, name, symbol, email, phone, whatsapp, area, address_line,
             verified, photo_url, gst_number, bis_license, upi_id,
@@ -692,7 +740,12 @@ app.get('/api/jewellers/me', requireAuth, (req, res) => {
       // gamify onboarding. Fields are weighted by how much they raise
       // buyer trust on the public profile.
       const completeness = computeCompleteness(row);
-      res.json({ ...row, completeness });
+      res.json({
+        ...row,
+        completeness,
+        role:     res.locals.role,
+        actualId: res.locals.actualId,
+      });
     }
   );
 });
@@ -745,7 +798,7 @@ app.post('/api/jewellers/:id/rates', requireAuth, (req, res) => {
 
 // PUT /api/jewellers/me/profile — update credibility fields
 // (phone, WhatsApp, address, GST, BIS licence). Photo handled separately.
-app.put('/api/jewellers/me/profile', requireAuth, (req, res) => {
+app.put('/api/jewellers/me/profile', requireAuth, requireOwner, (req, res) => {
   const { phone, whatsapp, address_line, gst_number, bis_license, upi_id } = req.body || {};
   // Light validation — these are display fields, not security-critical.
   // Trim everything and treat empty strings as null so the DB stays clean.
@@ -788,6 +841,70 @@ app.put('/api/jewellers/me/profile', requireAuth, (req, res) => {
           res.json({ ...row, completeness: computeCompleteness(row) });
         }
       );
+    }
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STAFF ACCOUNTS  (Phase 11)
+// An owner can create limited-permission logins for shop assistants.
+// Each staff row is a jewellers row with role='staff' and
+// parent_jeweller_id pointing at the owner. The auth middleware
+// silently rescopes staff calls onto the owner's shop, so
+// existing routes need no change — only the sensitive routes are
+// gated with requireOwner (already applied above).
+// ═══════════════════════════════════════════════════════════════
+app.get('/api/staff', requireAuth, requireOwner, (req, res) => {
+  db.all(
+    `SELECT id, name, email, staff_label, created_at
+       FROM jewellers
+      WHERE parent_jeweller_id = ? AND role = 'staff'
+      ORDER BY created_at ASC`,
+    [req.jeweller.id],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ staff: rows || [] });
+    }
+  );
+});
+
+app.post('/api/staff', requireAuth, requireOwner, (req, res) => {
+  const { name, label, email, password } = req.body || {};
+  if (!name || !String(name).trim())          return res.status(400).json({ error: 'Staff member name is required.' });
+  if (!email || !/.+@.+\..+/.test(email))     return res.status(400).json({ error: 'A valid email is required.' });
+  if (!password || password.length < 6)       return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+  const hash = bcrypt.hashSync(password, 10);
+  // Symbol is UNIQUE — reuse the slug-with-random-tail trick we
+  // use for owner signup so staff rows never collide.
+  const slug   = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'staff';
+  const symbol = `${slug}-${Math.random().toString(36).slice(2, 6)}`;
+  db.run(
+    `INSERT INTO jewellers (name, symbol, email, password, role, parent_jeweller_id, staff_label)
+     VALUES (?, ?, ?, ?, 'staff', ?, ?)`,
+    [String(name).trim(), symbol, String(email).toLowerCase().trim(), hash, req.jeweller.id, (label || null)],
+    function (err) {
+      if (err) {
+        const msg = /UNIQUE.*email/i.test(err.message)
+          ? 'That email is already in use — pick another.'
+          : 'Could not create staff account.';
+        return res.status(400).json({ error: msg });
+      }
+      res.json({ id: this.lastID, name, email, label: label || null });
+    }
+  );
+});
+
+app.delete('/api/staff/:id', requireAuth, requireOwner, (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  // Scope the delete so an owner can never remove another shop's staff.
+  db.run(
+    `DELETE FROM jewellers
+      WHERE id = ? AND parent_jeweller_id = ? AND role = 'staff'`,
+    [id, req.jeweller.id],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) return res.status(404).json({ error: 'Staff member not found.' });
+      res.json({ success: true });
     }
   );
 });
@@ -888,7 +1005,7 @@ app.put('/api/inventory/:id', requireAuth, (req, res) => {
 });
 
 // DELETE /api/inventory/:id — remove an item I own.
-app.delete('/api/inventory/:id', requireAuth, (req, res) => {
+app.delete('/api/inventory/:id', requireAuth, requireOwner, (req, res) => {
   const id = parseInt(req.params.id, 10);
   db.run(
     `DELETE FROM inventory_items WHERE id = ? AND jeweller_id = ?`,
@@ -1054,7 +1171,7 @@ app.get('/api/sales', requireAuth, (req, res) => {
 // GET /api/reports — aggregated analytics for the Reports screen.
 // Computed server-side from this jeweller's sales. Lightweight: one
 // shop's data, so a few in-memory reductions are plenty fast.
-app.get('/api/reports', requireAuth, (req, res) => {
+app.get('/api/reports', requireAuth, requireOwner, (req, res) => {
   db.all(
     `SELECT * FROM sales WHERE jeweller_id = ? ORDER BY sold_at ASC`,
     [req.jeweller.id],
@@ -1396,7 +1513,7 @@ app.put('/api/customers/:id', requireAuth, (req, res) => {
 });
 
 // DELETE /api/customers/:id — remove a customer I own.
-app.delete('/api/customers/:id', requireAuth, (req, res) => {
+app.delete('/api/customers/:id', requireAuth, requireOwner, (req, res) => {
   const id = parseInt(req.params.id, 10);
   db.run(
     `DELETE FROM customers WHERE id = ? AND jeweller_id = ?`,

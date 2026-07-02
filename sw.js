@@ -16,7 +16,7 @@
     VERSION, so old caches die quickly.
 */
 
-const VERSION     = 'v20';  // Phase 10: old-gold exchange in sale flow + invoice credit lines
+const VERSION     = 'v21';  // Phase 11: staff accounts (owner + assistants, scoped auth)
 const SHELL_CACHE = `sonatoday-shell-${VERSION}`;
 const API_CACHE   = `sonatoday-api-${VERSION}`;
 
