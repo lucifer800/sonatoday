@@ -73,39 +73,108 @@ app.get('/jeweller.html', (req, res, next) => {
   fs.readFile(path.join(__dirname, '..', 'jeweller.html'), 'utf8', (err, html) => {
     if (err) return next();
     db.get(
-      'SELECT name, area, r22g, r24g FROM jewellers WHERE id = ?',
+      `SELECT id, name, area, address_line, phone, whatsapp,
+              gst_number, bis_license, photo_url, verified,
+              r22g, r24g, updated
+         FROM jewellers WHERE id = ?`,
       [id],
       (e, j) => {
         if (e || !j) return next();
         const origin = `${req.protocol}://${req.get('host')}`;
-        const title  = `${j.name} — Ahmedabad gold rate today`;
-        const desc   = `Today's 22K rate: ₹${Math.round(j.r22g).toLocaleString('en-IN')}/g at ${j.name}, ${j.area}. Compare with 11 other verified Ahmedabad jewellers.`;
+        const rate22 = j.r22g ? `₹${Math.round(j.r22g).toLocaleString('en-IN')}/g` : '';
+        const title  = `${j.name} — Today's Gold Rate in ${j.area || 'Ahmedabad'} | SonaToday`;
+        const desc   = j.r22g
+          ? `Today's 22K rate: ${rate22} at ${j.name}, ${j.area || 'Ahmedabad'}. Live comparison with 11 other verified Ahmedabad jewellers. 24K, making charge, hours and reviews on one page.`
+          : `${j.name}, ${j.area || 'Ahmedabad'} — verified jeweller on SonaToday. Compare today's 22K and 24K rates with 11 other Ahmedabad shops.`;
         const image  = `${origin}/api/og-image/${id}.png`;
         const url    = `${origin}/jeweller.html?id=${id}`;
 
-        // Strip any existing og:* / twitter:* / title and inject ours
+        // JSON-LD LocalBusiness (JewelryStore) — the biggest single
+        // rich-result win. Feeds Google's local pack and knowledge
+        // panel; also picks up in Bing/DuckDuckGo.
+        const ldParts = [
+          {
+            '@context': 'https://schema.org',
+            '@type': 'JewelryStore',
+            '@id': `${url}#store`,
+            name: j.name,
+            description: desc,
+            url,
+            image: image,
+            telephone: j.whatsapp || j.phone || undefined,
+            address: {
+              '@type': 'PostalAddress',
+              addressLocality: j.area || 'Ahmedabad',
+              addressRegion: 'Gujarat',
+              addressCountry: 'IN',
+              streetAddress: j.address_line || undefined,
+            },
+            areaServed: { '@type': 'City', name: 'Ahmedabad' },
+            priceRange: '₹₹',
+            taxID: j.gst_number || undefined,
+            identifier: j.bis_license ? { '@type': 'PropertyValue', name: 'BIS Hallmark Licence', value: j.bis_license } : undefined,
+            makesOffer: j.r22g ? [{
+              '@type': 'Offer',
+              itemOffered: { '@type': 'Product', name: '22K Gold (per gram)', category: 'Jewellery' },
+              priceCurrency: 'INR',
+              price: Math.round(j.r22g),
+              availability: 'https://schema.org/InStock',
+              validFrom: new Date().toISOString().slice(0, 10),
+            }, ...(j.r24g ? [{
+              '@type': 'Offer',
+              itemOffered: { '@type': 'Product', name: '24K Gold (per gram)', category: 'Jewellery' },
+              priceCurrency: 'INR',
+              price: Math.round(j.r24g),
+              availability: 'https://schema.org/InStock',
+              validFrom: new Date().toISOString().slice(0, 10),
+            }] : [])] : undefined,
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Ahmedabad Gold Rates', item: origin + '/' },
+              { '@type': 'ListItem', position: 2, name: 'Jewellers',            item: origin + '/#trust' },
+              { '@type': 'ListItem', position: 3, name: j.name,                 item: url },
+            ],
+          },
+        ];
+        // Strip undefineds so JSON stays clean.
+        const cleanLd = JSON.stringify(ldParts, (_k, v) => v === undefined ? undefined : v);
+
+        // Strip any existing og:* / twitter:* / title / canonical /
+        // description that the static file shipped so ours wins.
         let out = html
           .replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`)
-          .replace(/\s*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*|description)"[^>]*>/g, '');
+          .replace(/\s*<meta\s+(?:property|name)="(?:og:[^"]*|twitter:[^"]*|description|robots)"[^>]*>/g, '')
+          .replace(/\s*<link\s+rel="canonical"[^>]*>/g, '');
 
         const inject = `
+    <link rel="canonical" href="${url}">
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1">
+    <meta name="description" content="${desc}">
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Ahmedabad Gold Rates">
+    <meta property="og:site_name" content="SonaToday · Ahmedabad Gold">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${desc}">
     <meta property="og:url" content="${url}">
     <meta property="og:image" content="${image}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:locale" content="en_IN">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${desc}">
     <meta name="twitter:image" content="${image}">
-    <meta name="description" content="${desc}">`;
+    <script type="application/ld+json">${cleanLd}</script>`;
         out = out.replace('</head>', `${inject}\n  </head>`);
 
         res.set('Content-Type', 'text/html; charset=utf-8');
-        res.set('Cache-Control', 'no-store');
+        // A short public cache is FINE for SEO — crawlers can revalidate
+        // via ETag / Last-Modified, and the sitemap already advertises
+        // daily change. Previous 'no-store' actively discouraged
+        // Googlebot from re-indexing at a reasonable cadence.
+        res.set('Cache-Control', 'public, max-age=600, stale-while-revalidate=1800');
         res.send(out);
       }
     );
@@ -2038,10 +2107,13 @@ app.get('/sitemap.xml', (req, res) => {
   db.all(`SELECT id, updated FROM jewellers ORDER BY id`, (err, rows) => {
     const origin = (process.env.SITE_URL || `https://${req.get('host')}`).replace(/\/$/, '');
     const today  = new Date().toISOString().slice(0, 10);
+    // NB: /index.html deliberately excluded — canonical is / so
+    // shipping both would fragment link equity between them.
     const staticUrls = [
-      { loc: `${origin}/`,                 priority: '1.0', changefreq: 'hourly' },
-      { loc: `${origin}/index.html`,       priority: '0.9', changefreq: 'hourly' },
-      { loc: `${origin}/my-alerts.html`,   priority: '0.5', changefreq: 'monthly' },
+      { loc: `${origin}/`,                    priority: '1.0', changefreq: 'hourly',  lastmod: today },
+      { loc: `${origin}/compare.html`,        priority: '0.7', changefreq: 'daily',   lastmod: today },
+      { loc: `${origin}/my-alerts.html`,      priority: '0.5', changefreq: 'monthly', lastmod: today },
+      { loc: `${origin}/jeweller-signup.html`, priority: '0.4', changefreq: 'monthly', lastmod: today },
     ];
     const jewellerUrls = (err || !rows) ? [] : rows.map(r => ({
       loc:        `${origin}/jeweller.html?id=${r.id}`,
